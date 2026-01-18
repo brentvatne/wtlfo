@@ -1,25 +1,19 @@
-import { Stack } from "expo-router";
+import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { PresetProvider } from '@/src/context/preset-context';
 
 export default function RootLayout() {
   return (
-    <Stack
-      screenOptions={{
-        headerStyle: {
-          backgroundColor: '#0a0a0a',
-        },
-        headerTintColor: '#ff6600',
-        headerTitleStyle: {
-          fontWeight: '600',
-          color: '#ffffff',
-        },
-      }}
-    >
-      <Stack.Screen
-        name="index"
-        options={{
-          title: "Elektron LFO Visualizer",
-        }}
-      />
-    </Stack>
+    <PresetProvider>
+      <NativeTabs>
+        <NativeTabs.Trigger name="(home)">
+          <Icon sf={{ default: 'waveform', selected: 'waveform' }} />
+          <Label>LFO</Label>
+        </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="(settings)">
+          <Icon sf={{ default: 'gear', selected: 'gear' }} />
+          <Label>Settings</Label>
+        </NativeTabs.Trigger>
+      </NativeTabs>
+    </PresetProvider>
   );
 }
