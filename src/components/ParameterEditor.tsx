@@ -1,5 +1,5 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from './controls';
 import { usePreset } from '@/src/context/preset-context';
@@ -15,84 +15,110 @@ function formatMultiplier(value: number): string {
   return String(value);
 }
 
-export function ParameterEditor() {
+export function QuickEditPanel() {
   const { currentConfig, updateParameter } = usePreset();
+  const [expanded, setExpanded] = useState(false);
 
   return (
     <View style={styles.container}>
-      <Text style={styles.title}>Parameters</Text>
+      <Pressable
+        onPress={() => setExpanded(!expanded)}
+        style={styles.header}
+      >
+        <Text style={styles.title}>Quick Edit</Text>
+        <Text style={styles.chevron}>{expanded ? '▼' : '▶'}</Text>
+      </Pressable>
 
-      <SegmentedControl
-        label="Waveform"
-        options={WAVEFORMS}
-        value={currentConfig.waveform}
-        onChange={(value) => updateParameter('waveform', value)}
-      />
+      {expanded && (
+        <View style={styles.content}>
+          <SegmentedControl
+            label="Waveform"
+            options={WAVEFORMS}
+            value={currentConfig.waveform}
+            onChange={(value) => updateParameter('waveform', value)}
+          />
 
-      <SegmentedControl
-        label="Mode"
-        options={MODES}
-        value={currentConfig.mode}
-        onChange={(value) => updateParameter('mode', value)}
-      />
+          <SegmentedControl
+            label="Mode"
+            options={MODES}
+            value={currentConfig.mode}
+            onChange={(value) => updateParameter('mode', value)}
+          />
 
-      <ParameterSlider
-        label="Speed"
-        min={-64}
-        max={63}
-        value={currentConfig.speed}
-        onChange={(value) => updateParameter('speed', Math.round(value))}
-        formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
-      />
+          <ParameterSlider
+            label="Speed"
+            min={-64}
+            max={63}
+            value={currentConfig.speed}
+            onChange={(value) => updateParameter('speed', Math.round(value))}
+            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+          />
 
-      <SegmentedControl
-        label="Multiplier"
-        options={MULTIPLIERS}
-        value={currentConfig.multiplier}
-        onChange={(value) => updateParameter('multiplier', value)}
-        formatOption={formatMultiplier}
-      />
+          <SegmentedControl
+            label="Multiplier"
+            options={MULTIPLIERS}
+            value={currentConfig.multiplier}
+            onChange={(value) => updateParameter('multiplier', value)}
+            formatOption={formatMultiplier}
+          />
 
-      <ParameterSlider
-        label="Depth"
-        min={-64}
-        max={63}
-        value={currentConfig.depth}
-        onChange={(value) => updateParameter('depth', Math.round(value))}
-        formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
-      />
+          <ParameterSlider
+            label="Depth"
+            min={-64}
+            max={63}
+            value={currentConfig.depth}
+            onChange={(value) => updateParameter('depth', Math.round(value))}
+            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+          />
 
-      <ParameterSlider
-        label="Fade"
-        min={-64}
-        max={63}
-        value={currentConfig.fade}
-        onChange={(value) => updateParameter('fade', Math.round(value))}
-        formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
-      />
+          <ParameterSlider
+            label="Fade"
+            min={-64}
+            max={63}
+            value={currentConfig.fade}
+            onChange={(value) => updateParameter('fade', Math.round(value))}
+            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+          />
 
-      <ParameterSlider
-        label="Start Phase"
-        min={0}
-        max={127}
-        value={currentConfig.startPhase}
-        onChange={(value) => updateParameter('startPhase', Math.round(value))}
-      />
+          <ParameterSlider
+            label="Start Phase"
+            min={0}
+            max={127}
+            value={currentConfig.startPhase}
+            onChange={(value) => updateParameter('startPhase', Math.round(value))}
+          />
+        </View>
+      )}
     </View>
   );
 }
+
+// Keep the old export name for backwards compatibility
+export const ParameterEditor = QuickEditPanel;
 
 const styles = StyleSheet.create({
   container: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
+    overflow: 'hidden',
+  },
+  header: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
     padding: 16,
-    marginBottom: 16,
   },
   title: {
     fontSize: 18,
     fontWeight: '600',
     color: '#ffffff',
-    marginBottom: 16,
+  },
+  chevron: {
+    fontSize: 16,
+    color: '#888899',
+  },
+  content: {
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });

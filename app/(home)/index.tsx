@@ -4,9 +4,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
-import { ParameterEditor } from '@/src/components/ParameterEditor';
+import { QuickEditPanel } from '@/src/components/ParameterEditor';
 import { usePreset } from '@/src/context/preset-context';
-import { BPM } from '@/src/data/presets';
 
 // All available waveforms for the gallery
 const WAVEFORMS: WaveformType[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
@@ -66,7 +65,7 @@ function WaveformPreview({ waveform, bpm }: { waveform: WaveformType; bpm: numbe
 }
 
 export default function HomeScreen() {
-  const { currentConfig } = usePreset();
+  const { currentConfig, bpm } = usePreset();
 
   // Collapsible section state
   const [waveformsExpanded, setWaveformsExpanded] = useState(false);
@@ -89,7 +88,7 @@ export default function HomeScreen() {
 
   // Create/recreate LFO when config changes
   useEffect(() => {
-    lfoRef.current = new LFO(currentConfig, BPM);
+    lfoRef.current = new LFO(currentConfig, bpm);
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
@@ -102,7 +101,7 @@ export default function HomeScreen() {
     if (currentConfig.mode === 'TRG' || currentConfig.mode === 'ONE' || currentConfig.mode === 'HLF') {
       lfoRef.current.trigger();
     }
-  }, [currentConfig]);
+  }, [currentConfig, bpm]);
 
   // Animation loop
   useEffect(() => {
@@ -144,7 +143,7 @@ export default function HomeScreen() {
           mode={currentConfig.mode as TriggerMode}
           depth={currentConfig.depth}
           fade={currentConfig.fade}
-          bpm={BPM}
+          bpm={bpm}
           cycleTimeMs={timingInfo.cycleTimeMs}
           noteValue={timingInfo.noteValue}
           width={340}
@@ -157,8 +156,8 @@ export default function HomeScreen() {
         />
       </Pressable>
 
-      {/* Parameter Editor */}
-      <ParameterEditor />
+      {/* Quick Edit Panel */}
+      <QuickEditPanel />
 
       {/* Waveform Gallery - Collapsible */}
       <View
@@ -188,7 +187,7 @@ export default function HomeScreen() {
         {waveformsExpanded && (
           <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', paddingHorizontal: 16, paddingBottom: 16 }}>
             {WAVEFORMS.map((waveform) => (
-              <WaveformPreview key={waveform} waveform={waveform} bpm={BPM} />
+              <WaveformPreview key={waveform} waveform={waveform} bpm={bpm} />
             ))}
           </View>
         )}
