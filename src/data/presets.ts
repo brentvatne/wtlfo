@@ -19,7 +19,7 @@ export const PRESETS: LFOPreset[] = [
   {
     name: 'Init',
     config: {
-      waveform: 'TRI',
+      waveform: 'SIN',
       speed: 16,
       multiplier: 16 as Multiplier,
       startPhase: 0,

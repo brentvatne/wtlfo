@@ -7,9 +7,10 @@ import type { WaveformType } from '../types';
  */
 function sampleWaveform(waveform: WaveformType, phase: number): number {
   switch (waveform) {
-    case 'TRI': // Triangle - Bipolar (-1 → 1 → -1)
-      // Symmetric triangle: starts at -1, peaks at 1 in middle, ends at -1
-      return 1 - Math.abs(phase - 0.5) * 4;
+    case 'TRI': // Triangle - Bipolar (0 → +1 → -1 → 0)
+      if (phase < 0.25) return phase * 4;           // 0 to +1
+      if (phase < 0.75) return 1 - (phase - 0.25) * 4; // +1 to -1
+      return -1 + (phase - 0.75) * 4;               // -1 to 0
 
     case 'SIN': // Sine - Bipolar
       return Math.sin(phase * 2 * Math.PI);
