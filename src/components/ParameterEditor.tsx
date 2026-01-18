@@ -62,6 +62,13 @@ export function QuickEditPanel() {
             formatOption={formatMultiplier}
           />
 
+          <SegmentedControl
+            label="Tempo Sync"
+            options={['BPM', '120'] as const}
+            value={currentConfig.useFixedBPM ? '120' : 'BPM'}
+            onChange={(value) => updateParameter('useFixedBPM', value === '120')}
+          />
+
           <ParameterSlider
             label="Depth"
             min={-64}

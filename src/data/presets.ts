@@ -4,6 +4,7 @@ export interface LFOPresetConfig {
   waveform: Waveform;
   speed: number;
   multiplier: Multiplier;
+  useFixedBPM: boolean; // true = fixed 120 BPM, false = synced to project BPM
   startPhase: number;
   mode: TriggerMode;
   depth: number;
@@ -22,6 +23,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'SIN',
       speed: 16,
       multiplier: 16 as Multiplier,
+      useFixedBPM: false,
       startPhase: 0,
       mode: 'FRE',
       depth: 63,
@@ -34,6 +36,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'SIN',
       speed: 16,
       multiplier: 8 as Multiplier,
+      useFixedBPM: false,
       startPhase: 32,
       mode: 'TRG',
       depth: 48,
@@ -46,6 +49,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'SIN',
       speed: 1,
       multiplier: 1 as Multiplier,
+      useFixedBPM: false,
       startPhase: 0,
       mode: 'FRE',
       depth: 24,
@@ -58,6 +62,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'RND',
       speed: 32,
       multiplier: 64 as Multiplier,
+      useFixedBPM: false,
       startPhase: 0,
       mode: 'FRE',
       depth: 12,
@@ -70,6 +75,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'EXP',
       speed: 32,
       multiplier: 4 as Multiplier,
+      useFixedBPM: false,
       startPhase: 0,
       mode: 'TRG',
       depth: -63,
@@ -82,6 +88,7 @@ export const PRESETS: LFOPreset[] = [
       waveform: 'RMP',
       speed: 8,
       multiplier: 16 as Multiplier,
+      useFixedBPM: false,
       startPhase: 0,
       mode: 'ONE',
       depth: 63,

@@ -1,10 +1,11 @@
 import React, { useEffect, useRef, useState } from 'react';
-import { View, ScrollView, Text, Pressable } from 'react-native';
+import { View, ScrollView, Text, Pressable, useWindowDimensions } from 'react-native';
 import { useSharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { QuickEditPanel } from '@/src/components/ParameterEditor';
+import { ParamGrid } from '@/src/components/params';
 import { usePreset } from '@/src/context/preset-context';
 
 // All available waveforms for the gallery
@@ -66,6 +67,10 @@ function WaveformPreview({ waveform, bpm }: { waveform: WaveformType; bpm: numbe
 
 export default function HomeScreen() {
   const { currentConfig, bpm } = usePreset();
+  const { width: screenWidth } = useWindowDimensions();
+
+  // Calculate visualizer width to match ParamGrid (screen width minus padding)
+  const visualizerWidth = screenWidth - 40; // 20px padding on each side
 
   // Collapsible section state
   const [waveformsExpanded, setWaveformsExpanded] = useState(false);
@@ -131,8 +136,11 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
+      {/* Parameter Grid - Elektron style */}
+      <ParamGrid />
+
       {/* Main Visualizer - tap to trigger */}
-      <Pressable style={{ alignItems: 'center', marginBottom: 24 }} onPress={handleTrigger}>
+      <Pressable style={{ marginTop: 8, marginBottom: 24 }} onPress={handleTrigger}>
         <LFOVisualizer
           phase={phase}
           output={output}
@@ -146,10 +154,10 @@ export default function HomeScreen() {
           bpm={bpm}
           cycleTimeMs={timingInfo.cycleTimeMs}
           noteValue={timingInfo.noteValue}
-          width={340}
+          width={visualizerWidth}
           height={280}
           theme={ELEKTRON_THEME}
-          showParameters={true}
+          showParameters={false}
           showTiming={true}
           showOutput={true}
           strokeWidth={2.5}
