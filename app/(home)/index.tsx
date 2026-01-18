@@ -52,8 +52,8 @@ function WaveformPreview({ waveform, bpm }: { waveform: WaveformType; bpm: numbe
         phase={phase}
         output={output}
         waveform={waveform}
-        width={160}
-        height={100}
+        width={145}
+        height={90}
         theme="dark"
         showParameters={false}
         showTiming={false}
@@ -66,6 +66,9 @@ function WaveformPreview({ waveform, bpm }: { waveform: WaveformType; bpm: numbe
 
 export default function HomeScreen() {
   const { preset, activePreset } = usePreset();
+
+  // Collapsible section state
+  const [waveformsExpanded, setWaveformsExpanded] = useState(false);
 
   // Shared values for animation
   const phase = useSharedValue(0);
@@ -153,14 +156,38 @@ export default function HomeScreen() {
         />
       </Pressable>
 
-      {/* Waveform Gallery */}
-      <Text style={{ fontSize: 18, fontWeight: '600', color: '#ffffff', marginBottom: 12, marginTop: 8 }}>
-        All Waveforms
-      </Text>
-      <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center' }}>
-        {WAVEFORMS.map((waveform) => (
-          <WaveformPreview key={waveform} waveform={waveform} bpm={BPM} />
-        ))}
+      {/* Waveform Gallery - Collapsible */}
+      <View
+        style={{
+          backgroundColor: '#1a1a1a',
+          borderRadius: 12,
+          marginTop: 8,
+          overflow: 'hidden',
+        }}
+      >
+        <Pressable
+          onPress={() => setWaveformsExpanded(!waveformsExpanded)}
+          style={{
+            flexDirection: 'row',
+            alignItems: 'center',
+            justifyContent: 'space-between',
+            padding: 16,
+          }}
+        >
+          <Text style={{ fontSize: 18, fontWeight: '600', color: '#ffffff' }}>
+            All Waveforms
+          </Text>
+          <Text style={{ fontSize: 16, color: '#888899' }}>
+            {waveformsExpanded ? '▼' : '▶'}
+          </Text>
+        </Pressable>
+        {waveformsExpanded && (
+          <View style={{ flexDirection: 'row', flexWrap: 'wrap', gap: 12, justifyContent: 'center', paddingHorizontal: 16, paddingBottom: 16 }}>
+            {WAVEFORMS.map((waveform) => (
+              <WaveformPreview key={waveform} waveform={waveform} bpm={BPM} />
+            ))}
+          </View>
+        )}
       </View>
     </ScrollView>
   );
