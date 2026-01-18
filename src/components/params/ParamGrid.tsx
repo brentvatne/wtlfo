@@ -24,7 +24,7 @@ function formatValue(key: ParamKey, value: number | string, useFixedBPM?: boolea
     case 'multiplier':
       const mult = Number(value);
       const base = mult >= 1024 ? `${mult / 1024}k` : String(mult);
-      return useFixedBPM ? base : `${base} BPM`;
+      return useFixedBPM ? base : `BPM ${base}`;
     case 'startPhase':
       return String(value);
     default:
