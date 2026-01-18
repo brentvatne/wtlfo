@@ -181,16 +181,47 @@ Each multiplier also has a "dot" variant (displayed with a dot suffix) that lock
 
 **Behavior:**
 - Controls the intensity and polarity of LFO modulation
-- **0.00**: No modulation (LFO has no effect)
-- **Positive values**: Normal modulation direction
-- **Negative values**: Inverted modulation direction
+- **0.00**: No modulation (LFO has no effect, but LFO continues running internally)
+- **Positive values**: Normal modulation direction, amplitude scaled by depth/63
+- **Negative values**: Inverted modulation direction, amplitude scaled by |depth|/63
 
 **Calculation:**
 ```
-modulation_output = lfo_value * (depth / 64.0)
+modulation_output = lfo_value * (depth / 63.0)
 ```
 
 Where `lfo_value` is the raw LFO output (-1 to +1 for bipolar, 0 to +1 for unipolar).
+
+#### Depth Scaling and Inversion
+
+**Key insight:** Waveform shapes do NOT change with depth - only amplitude and polarity change. The depth parameter acts as a linear scaling factor with sign-based inversion.
+
+**Bipolar Waveforms (TRI, SIN, SQR, SAW, RND):**
+
+| Waveform | depth=+63 | depth=0 | depth=-63 |
+|----------|-----------|---------|-----------|
+| **TRI** | -1→+1→-1 (normal) | 0 | +1→-1→+1 (inverted) |
+| **SIN** | Standard sine (±1) | 0 | Inverted sine (±1) |
+| **SQR** | +1 / -1 pulse | 0 | -1 / +1 pulse |
+| **SAW** | -1→+1 rising | 0 | +1→-1 falling |
+| **RND** | ±1 random steps | 0 | ±1 inverted random |
+
+**Unipolar Waveforms (EXP, RMP):**
+
+These waveforms output 0 to +1 in their raw form. With negative depth, they extend into negative territory:
+
+| Waveform | depth=+63 | depth=0 | depth=-63 |
+|----------|-----------|---------|-----------|
+| **EXP** | 0→+1 curve | 0 | 0→-1 inverted curve |
+| **RMP** | +1→0 linear | 0 | -1→0 inverted linear |
+
+**Practical Example - SAW waveform:**
+- Raw SAW outputs -1 to +1 (rising)
+- With depth=+63: Output is -1 to +1 (rising sawtooth)
+- With depth=-63: Output is +1 to -1 (falling sawtooth)
+- The Elektron manual diagram showing a "falling" SAW is displaying SAW with negative depth
+
+**Note on Asymmetry:** The depth range is -64 to +63 (not -63 to +63). This means negative depth can reach slightly higher magnitude than positive. With depth=-64, the scaling factor is -64/63 ≈ -1.016, which produces output slightly greater than 1.0 in magnitude.
 
 ---
 
