@@ -4,6 +4,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
+import { ParameterEditor } from '@/src/components/ParameterEditor';
 import { usePreset } from '@/src/context/preset-context';
 import { BPM } from '@/src/data/presets';
 
@@ -65,7 +66,7 @@ function WaveformPreview({ waveform, bpm }: { waveform: WaveformType; bpm: numbe
 }
 
 export default function HomeScreen() {
-  const { preset, activePreset } = usePreset();
+  const { currentConfig } = usePreset();
 
   // Collapsible section state
   const [waveformsExpanded, setWaveformsExpanded] = useState(false);
@@ -86,9 +87,9 @@ export default function HomeScreen() {
   // Animation frame ref for cleanup
   const animationRef = useRef<number>(0);
 
-  // Create/recreate LFO when preset changes
+  // Create/recreate LFO when config changes
   useEffect(() => {
-    lfoRef.current = new LFO(preset.config, BPM);
+    lfoRef.current = new LFO(currentConfig, BPM);
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
@@ -98,10 +99,10 @@ export default function HomeScreen() {
     });
 
     // Auto-trigger for modes that need it
-    if (preset.config.mode === 'TRG' || preset.config.mode === 'ONE' || preset.config.mode === 'HLF') {
+    if (currentConfig.mode === 'TRG' || currentConfig.mode === 'ONE' || currentConfig.mode === 'HLF') {
       lfoRef.current.trigger();
     }
-  }, [activePreset, preset.config]);
+  }, [currentConfig]);
 
   // Animation loop
   useEffect(() => {
@@ -136,13 +137,13 @@ export default function HomeScreen() {
         <LFOVisualizer
           phase={phase}
           output={output}
-          waveform={preset.config.waveform as WaveformType}
-          speed={preset.config.speed}
-          multiplier={preset.config.multiplier}
-          startPhase={preset.config.startPhase}
-          mode={preset.config.mode as TriggerMode}
-          depth={preset.config.depth}
-          fade={preset.config.fade}
+          waveform={currentConfig.waveform as WaveformType}
+          speed={currentConfig.speed}
+          multiplier={currentConfig.multiplier}
+          startPhase={currentConfig.startPhase}
+          mode={currentConfig.mode as TriggerMode}
+          depth={currentConfig.depth}
+          fade={currentConfig.fade}
           bpm={BPM}
           cycleTimeMs={timingInfo.cycleTimeMs}
           noteValue={timingInfo.noteValue}
@@ -155,6 +156,9 @@ export default function HomeScreen() {
           strokeWidth={2.5}
         />
       </Pressable>
+
+      {/* Parameter Editor */}
+      <ParameterEditor />
 
       {/* Waveform Gallery - Collapsible */}
       <View

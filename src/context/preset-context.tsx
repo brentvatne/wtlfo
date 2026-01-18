@@ -1,6 +1,6 @@
-import React, { createContext, useState, useCallback } from 'react';
+import React, { createContext, useState, useCallback, useEffect } from 'react';
 import { Storage } from 'expo-sqlite/kv-store';
-import { PRESETS, type LFOPreset } from '@/src/data/presets';
+import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 
 const STORAGE_KEY = 'activePreset';
 
@@ -25,12 +25,18 @@ interface PresetContextValue {
   preset: LFOPreset;
   setActivePreset: (index: number) => void;
   presets: LFOPreset[];
+  currentConfig: LFOPresetConfig;
+  updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
+  resetToPreset: () => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [activePreset, setActivePresetState] = useState(getInitialPreset);
+  const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(
+    () => ({ ...PRESETS[getInitialPreset()].config })
+  );
 
   const setActivePreset = useCallback((index: number) => {
     setActivePresetState(index);
@@ -42,11 +48,30 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Sync currentConfig when activePreset changes
+  useEffect(() => {
+    setCurrentConfig({ ...PRESETS[activePreset].config });
+  }, [activePreset]);
+
+  const updateParameter = useCallback(<K extends keyof LFOPresetConfig>(
+    key: K,
+    value: LFOPresetConfig[K]
+  ) => {
+    setCurrentConfig(prev => ({ ...prev, [key]: value }));
+  }, []);
+
+  const resetToPreset = useCallback(() => {
+    setCurrentConfig({ ...PRESETS[activePreset].config });
+  }, [activePreset]);
+
   const value: PresetContextValue = {
     activePreset,
     preset: PRESETS[activePreset],
     setActivePreset,
     presets: PRESETS,
+    currentConfig,
+    updateParameter,
+    resetToPreset,
   };
 
   return (
