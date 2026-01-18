@@ -128,11 +128,6 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* Current Preset Name */}
-      <Text style={{ color: '#888899', fontSize: 14, textAlign: 'center', marginBottom: 8 }}>
-        {preset.name}
-      </Text>
-
       {/* Main Visualizer with selected preset */}
       <View style={{ alignItems: 'center', marginBottom: 16 }}>
         <LFOVisualizer

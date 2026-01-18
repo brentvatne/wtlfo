@@ -1,7 +1,14 @@
 import { Stack, Link } from 'expo-router';
 import { Pressable, Text } from 'react-native';
+import { usePreset } from '@/src/context/preset-context';
 
 export default function HomeLayout() {
+  const { preset, setActivePreset } = usePreset();
+
+  const handleReset = () => {
+    setActivePreset(0); // Reset to first preset (default)
+  };
+
   return (
     <Stack
       screenOptions={{
@@ -18,7 +25,20 @@ export default function HomeLayout() {
       <Stack.Screen
         name="index"
         options={{
-          title: 'LFO Visualizer',
+          title: preset?.name || 'LFO',
+          headerLeft: () => (
+            <Pressable
+              onPress={handleReset}
+              style={{
+                paddingHorizontal: 12,
+                paddingVertical: 6,
+              }}
+            >
+              <Text style={{ color: '#ff6600', fontSize: 16, fontWeight: '600' }}>
+                Reset
+              </Text>
+            </Pressable>
+          ),
           headerRight: () => (
             <Link href="/presets" asChild>
               <Pressable
