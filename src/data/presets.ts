@@ -17,6 +17,18 @@ export interface LFOPreset {
 
 export const PRESETS: LFOPreset[] = [
   {
+    name: 'Init',
+    config: {
+      waveform: 'TRI',
+      speed: 16,
+      multiplier: 16 as Multiplier,
+      startPhase: 0,
+      mode: 'FRE',
+      depth: 63,
+      fade: 0,
+    },
+  },
+  {
     name: 'Wobble Bass',
     config: {
       waveform: 'SIN',
