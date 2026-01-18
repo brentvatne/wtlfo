@@ -12,8 +12,9 @@ export function WaveformDisplay({
   fillColor,
   resolution = 128,
   depth,
+  startPhase,
 }: WaveformDisplayProps) {
-  const path = useWaveformPath(waveform, width, height, resolution, 8, depth);
+  const path = useWaveformPath(waveform, width, height, resolution, 8, depth, startPhase);
 
   return (
     <>

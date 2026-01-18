@@ -9,6 +9,8 @@ interface RandomWaveformProps {
   strokeWidth: number;
   fillColor?: string;
   depth?: number;
+  /** Start phase offset (0-127) to shift display position */
+  startPhase?: number;
 }
 
 /**
@@ -23,9 +25,11 @@ export function RandomWaveform({
   strokeWidth,
   fillColor,
   depth,
+  startPhase,
 }: RandomWaveformProps) {
   const padding = 8;
   const depthScale = depth !== undefined ? depth / 63 : 1;
+  const startPhaseNormalized = (startPhase || 0) / 128;
 
   const path = useMemo(() => {
     const p = Skia.Path.Make();
@@ -39,13 +43,20 @@ export function RandomWaveform({
     const centerY = height / 2;
     const scaleY = -drawHeight / 2;
 
-    // Sort samples by phase
-    const sortedSamples = [...samples].sort((a, b) => a.phase - b.phase);
+    // Shift samples so startPhaseNormalized appears at x=0
+    // displayPhase = (sample.phase - startPhaseNormalized + 1) % 1
+    const shiftedSamples = samples.map(s => ({
+      ...s,
+      displayPhase: ((s.phase - startPhaseNormalized) % 1 + 1) % 1,
+    }));
+
+    // Sort by display phase for correct drawing order
+    shiftedSamples.sort((a, b) => a.displayPhase - b.displayPhase);
 
     // Draw stepped line through samples
-    for (let i = 0; i < sortedSamples.length; i++) {
-      const sample = sortedSamples[i];
-      const x = padding + sample.phase * drawWidth;
+    for (let i = 0; i < shiftedSamples.length; i++) {
+      const sample = shiftedSamples[i];
+      const x = padding + sample.displayPhase * drawWidth;
       const scaledValue = sample.value * depthScale;
       const y = centerY + scaledValue * scaleY;
 
@@ -55,7 +66,7 @@ export function RandomWaveform({
         p.lineTo(x, y);
       } else {
         // Horizontal line to this sample's x position at previous y
-        const prevY = centerY + sortedSamples[i - 1].value * depthScale * scaleY;
+        const prevY = centerY + shiftedSamples[i - 1].value * depthScale * scaleY;
         p.lineTo(x, prevY);
         // Vertical line to this sample's y
         p.lineTo(x, y);
@@ -63,14 +74,14 @@ export function RandomWaveform({
     }
 
     // Extend to right edge if we have samples
-    if (sortedSamples.length > 0) {
-      const lastSample = sortedSamples[sortedSamples.length - 1];
+    if (shiftedSamples.length > 0) {
+      const lastSample = shiftedSamples[shiftedSamples.length - 1];
       const lastY = centerY + lastSample.value * depthScale * scaleY;
       p.lineTo(padding + drawWidth, lastY);
     }
 
     return p;
-  }, [samples, width, height, depthScale]);
+  }, [samples, width, height, depthScale, startPhaseNormalized]);
 
   if (samples.length === 0) {
     return null;

@@ -21,8 +21,8 @@ export const PRESETS: LFOPreset[] = [
     name: 'Init',
     config: {
       waveform: 'SIN',
-      speed: 16,
-      multiplier: 16 as Multiplier,
+      speed: 48,
+      multiplier: 2 as Multiplier,
       useFixedBPM: false,
       startPhase: 0,
       mode: 'FRE',

@@ -112,6 +112,7 @@ export function LFOVisualizer({
               strokeWidth={strokeWidth}
               fillColor={resolvedTheme.waveformFill}
               depth={depth}
+              startPhase={startPhase}
             />
           ) : (
             <WaveformDisplay
@@ -123,6 +124,7 @@ export function LFOVisualizer({
               fillColor={resolvedTheme.waveformFill}
               resolution={128}
               depth={depth}
+              startPhase={startPhase}
             />
           )}
 
@@ -138,6 +140,7 @@ export function LFOVisualizer({
               fade={fade}
               strokeWidth={strokeWidth}
               resolution={128}
+              startPhase={startPhase}
             />
           )}
 
@@ -150,6 +153,7 @@ export function LFOVisualizer({
             color={resolvedTheme.phaseIndicator}
             showDot={true}
             dotRadius={6}
+            startPhase={startPhase}
           />
         </Group>
       </Canvas>

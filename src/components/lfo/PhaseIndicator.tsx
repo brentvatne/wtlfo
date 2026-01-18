@@ -11,21 +11,27 @@ export function PhaseIndicator({
   color,
   showDot = true,
   dotRadius = 6,
+  startPhase,
 }: PhaseIndicatorProps) {
   const padding = 8;
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2;
 
+  // Start phase offset (0-127 → 0.0-~1.0)
+  const startPhaseNormalized = (startPhase || 0) / 128;
+
   // Always use bipolar coordinate system (-1 to 1, centered) for consistency
   const centerY = height / 2;
   const scaleY = -drawHeight / 2;
 
-  // Animated X position based on phase
+  // Animated X position based on phase, shifted so startPhaseNormalized appears at x=0
   const xPosition = useDerivedValue(() => {
     'worklet';
     const phaseVal = typeof phase === 'number' ? phase : phase.value;
-    return padding + phaseVal * drawWidth;
-  }, [phase, padding, drawWidth]);
+    // Shift phase so startPhaseNormalized appears at x=0
+    const displayPhase = ((phaseVal - startPhaseNormalized) % 1 + 1) % 1;
+    return padding + displayPhase * drawWidth;
+  }, [phase, padding, drawWidth, startPhaseNormalized]);
 
   // Animated Y position based on output value
   // Note: centerY and scaleY are passed explicitly to ensure worklet gets current values

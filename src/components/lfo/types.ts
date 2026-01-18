@@ -113,6 +113,8 @@ export interface WaveformDisplayProps {
   resolution?: number;
   /** Depth value (-64 to +63) to scale/invert the waveform */
   depth?: number;
+  /** Start phase offset (0-127) to shift waveform display */
+  startPhase?: number;
 }
 
 /**
@@ -127,6 +129,8 @@ export interface PhaseIndicatorProps {
   /** Show the output value at the phase position */
   showDot?: boolean;
   dotRadius?: number;
+  /** Start phase offset (0-127) to shift indicator position */
+  startPhase?: number;
 }
 
 /**

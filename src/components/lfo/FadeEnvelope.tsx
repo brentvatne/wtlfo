@@ -12,6 +12,8 @@ interface FadeEnvelopeProps {
   depth?: number;
   fade?: number;
   strokeWidth?: number;
+  /** Start phase offset (0-127) to shift waveform display */
+  startPhase?: number;
 }
 
 /**
@@ -30,9 +32,11 @@ export function FadeEnvelope({
   depth,
   fade,
   strokeWidth = 2,
+  startPhase,
 }: FadeEnvelopeProps) {
   const padding = 8;
   const depthScale = depth !== undefined ? depth / 63 : 1;
+  const startPhaseNormalized = (startPhase || 0) / 128;
 
   // Create the path for the trajectory with fade applied
   const path = useMemo(() => {
@@ -43,8 +47,10 @@ export function FadeEnvelope({
     const scaleY = -drawHeight / 2;
 
     for (let i = 0; i <= resolution; i++) {
-      const phase = i / resolution;
-      let value = sampleWaveform(waveform, phase);
+      const xNormalized = i / resolution;
+      // Shift phase for waveform sampling (same as WaveformDisplay)
+      const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
+      let value = sampleWaveform(waveform, waveformPhase);
 
       // Apply depth scaling
       value = value * depthScale;
@@ -53,6 +59,7 @@ export function FadeEnvelope({
       // Fade duration is proportional to |fade| / 64
       // fade = -64 means instant (no fade), fade = -1 means slow fade over full cycle
       // fade = -32 means fade completes at phase 0.5
+      // Note: Fade uses visual position (xNormalized), not waveform phase
       if (fade !== undefined && fade !== 0) {
         const absFade = Math.abs(fade);
         // Fade completes when phase reaches (64 - absFade) / 64
@@ -64,15 +71,15 @@ export function FadeEnvelope({
         let fadeEnvelope: number;
         if (fade < 0) {
           // Fade-in: envelope goes from 0 to 1 over fadeDuration
-          fadeEnvelope = fadeDuration > 0 ? Math.min(1, phase / fadeDuration) : 1;
+          fadeEnvelope = fadeDuration > 0 ? Math.min(1, xNormalized / fadeDuration) : 1;
         } else {
           // Fade-out: envelope goes from 1 to 0 over fadeDuration
-          fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - phase / fadeDuration) : 0;
+          fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - xNormalized / fadeDuration) : 0;
         }
         value = value * fadeEnvelope;
       }
 
-      const x = padding + phase * drawWidth;
+      const x = padding + xNormalized * drawWidth;
       const y = centerY + value * scaleY;
 
       if (i === 0) {
@@ -83,7 +90,7 @@ export function FadeEnvelope({
     }
 
     return p;
-  }, [waveform, width, height, resolution, depthScale, fade]);
+  }, [waveform, width, height, resolution, depthScale, fade, startPhaseNormalized]);
 
   return (
     <Path
