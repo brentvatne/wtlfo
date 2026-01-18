@@ -77,7 +77,7 @@ export function LFOVisualizer({
   const canvasHeight = height - parameterHeight - timingHeight - outputHeight;
 
   return (
-    <View style={[styles.container, { width, backgroundColor: resolvedTheme.background }]}>
+    <View style={[styles.container, { width, backgroundColor: resolvedTheme.background }]} pointerEvents="none">
       {/* Parameter badges at top */}
       {showParameters && (
         <ParameterBadges
@@ -93,7 +93,7 @@ export function LFOVisualizer({
       )}
 
       {/* Main waveform canvas */}
-      <Canvas style={{ width, height: canvasHeight }}>
+      <Canvas style={{ width, height: canvasHeight }} pointerEvents="none">
         <Group>
           {/* Grid lines (optional background) */}
           <GridLines
