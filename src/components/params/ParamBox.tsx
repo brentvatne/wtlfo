@@ -20,8 +20,8 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
         disabled && styles.disabled,
       ]}
     >
-      <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
       <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
+      <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
 }
@@ -50,7 +50,7 @@ const styles = StyleSheet.create({
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
-    marginBottom: 2,
+    marginTop: 2,
   },
   value: {
     color: '#ffffff',
