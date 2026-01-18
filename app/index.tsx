@@ -136,9 +136,6 @@ export default function Index() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Text style={styles.title}>Digitakt II LFO Visualizer</Text>
-      <Text style={styles.subtitle}>Expo + React Native Skia</Text>
-
       {/* Main Visualizer with selected preset */}
       <View style={styles.visualizerContainer}>
         <LFOVisualizer
@@ -206,20 +203,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-    paddingTop: 60,
-  },
-  title: {
-    fontSize: 28,
-    fontWeight: '700',
-    color: '#ffffff',
-    textAlign: 'center',
-    marginBottom: 4,
-  },
-  subtitle: {
-    fontSize: 14,
-    color: '#888888',
-    textAlign: 'center',
-    marginBottom: 24,
   },
   visualizerContainer: {
     alignItems: 'center',
