@@ -19,6 +19,10 @@ export default function RootLayout() {
           <Icon sf={{ default: 'waveform', selected: 'waveform' }} />
           <Label>Editor</Label>
         </NativeTabs.Trigger>
+        <NativeTabs.Trigger name="(learn)">
+          <Icon sf={{ default: 'book', selected: 'book.fill' }} />
+          <Label>Learn</Label>
+        </NativeTabs.Trigger>
         <NativeTabs.Trigger name="(settings)">
           <Icon sf={{ default: 'gear', selected: 'gear' }} />
           <Label>Settings</Label>
