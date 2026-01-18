@@ -2,7 +2,6 @@ import React from 'react';
 import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
-import { isUnipolar } from './hooks/useWaveformPath';
 
 export function PhaseIndicator({
   phase,
@@ -18,23 +17,26 @@ export function PhaseIndicator({
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2;
 
-  // Determine if unipolar for Y calculation
-  const unipolar = waveform ? isUnipolar(waveform) : false;
-  const centerY = unipolar ? height - padding : height / 2;
-  const scaleY = unipolar ? -drawHeight : -drawHeight / 2;
+  // Check if unipolar (EXP or RMP waveforms)
+  const isUnipolar = waveform === 'EXP' || waveform === 'RMP';
+
+  // Pre-compute Y coordinate parameters
+  const centerY = isUnipolar ? height - padding : height / 2;
+  const scaleY = isUnipolar ? -drawHeight : -drawHeight / 2;
 
   // Animated X position based on phase
   const xPosition = useDerivedValue(() => {
     'worklet';
     const phaseVal = typeof phase === 'number' ? phase : phase.value;
     return padding + phaseVal * drawWidth;
-  }, [phase]);
+  }, [phase, padding, drawWidth]);
 
   // Animated Y position based on output value
+  // Note: centerY and scaleY are passed explicitly to ensure worklet gets current values
   const yPosition = useDerivedValue(() => {
     'worklet';
     return centerY + output.value * scaleY;
-  }, [output]);
+  }, [output, centerY, scaleY]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {
