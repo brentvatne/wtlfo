@@ -74,6 +74,44 @@ npx expo export -p web && npx eas-cli@latest deploy   # Deploy web to EAS Hostin
 - **Gestures**: `react-native-gesture-handler` for native gesture recognition
 - **Storage**: Use `expo-sqlite` for persistent storage, `expo-sqlite/kv-store` for simple key-value storage
 
+### React Native Reanimated Worklets
+
+**CRITICAL**: When using Reanimated's worklet-based APIs (`useDerivedValue`, `useAnimatedStyle`, `useAnimatedReaction`, `useFrameCallback`, etc.), any function called from within a worklet must also be a worklet.
+
+Worklets run on the UI thread in a **separate JavaScript runtime**. Regular JS functions cannot be called directly from worklets - this will cause a crash.
+
+**How to create worklet functions:**
+```typescript
+// Add 'worklet' directive as the first statement in the function body
+function myWorkletFunction(x: number): number {
+  'worklet';
+  return x * 2;
+}
+
+// Now it can be called from inside useDerivedValue, etc.
+const derived = useDerivedValue(() => {
+  'worklet';
+  return myWorkletFunction(someSharedValue.value);
+});
+```
+
+**Project pattern**: Worklet-compatible utility functions are in `src/components/lfo/worklets.ts`. Use functions like `sampleWaveformWorklet` (not `sampleWaveform`) when inside worklet contexts.
+
+**Common mistake to avoid:**
+```typescript
+// BAD - will crash! sampleWaveform is not a worklet
+const output = useDerivedValue(() => {
+  'worklet';
+  return sampleWaveform(waveform, phase.value); // CRASH
+});
+
+// GOOD - use the worklet version
+const output = useDerivedValue(() => {
+  'worklet';
+  return sampleWaveformWorklet(waveform, phase.value); // Works
+});
+```
+
 ## Debugging & Development Tools
 
 ### DevTools Integration
