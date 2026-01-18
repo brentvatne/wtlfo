@@ -128,8 +128,8 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* Main Visualizer with selected preset */}
-      <View style={{ alignItems: 'center', marginBottom: 16 }}>
+      {/* Main Visualizer - tap to trigger */}
+      <Pressable style={{ alignItems: 'center', marginBottom: 24 }} onPress={handleTrigger}>
         <LFOVisualizer
           phase={phase}
           output={output}
@@ -151,24 +151,7 @@ export default function HomeScreen() {
           showOutput={true}
           strokeWidth={2.5}
         />
-      </View>
-
-      {/* Trigger Button */}
-      <View style={{ alignItems: 'center', marginBottom: 24 }}>
-        <Pressable
-          style={{
-            backgroundColor: '#ff6600',
-            paddingHorizontal: 32,
-            paddingVertical: 12,
-            borderRadius: 8,
-          }}
-          onPress={handleTrigger}
-        >
-          <Text style={{ color: '#ffffff', fontSize: 16, fontWeight: '700', letterSpacing: 1 }}>
-            TRIGGER
-          </Text>
-        </Pressable>
-      </View>
+      </Pressable>
 
       {/* Waveform Gallery */}
       <Text style={{ fontSize: 18, fontWeight: '600', color: '#ffffff', marginBottom: 12, marginTop: 8 }}>
