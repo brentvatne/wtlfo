@@ -64,6 +64,14 @@ export default function HomeLayout() {
           sheetAllowedDetents: [0.5, 0.75],
         }}
       />
+      <Stack.Screen
+        name="param/[param]"
+        options={{
+          presentation: 'formSheet',
+          sheetGrabberVisible: true,
+          sheetAllowedDetents: [0.35, 0.5],
+        }}
+      />
     </Stack>
   );
 }

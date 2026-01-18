@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, StyleSheet } from 'react-native';
+import { useRouter } from 'expo-router';
 import { ParamBox } from './ParamBox';
 import { usePreset } from '@/src/context/preset-context';
 
@@ -44,8 +45,10 @@ const PARAM_LABELS: Record<ParamKey, string> = {
 
 export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   const { currentConfig } = usePreset();
+  const router = useRouter();
 
   const handlePress = (param: ParamKey) => {
+    router.push(`/param/${param}`);
     onParamPress?.(param);
   };
 
@@ -70,6 +73,7 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
           value={formatValue('fade', currentConfig.fade)}
           onPress={() => handlePress('fade')}
           isActive={activeParam === 'fade'}
+          disabled={currentConfig.mode === 'FRE'}
         />
         <ParamBox
           label={PARAM_LABELS.destination}

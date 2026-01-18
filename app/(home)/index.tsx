@@ -75,6 +75,9 @@ export default function HomeScreen() {
   // Collapsible section state
   const [waveformsExpanded, setWaveformsExpanded] = useState(false);
 
+  // Manual pause state for tap-to-pause functionality
+  const [isPaused, setIsPaused] = useState(false);
+
   // Shared values for animation
   const phase = useSharedValue(0);
   const output = useSharedValue(0);
@@ -94,6 +97,9 @@ export default function HomeScreen() {
   // Create/recreate LFO when config changes
   useEffect(() => {
     lfoRef.current = new LFO(currentConfig, bpm);
+
+    // Reset pause state when config changes
+    setIsPaused(false);
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
@@ -123,10 +129,23 @@ export default function HomeScreen() {
     return () => cancelAnimationFrame(animationRef.current);
   }, [phase, output]);
 
-  // Trigger handler
-  const handleTrigger = () => {
-    if (lfoRef.current) {
+  // Tap handler - pause/play/restart logic
+  const handleTap = () => {
+    if (!lfoRef.current) return;
+
+    const isRunning = lfoRef.current.isRunning();
+
+    if (isPaused) {
+      // Resume from manual pause
+      lfoRef.current.start();
+      setIsPaused(false);
+    } else if (!isRunning) {
+      // Stopped (ONE/HLF completed) - restart
       lfoRef.current.trigger();
+    } else {
+      // Currently running - pause it
+      lfoRef.current.stop();
+      setIsPaused(true);
     }
   };
 
@@ -139,8 +158,8 @@ export default function HomeScreen() {
       {/* Parameter Grid - Elektron style */}
       <ParamGrid />
 
-      {/* Main Visualizer - tap to trigger */}
-      <Pressable style={{ marginTop: 8, marginBottom: 24 }} onPress={handleTrigger}>
+      {/* Main Visualizer - tap to pause/play/restart */}
+      <Pressable style={{ marginTop: 8, marginBottom: 24 }} onPress={handleTap}>
         <LFOVisualizer
           phase={phase}
           output={output}

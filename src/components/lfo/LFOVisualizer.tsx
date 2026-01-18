@@ -127,7 +127,8 @@ export function LFOVisualizer({
           )}
 
           {/* Fade trajectory curve - shows path with fade envelope applied */}
-          {fade !== undefined && fade !== 0 && resolvedTheme.fadeCurve && (
+          {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
+          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
             <FadeEnvelope
               waveform={waveform}
               width={width}

@@ -3,6 +3,8 @@ import { Storage } from 'expo-sqlite/kv-store';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 
 const STORAGE_KEY = 'activePreset';
+const BPM_STORAGE_KEY = 'bpm';
+const DEFAULT_BPM = 120;
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -20,6 +22,22 @@ function getInitialPreset(): number {
   return 0;
 }
 
+// Load initial BPM synchronously
+function getInitialBPM(): number {
+  try {
+    const saved = Storage.getItemSync(BPM_STORAGE_KEY);
+    if (saved !== null) {
+      const bpm = parseInt(saved, 10);
+      if (!isNaN(bpm) && bpm >= 20 && bpm <= 300) {
+        return bpm;
+      }
+    }
+  } catch {
+    console.warn('Failed to load saved BPM');
+  }
+  return DEFAULT_BPM;
+}
+
 interface PresetContextValue {
   activePreset: number;
   preset: LFOPreset;
@@ -28,6 +46,8 @@ interface PresetContextValue {
   currentConfig: LFOPresetConfig;
   updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
   resetToPreset: () => void;
+  bpm: number;
+  setBPM: (bpm: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -37,6 +57,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(
     () => ({ ...PRESETS[getInitialPreset()].config })
   );
+  const [bpm, setBPMState] = useState(getInitialBPM);
 
   const setActivePreset = useCallback((index: number) => {
     setActivePresetState(index);
@@ -45,6 +66,16 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(STORAGE_KEY, String(index));
     } catch {
       console.warn('Failed to save preset');
+    }
+  }, []);
+
+  const setBPM = useCallback((newBPM: number) => {
+    const clampedBPM = Math.max(20, Math.min(300, Math.round(newBPM)));
+    setBPMState(clampedBPM);
+    try {
+      Storage.setItemSync(BPM_STORAGE_KEY, String(clampedBPM));
+    } catch {
+      console.warn('Failed to save BPM');
     }
   }, []);
 
@@ -72,6 +103,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     currentConfig,
     updateParameter,
     resetToPreset,
+    bpm,
+    setBPM,
   };
 
   return (
