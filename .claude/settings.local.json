@@ -1,0 +1,16 @@
+{
+  "permissions": {
+    "allow": [
+      "mcp__expo-mcp__generate_claude_md",
+      "mcp__expo-mcp__generate_agents_md",
+      "mcp__expo-mcp__search_documentation",
+      "Bash(claude /plugin marketplace remove:*)",
+      "mcp__expo-mcp__add_library",
+      "Bash(npx expo install:*)",
+      "Bash(npx tsc:*)",
+      "Bash(npx expo lint:*)",
+      "Bash(git add:*)",
+      "Bash(git commit:*)"
+    ]
+  }
+}

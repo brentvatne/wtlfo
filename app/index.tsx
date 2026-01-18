@@ -2,14 +2,14 @@ import React, { useEffect, useState } from 'react';
 import { View, StyleSheet, ScrollView, Text, Pressable } from 'react-native';
 import { useSharedValue, withRepeat, withTiming, useDerivedValue, Easing, cancelAnimation } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
-import { LFOVisualizer, sampleWaveform, ELEKTRON_THEME } from '@/src/components/lfo';
+import { LFOVisualizer, sampleWaveformWorklet, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 
 // Separate component to properly use hooks for each waveform preview
 function WaveformPreview({ waveform, phase }: { waveform: WaveformType; phase: SharedValue<number> }) {
   const output = useDerivedValue(() => {
     'worklet';
-    return sampleWaveform(waveform, phase.value);
+    return sampleWaveformWorklet(waveform, phase.value);
   }, [waveform]);
 
   return (
@@ -108,7 +108,7 @@ export default function Index() {
   // Calculate derived output based on phase and waveform
   const output = useDerivedValue(() => {
     'worklet';
-    return sampleWaveform(preset.waveform, phase.value);
+    return sampleWaveformWorklet(preset.waveform, phase.value);
   }, [preset.waveform]);
 
   // Animate phase based on preset cycle time

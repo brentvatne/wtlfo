@@ -12,6 +12,9 @@ export { OutputValueDisplay } from './OutputValueDisplay';
 // Hooks
 export { useWaveformPath, isUnipolar, sampleWaveform } from './hooks/useWaveformPath';
 
+// Worklets (for use inside Reanimated worklets)
+export { sampleWaveformWorklet, isUnipolarWorklet } from './worklets';
+
 // Types
 export type {
   LFOVisualizerProps,
