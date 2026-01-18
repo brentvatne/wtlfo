@@ -11,8 +11,9 @@ export function WaveformDisplay({
   strokeWidth,
   fillColor,
   resolution = 128,
+  depth,
 }: WaveformDisplayProps) {
-  const path = useWaveformPath(waveform, width, height, resolution);
+  const path = useWaveformPath(waveform, width, height, resolution, 8, depth);
 
   return (
     <>

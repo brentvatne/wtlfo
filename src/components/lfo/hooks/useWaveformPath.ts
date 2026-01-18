@@ -7,10 +7,9 @@ import type { WaveformType } from '../types';
  */
 function sampleWaveform(waveform: WaveformType, phase: number): number {
   switch (waveform) {
-    case 'TRI': // Triangle - Bipolar
-      if (phase < 0.25) return phase * 4;
-      if (phase < 0.75) return 1 - (phase - 0.25) * 4;
-      return -1 + (phase - 0.75) * 4;
+    case 'TRI': // Triangle - Bipolar (-1 → 1 → -1)
+      // Symmetric triangle: starts at -1, peaks at 1 in middle, ends at -1
+      return 1 - Math.abs(phase - 0.5) * 4;
 
     case 'SIN': // Sine - Bipolar
       return Math.sin(phase * 2 * Math.PI);
@@ -49,35 +48,40 @@ export function isUnipolar(waveform: WaveformType): boolean {
 
 /**
  * Hook to generate a Skia Path for the waveform
+ *
+ * Uses bipolar coordinate system (-1 to 1, centered).
+ * Applies depth scaling to show the actual output shape.
+ *
+ * @param depth - Optional depth value (-64 to +63). Scales and potentially inverts the waveform.
  */
 export function useWaveformPath(
   waveform: WaveformType,
   width: number,
   height: number,
   resolution: number = 128,
-  padding: number = 8
+  padding: number = 8,
+  depth?: number
 ): SkPath {
   return useMemo(() => {
     const path = Skia.Path.Make();
-    const unipolar = isUnipolar(waveform);
 
     // Calculate drawable area
     const drawWidth = width - padding * 2;
     const drawHeight = height - padding * 2;
 
-    // Center Y for bipolar, bottom for unipolar
-    const centerY = unipolar
-      ? height - padding  // Unipolar: 0 at bottom
-      : height / 2;       // Bipolar: 0 at center
+    // Always use centered (bipolar) coordinate system
+    const centerY = height / 2;
+    const scaleY = -drawHeight / 2;
 
-    // Scale factor for Y
-    const scaleY = unipolar
-      ? -drawHeight        // Unipolar: full height upward
-      : -drawHeight / 2;   // Bipolar: half height each direction
+    // Depth scaling (depth/63 gives -1 to 1 range)
+    const depthScale = depth !== undefined ? depth / 63 : 1;
 
     for (let i = 0; i <= resolution; i++) {
       const phase = i / resolution;
-      const value = sampleWaveform(waveform, phase);
+      let value = sampleWaveform(waveform, phase);
+
+      // Apply depth scaling
+      value = value * depthScale;
 
       const x = padding + phase * drawWidth;
       const y = centerY + value * scaleY;
@@ -90,7 +94,7 @@ export function useWaveformPath(
     }
 
     return path;
-  }, [waveform, width, height, resolution, padding]);
+  }, [waveform, width, height, resolution, padding, depth]);
 }
 
 export { sampleWaveform };

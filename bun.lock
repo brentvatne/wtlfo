@@ -9,6 +9,7 @@
         "@react-navigation/elements": "^2.6.3",
         "@react-navigation/native": "^7.1.8",
         "@shopify/react-native-skia": "2.2.12",
+        "elektron-lfo": "1.0.1",
         "expo": "~54.0.31",
         "expo-constants": "~18.0.13",
         "expo-font": "~14.0.10",
@@ -786,6 +787,8 @@
     "ee-first": ["ee-first@1.1.1", "", {}, "sha512-WMwm9LhRUo+WUaRN+vRuETqG89IgZphVSNkdFgeb6sS/E4OrDIN7t48CAewSHXc6C8lefD8KKfr5vY61brQlow=="],
 
     "electron-to-chromium": ["electron-to-chromium@1.5.267", "", {}, "sha512-0Drusm6MVRXSOJpGbaSVgcQsuB4hEkMpHXaVstcPmhu5LIedxs1xNK/nIxmQIU/RPC0+1/o0AVZfBTkTNJOdUw=="],
+
+    "elektron-lfo": ["elektron-lfo@1.0.1", "", { "bin": { "elektron-lfo": "src/cli/index.ts" } }, "sha512-f3J47qH63L/N3A5CeFed0Xtbkpj9EjX02FEvKe0pMDUBbrl5eREFcVlleD//uYe8wBrg6EryxfnHDKPimh/oZQ=="],
 
     "emoji-regex": ["emoji-regex@8.0.0", "", {}, "sha512-MSjYzcWNOA0ewAHpz0MxpYFvwg6yjy1NG3xteoqz644VCo/RPgnr1/GGt+ic3iJTzQ8Eu3TdM14SawnVUmGE6A=="],
 

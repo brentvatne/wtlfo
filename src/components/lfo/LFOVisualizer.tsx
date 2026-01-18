@@ -5,6 +5,8 @@ import { useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { WaveformDisplay } from './WaveformDisplay';
+import { RandomWaveform } from './RandomWaveform';
+import { FadeEnvelope } from './FadeEnvelope';
 import { PhaseIndicator } from './PhaseIndicator';
 import { OutputValueDisplay } from './OutputValueDisplay';
 import { TimingInfo } from './TimingInfo';
@@ -33,6 +35,8 @@ export function LFOVisualizer({
   showTiming = true,
   showOutput = true,
   strokeWidth = 2,
+  fadeMultiplier,
+  randomSamples,
 }: LFOVisualizerProps) {
   // Resolve theme
   const resolvedTheme: LFOTheme = useMemo(() => {
@@ -98,16 +102,43 @@ export function LFOVisualizer({
             color={resolvedTheme.gridLines}
           />
 
-          {/* Static waveform shape */}
-          <WaveformDisplay
-            waveform={waveform}
-            width={width}
-            height={canvasHeight}
-            strokeColor={resolvedTheme.waveformStroke}
-            strokeWidth={strokeWidth}
-            fillColor={resolvedTheme.waveformFill}
-            resolution={128}
-          />
+          {/* Waveform display - use RandomWaveform for RND if samples provided */}
+          {waveform === 'RND' && randomSamples && randomSamples.length > 0 ? (
+            <RandomWaveform
+              samples={randomSamples}
+              width={width}
+              height={canvasHeight}
+              strokeColor={resolvedTheme.waveformStroke}
+              strokeWidth={strokeWidth}
+              fillColor={resolvedTheme.waveformFill}
+              depth={depth}
+            />
+          ) : (
+            <WaveformDisplay
+              waveform={waveform}
+              width={width}
+              height={canvasHeight}
+              strokeColor={resolvedTheme.waveformStroke}
+              strokeWidth={strokeWidth}
+              fillColor={resolvedTheme.waveformFill}
+              resolution={128}
+              depth={depth}
+            />
+          )}
+
+          {/* Fade trajectory curve - shows path with fade envelope applied */}
+          {fade !== undefined && fade !== 0 && resolvedTheme.fadeCurve && (
+            <FadeEnvelope
+              waveform={waveform}
+              width={width}
+              height={canvasHeight}
+              color={resolvedTheme.fadeCurve}
+              depth={depth}
+              fade={fade}
+              strokeWidth={strokeWidth}
+              resolution={128}
+            />
+          )}
 
           {/* Animated phase indicator */}
           <PhaseIndicator
@@ -118,7 +149,6 @@ export function LFOVisualizer({
             color={resolvedTheme.phaseIndicator}
             showDot={true}
             dotRadius={6}
-            waveform={waveform}
           />
         </Group>
       </Canvas>

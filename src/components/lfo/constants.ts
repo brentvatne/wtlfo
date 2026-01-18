@@ -11,6 +11,7 @@ export const DEFAULT_THEME_DARK: LFOTheme = {
   positive: '#4ade80',
   negative: '#f87171',
   accent: '#00d4ff',
+  fadeCurve: '#ffcc00',
 };
 
 export const DEFAULT_THEME_LIGHT: LFOTheme = {
@@ -24,6 +25,7 @@ export const DEFAULT_THEME_LIGHT: LFOTheme = {
   positive: '#16a34a',
   negative: '#dc2626',
   accent: '#0066cc',
+  fadeCurve: '#ff9900',
 };
 
 // Elektron-inspired theme
@@ -38,6 +40,7 @@ export const ELEKTRON_THEME: LFOTheme = {
   positive: '#00ff00',
   negative: '#ff0000',
   accent: '#ff6600',
+  fadeCurve: '#00ffcc', // Cyan/teal - contrasts with orange
 };
 
 // Dimensions

@@ -11,18 +11,14 @@ export function PhaseIndicator({
   color,
   showDot = true,
   dotRadius = 6,
-  waveform,
 }: PhaseIndicatorProps) {
   const padding = 8;
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2;
 
-  // Check if unipolar (EXP or RMP waveforms)
-  const isUnipolar = waveform === 'EXP' || waveform === 'RMP';
-
-  // Pre-compute Y coordinate parameters
-  const centerY = isUnipolar ? height - padding : height / 2;
-  const scaleY = isUnipolar ? -drawHeight : -drawHeight / 2;
+  // Always use bipolar coordinate system (-1 to 1, centered) for consistency
+  const centerY = height / 2;
+  const scaleY = -drawHeight / 2;
 
   // Animated X position based on phase
   const xPosition = useDerivedValue(() => {

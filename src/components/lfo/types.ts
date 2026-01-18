@@ -76,6 +76,12 @@ export interface LFOVisualizerProps {
 
   /** Waveform line thickness */
   strokeWidth?: number;
+
+  /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
+  fadeMultiplier?: number;
+
+  /** Random sample history for RND waveform visualization */
+  randomSamples?: Array<{ phase: number; value: number }>;
 }
 
 export interface LFOTheme {
@@ -89,6 +95,8 @@ export interface LFOTheme {
   positive: string;
   negative: string;
   accent: string;
+  /** Color for the fade envelope curve (current output path) */
+  fadeCurve?: string;
 }
 
 /**
@@ -103,6 +111,8 @@ export interface WaveformDisplayProps {
   fillColor?: string;
   /** Number of points to sample for path generation */
   resolution?: number;
+  /** Depth value (-64 to +63) to scale/invert the waveform */
+  depth?: number;
 }
 
 /**
@@ -117,8 +127,6 @@ export interface PhaseIndicatorProps {
   /** Show the output value at the phase position */
   showDot?: boolean;
   dotRadius?: number;
-  /** Waveform type for correct Y positioning on unipolar waveforms */
-  waveform?: WaveformType;
 }
 
 /**

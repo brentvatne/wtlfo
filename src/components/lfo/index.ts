@@ -4,6 +4,8 @@ export { LFOVisualizer } from './LFOVisualizer';
 // Sub-components (for advanced usage)
 export { WaveformDisplay } from './WaveformDisplay';
 export { PhaseIndicator } from './PhaseIndicator';
+export { FadeEnvelope } from './FadeEnvelope';
+export { RandomWaveform } from './RandomWaveform';
 export { GridLines } from './GridLines';
 export { ParameterBadges } from './ParameterBadges';
 export { TimingInfo } from './TimingInfo';
