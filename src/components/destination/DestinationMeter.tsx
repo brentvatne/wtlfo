@@ -128,6 +128,42 @@ export function DestinationMeter({
     return meterTop + meterHeight - meterFillHeight.value;
   }, [meterTop, meterHeight]);
 
+  // Pre-compute derived values for bound lines (must be unconditional for hooks rules)
+  const boundRangeHeight = useDerivedValue(() => {
+    'worklet';
+    return lowerBoundY.value - upperBoundY.value;
+  }, []);
+
+  const upperBoundP1 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX, y: upperBoundY.value };
+  }, []);
+
+  const upperBoundP2 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX + meterWidth, y: upperBoundY.value };
+  }, []);
+
+  const lowerBoundP1 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX, y: lowerBoundY.value };
+  }, []);
+
+  const lowerBoundP2 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX + meterWidth, y: lowerBoundY.value };
+  }, []);
+
+  const currentValueP1 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX, y: currentValueY.value };
+  }, []);
+
+  const currentValueP2 = useDerivedValue(() => {
+    'worklet';
+    return { x: meterX + meterWidth, y: currentValueY.value };
+  }, []);
+
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
   const gridLines = [];
   const gridDivisions = 4;
@@ -168,7 +204,7 @@ export function DestinationMeter({
             x={meterX}
             y={upperBoundY}
             width={meterWidth}
-            height={useDerivedValue(() => lowerBoundY.value - upperBoundY.value, [])}
+            height={boundRangeHeight}
             color="rgba(255, 102, 0, 0.2)"
           />
         )}
@@ -176,8 +212,8 @@ export function DestinationMeter({
         {/* Upper bound line - orange */}
         {depth !== 0 && (
           <Line
-            p1={useDerivedValue(() => ({ x: meterX, y: upperBoundY.value }), [])}
-            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: upperBoundY.value }), [])}
+            p1={upperBoundP1}
+            p2={upperBoundP2}
             color="#ff6600"
             strokeWidth={1.5}
           />
@@ -186,8 +222,8 @@ export function DestinationMeter({
         {/* Lower bound line - orange */}
         {depth !== 0 && (
           <Line
-            p1={useDerivedValue(() => ({ x: meterX, y: lowerBoundY.value }), [])}
-            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: lowerBoundY.value }), [])}
+            p1={lowerBoundP1}
+            p2={lowerBoundP2}
             color="#ff6600"
             strokeWidth={1.5}
           />
@@ -196,8 +232,8 @@ export function DestinationMeter({
         {/* Animated current value - white line */}
         <Group>
           <Line
-            p1={useDerivedValue(() => ({ x: meterX, y: currentValueY.value }), [currentValueY, meterX])}
-            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: currentValueY.value }), [currentValueY, meterX, meterWidth])}
+            p1={currentValueP1}
+            p2={currentValueP2}
             color="#ffffff"
             strokeWidth={2.5}
           />
