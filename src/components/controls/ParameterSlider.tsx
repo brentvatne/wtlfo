@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
 import { colors } from '@/src/theme';
@@ -22,18 +22,54 @@ export function ParameterSlider({
   formatValue = (v) => String(Math.round(v)),
   step = 1,
 }: ParameterSliderProps) {
+  // Local state for smooth visual updates during dragging
+  const [localValue, setLocalValue] = useState(value);
+  const lastCommittedValue = useRef(value);
+
+  // Sync local value when prop changes externally
+  React.useEffect(() => {
+    if (value !== lastCommittedValue.current) {
+      setLocalValue(value);
+      lastCommittedValue.current = value;
+    }
+  }, [value]);
+
+  // Throttle parent updates to prevent native crash from rapid events
+  const lastUpdateTime = useRef(0);
+  const throttleMs = 32; // ~30fps - safe rate that avoids crash
+
+  // Handle slider changes - update local state immediately, throttle parent updates
+  const handleValueChange = useCallback((newValue: number) => {
+    setLocalValue(newValue);
+
+    // Throttle parent updates to prevent Fabric event dispatcher crash
+    const now = Date.now();
+    if (now - lastUpdateTime.current >= throttleMs) {
+      lastUpdateTime.current = now;
+      onChange(Math.round(newValue));
+    }
+  }, [onChange]);
+
+  // Always commit final value when sliding completes
+  const handleSlidingComplete = useCallback((newValue: number) => {
+    const rounded = Math.round(newValue);
+    lastCommittedValue.current = rounded;
+    onChange(rounded);
+  }, [onChange]);
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{formatValue(value)}</Text>
+        <Text style={styles.value}>{formatValue(localValue)}</Text>
       </View>
       <Slider
         style={styles.slider}
         minimumValue={min}
         maximumValue={max}
-        value={value}
-        onValueChange={onChange}
+        value={localValue}
+        onValueChange={handleValueChange}
+        onSlidingComplete={handleSlidingComplete}
         step={step}
         minimumTrackTintColor={colors.accent}
         maximumTrackTintColor="#3a3a3a"
@@ -41,7 +77,7 @@ export function ParameterSlider({
         accessibilityLabel={`${label} slider`}
         accessibilityRole="adjustable"
         accessibilityHint={`Adjust ${label} value between ${min} and ${max}`}
-        accessibilityValue={{ min, max, now: value }}
+        accessibilityValue={{ min, max, now: localValue }}
       />
     </View>
   );
