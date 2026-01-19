@@ -4,7 +4,6 @@ export type DestinationId =
   | 'none'
   | 'filter_cutoff'
   | 'filter_resonance'
-  | 'filter_drive'
   | 'filter_env_depth'
   | 'volume'
   | 'pan'
@@ -12,12 +11,13 @@ export type DestinationId =
   | 'pitch_fine'
   | 'sample_start'
   | 'sample_length'
+  | 'sample_loop'
   | 'delay_send'
   | 'reverb_send'
+  | 'chorus_send'
   | 'amp_attack'
+  | 'amp_hold'
   | 'amp_decay'
-  | 'amp_sustain'
-  | 'amp_release'
   | 'overdrive'
   | 'bit_reduction';
 
