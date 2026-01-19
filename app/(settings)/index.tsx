@@ -151,7 +151,7 @@ export default function SettingsScreen() {
         >
           {isChecking || isDownloading ? (
             <View style={styles.updateRow}>
-              <ActivityIndicator size="small" color="#666" />
+              <ActivityIndicator size="small" color="#888" />
               <Text style={styles.updateCheckingText}>
                 {isDownloading ? 'Downloading...' : 'Checking...'}
               </Text>
@@ -204,7 +204,7 @@ const styles = StyleSheet.create({
   },
   versionText: {
     fontSize: 13,
-    color: '#666',
+    color: '#888',
   },
   updateRow: {
     flexDirection: 'row',
@@ -213,7 +213,7 @@ const styles = StyleSheet.create({
   },
   updateCheckingText: {
     fontSize: 12,
-    color: '#666',
+    color: '#888',
   },
   updateAvailableText: {
     fontSize: 12,
@@ -222,6 +222,6 @@ const styles = StyleSheet.create({
   },
   updateIdText: {
     fontSize: 12,
-    color: '#666',
+    color: '#888',
   },
 });

@@ -91,7 +91,7 @@ const styles = StyleSheet.create({
     gap: 10,
   },
   categoryLabel: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
@@ -123,7 +123,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   destinationName: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 10,
   },
   destinationNameSelected: {

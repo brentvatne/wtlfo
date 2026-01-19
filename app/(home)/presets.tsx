@@ -89,7 +89,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   details: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 12,
     fontFamily: 'monospace',
   },

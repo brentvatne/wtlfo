@@ -196,7 +196,7 @@ const styles = StyleSheet.create({
     fontVariant: ['tabular-nums'],
   },
   paramLabel: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 13,
   },
   paramDescription: {

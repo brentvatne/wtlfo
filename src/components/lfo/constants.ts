@@ -7,7 +7,7 @@ export const DEFAULT_THEME_DARK: LFOTheme = {
   phaseIndicator: '#ff6b6b',
   gridLines: '#ffffff',
   text: '#ffffff',
-  textSecondary: '#888899',
+  textSecondary: '#9999aa', // WCAG AA compliant
   positive: '#4ade80',
   negative: '#f87171',
   accent: '#00d4ff',
@@ -36,7 +36,7 @@ export const ELEKTRON_THEME: LFOTheme = {
   phaseIndicator: '#ffffff',
   gridLines: '#333333',
   text: '#ffffff',
-  textSecondary: '#888888',
+  textSecondary: '#9999aa', // WCAG AA compliant
   positive: '#00ff00',
   negative: '#ff0000',
   accent: '#ff6600',

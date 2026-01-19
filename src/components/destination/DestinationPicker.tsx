@@ -160,7 +160,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   chevron: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 10,
   },
 
@@ -205,7 +205,7 @@ const styles = StyleSheet.create({
     marginBottom: 24,
   },
   categoryLabel: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 11,
     fontWeight: '700',
     letterSpacing: 1,
@@ -240,7 +240,7 @@ const styles = StyleSheet.create({
     color: '#000000',
   },
   destinationName: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 10,
   },
   destinationNameSelected: {

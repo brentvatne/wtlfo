@@ -170,14 +170,14 @@ describe('preset-context', () => {
       expect(Storage.setItemSync).toHaveBeenCalledWith('bpm', '90');
     });
 
-    it('should clamp BPM to minimum of 20', () => {
+    it('should clamp BPM to minimum of 30', () => {
       const { result } = renderHook(() => usePreset(), { wrapper });
 
       act(() => {
         result.current.setBPM(10);
       });
 
-      expect(result.current.bpm).toBe(20);
+      expect(result.current.bpm).toBe(30);
     });
 
     it('should clamp BPM to maximum of 300', () => {

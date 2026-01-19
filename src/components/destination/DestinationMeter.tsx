@@ -310,7 +310,7 @@ const styles = StyleSheet.create({
     fontFamily: 'monospace',
   },
   valueLabel: {
-    color: '#666677',
+    color: '#8888a0',
     fontSize: 10,
     fontWeight: '500',
     marginTop: 2,
