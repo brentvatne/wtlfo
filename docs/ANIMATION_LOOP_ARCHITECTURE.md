@@ -117,12 +117,27 @@ It's important to understand there are two independent systems:
 
 The LFO engine can be "running" (calculating time-based values) even if the animation loop is stopped, and vice versa. Both must be active for the visualization to animate.
 
+## Initialization Flow
+
+To avoid jitter on app start, we track two refs:
+
+1. **`isInitialLFOCreation`** - Prevents phase reset on initial LFO creation
+2. **`hasMainLoopStarted`** - Prevents the isPaused effect from starting a duplicate loop on mount
+
+The initialization order is:
+1. Provider mounts, state initialized
+2. Main animation loop effect runs, sets `hasMainLoopStarted = true`
+3. Debounce fires after 100ms, creates LFO engine
+4. Since `isInitialLFOCreation` is true, phase is NOT reset (avoiding the "jitter")
+5. `isInitialLFOCreation` is set to false for future config changes
+
 ## Testing Scenarios
 
 When testing the animation system, verify these scenarios:
 
-1. **Normal pause/resume**: Tap to pause, tap to resume - should work
-2. **Background while running**: Let animation run, background app, return - should resume
-3. **Background while paused**: Pause, background app, return, unpause - should resume (this was the fixed bug)
-4. **Config change while paused**: Change preset while paused - should unpause and show new animation
-5. **Rapid pause/unpause**: Quick toggles shouldn't cause multiple animation loops
+1. **App start**: Animation should start smoothly without any visible "restart" or jitter
+2. **Normal pause/resume**: Tap to pause, tap to resume - should work
+3. **Background while running**: Let animation run, background app, return - should resume
+4. **Background while paused**: Pause, background app, return, unpause - should resume
+5. **Config change while paused**: Change preset while paused - should unpause and show new animation
+6. **Rapid pause/unpause**: Quick toggles shouldn't cause multiple animation loops

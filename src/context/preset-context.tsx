@@ -113,6 +113,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   // Ref to track isPaused for AppState handler (avoids stale closure issues)
   const isPausedRef = useRef(false);
+  // Track if this is the initial LFO creation (to avoid phase reset on mount)
+  const isInitialLFOCreation = useRef(true);
+  // Track if the main animation loop has started (to prevent duplicate loops)
+  const hasMainLoopStarted = useRef(false);
 
   // Debounce config changes for engine restart
   // Note: isEditing is now controlled externally by slider interactions
@@ -176,14 +180,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
-  // Restart animation loop when user unpauses
+  // Restart animation loop when user unpauses after returning from background
   // This handles the case where:
   // 1. User pauses visualization
   // 2. App goes to background (animation loop cancelled)
   // 3. App returns to foreground (loop not restarted because user was paused)
   // 4. User taps to unpause - this effect restarts the loop
+  // NOTE: We check hasMainLoopStarted to avoid starting a duplicate loop on mount
   useEffect(() => {
-    if (!isPaused && animationRef.current === 0) {
+    if (!isPaused && animationRef.current === 0 && hasMainLoopStarted.current) {
       const animate = (timestamp: number) => {
         if (lfoRef.current) {
           const state = lfoRef.current.update(timestamp);
@@ -211,22 +216,28 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       steps,
     });
 
-    // Reset phase to start phase for clean state on preset/config change
-    const startPhaseNormalized = debouncedConfig.startPhase / 128;
-    lfoPhase.value = startPhaseNormalized;
-    lfoOutput.value = 0;
+    // Only reset phase on config changes AFTER initial creation
+    // This prevents the "jitter" where animation appears to restart on app start
+    if (isInitialLFOCreation.current) {
+      isInitialLFOCreation.current = false;
+    } else {
+      // Reset phase to start phase for clean state on preset/config change
+      const startPhaseNormalized = debouncedConfig.startPhase / 128;
+      lfoPhase.value = startPhaseNormalized;
+      lfoOutput.value = 0;
+      // Clear pause state when config changes (only after initial creation)
+      setIsPaused(false);
+    }
 
     // Auto-trigger for modes that need it (resets phase and starts running)
     if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
       lfoRef.current.trigger();
     }
-
-    // Clear pause state when config changes
-    setIsPaused(false);
   }, [debouncedConfig, bpm, lfoPhase, lfoOutput]);
 
   // Animation loop - runs at provider level, independent of tabs
   useEffect(() => {
+    hasMainLoopStarted.current = true;
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
         const state = lfoRef.current.update(timestamp);
