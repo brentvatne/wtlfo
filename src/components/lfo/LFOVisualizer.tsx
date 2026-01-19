@@ -109,8 +109,8 @@ export function LFOVisualizer({
   useEffect(() => {
     if (!isEditing) {
       phaseIndicatorOpacity.value = withTiming(1, {
-        duration: 100,
-        easing: Easing.inOut(Easing.ease),
+        duration: 350,
+        easing: Easing.out(Easing.ease),
       });
     }
   }, [isEditing, phaseIndicatorOpacity]);
