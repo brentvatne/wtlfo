@@ -42,9 +42,14 @@ const PARAM_LABELS: Record<ParamKey, string> = {
   mode: 'MODE',
   depth: 'DEP',
   fade: 'FADE',
-  startPhase: 'SPH',
+  startPhase: 'SPH', // Dynamically changed to 'SLEW' for RND waveform
   destination: 'DEST',
 };
+
+// Get label for startPhase - changes to SLEW for RND waveform
+function getStartPhaseLabel(waveform: string): string {
+  return waveform === 'RND' ? 'SLEW' : 'SPH';
+}
 
 export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   const { currentConfig } = usePreset();
@@ -109,7 +114,7 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
           icon={<PARAM_ICONS.waveform />}
         />
         <ParamBox
-          label={PARAM_LABELS.startPhase}
+          label={getStartPhaseLabel(currentConfig.waveform)}
           value={formatValue('startPhase', currentConfig.startPhase)}
           onPress={() => handlePress('startPhase')}
           isActive={activeParam === 'startPhase'}

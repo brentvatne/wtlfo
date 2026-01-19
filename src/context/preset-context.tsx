@@ -192,11 +192,19 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       steps,
     });
 
-    // Auto-trigger for modes that need it
+    // Reset phase to start phase for clean state on preset/config change
+    const startPhaseNormalized = debouncedConfig.startPhase / 128;
+    lfoPhase.value = startPhaseNormalized;
+    lfoOutput.value = 0;
+
+    // Auto-trigger for modes that need it (resets phase and starts running)
     if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
       lfoRef.current.trigger();
     }
-  }, [debouncedConfig, bpm]);
+
+    // Clear pause state when config changes
+    setIsPaused(false);
+  }, [debouncedConfig, bpm, lfoPhase, lfoOutput]);
 
   // Animation loop - runs at provider level, independent of tabs
   useEffect(() => {

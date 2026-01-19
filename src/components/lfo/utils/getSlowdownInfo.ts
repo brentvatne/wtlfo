@@ -1,72 +1,86 @@
 /**
  * Calculates slowdown factor and display info for fast LFO visualization.
  *
- * Thresholds based on human perception limits:
- * - Below 67ms (15+ Hz): Audio rate, needs 16x slowdown
- * - 67-125ms (8-15 Hz): Strobe territory, needs 8x
- * - 125-250ms (4-8 Hz): Fast but trackable with effort, needs 4x
- * - 250-500ms (2-4 Hz): Fast but visible, needs 2x
- * - Above 500ms (< 2 Hz): Natural, no slowdown needed
+ * Uses a simple formula: factor = max(1, targetCycleTimeMs / cycleTimeMs)
+ * This ensures fast LFOs are always displayed at a comfortable pace (default 250ms).
  */
 
+/**
+ * Configuration for slow-motion visualization
+ */
+export interface SlowdownConfig {
+  /** Target minimum cycle time for display (ms). Default: 250 */
+  targetCycleTimeMs: number;
+  /** Hysteresis margin to prevent flickering (0-1). Default: 0.15 */
+  hysteresisMargin: number;
+}
+
+export const DEFAULT_SLOWDOWN_CONFIG: SlowdownConfig = {
+  targetCycleTimeMs: 250,
+  hysteresisMargin: 0.15,
+};
+
 export interface SlowdownInfo {
-  /** Factor to slow down visualization (1, 2, 4, 8, or 16) */
+  /** Factor to slow down visualization (continuous, >= 1) */
   factor: number;
-  /** Actual LFO frequency in Hz */
-  frequencyHz: number;
-  /** Whether slowdown is active */
+  /** Actual LFO cycle time in milliseconds */
+  actualCycleTimeMs: number;
+  /** Displayed cycle time after slowdown (ms) */
+  displayCycleTimeMs: number;
+  /** Whether slowdown is active (factor > 1) */
   isSlowed: boolean;
 }
 
 /**
  * Calculate slowdown info based on cycle time.
- * Uses perception-based thresholds with hysteresis to prevent flickering.
+ * Always targets the configured minimum display cycle time.
+ *
+ * Formula: factor = max(1, targetCycleTimeMs / cycleTimeMs)
  */
-export function getSlowdownInfo(cycleTimeMs: number, previousFactor: number = 1): SlowdownInfo {
-  const frequencyHz = cycleTimeMs > 0 ? 1000 / cycleTimeMs : 0;
+export function getSlowdownInfo(
+  cycleTimeMs: number,
+  previousFactor: number = 1,
+  config: SlowdownConfig = DEFAULT_SLOWDOWN_CONFIG
+): SlowdownInfo {
+  const { targetCycleTimeMs, hysteresisMargin } = config;
 
-  // Calculate target factor based on thresholds
-  let targetFactor: number;
-  if (cycleTimeMs < 67) {
-    targetFactor = 16; // 15+ Hz - audio rate
-  } else if (cycleTimeMs < 125) {
-    targetFactor = 8; // 8-15 Hz - strobe territory
-  } else if (cycleTimeMs < 250) {
-    targetFactor = 4; // 4-8 Hz - fast
-  } else if (cycleTimeMs < 500) {
-    targetFactor = 2; // 2-4 Hz - medium-fast
-  } else {
-    targetFactor = 1; // < 2 Hz - natural
-  }
+  // Calculate raw factor needed to reach target cycle time
+  const rawFactor = cycleTimeMs > 0 ? targetCycleTimeMs / cycleTimeMs : 1;
 
-  // Apply hysteresis: only change factor if we cross threshold by 15% margin
-  // This prevents flickering when values hover near thresholds
+  // Only apply slowdown if needed (factor > 1)
+  const targetFactor = Math.max(1, rawFactor);
+
+  // Apply hysteresis to prevent flickering near the on/off threshold
   let factor = previousFactor;
 
-  if (targetFactor !== previousFactor) {
-    const hysteresisMargin = 0.15;
+  const needsSlowdown = cycleTimeMs < targetCycleTimeMs;
+  const wasSlowed = previousFactor > 1;
 
-    // Check if we've crossed the threshold by enough margin
-    if (targetFactor > previousFactor) {
-      // Getting faster - need to increase slowdown
-      // Only increase if we're well past the threshold
-      const threshold = getThresholdForFactor(targetFactor);
-      if (cycleTimeMs < threshold * (1 - hysteresisMargin)) {
+  if (needsSlowdown !== wasSlowed) {
+    // State change (crossing threshold) - apply hysteresis
+    if (needsSlowdown) {
+      // Getting faster, need slowdown - only if well past threshold
+      if (cycleTimeMs < targetCycleTimeMs * (1 - hysteresisMargin)) {
         factor = targetFactor;
       }
     } else {
-      // Getting slower - can decrease slowdown
-      // Only decrease if we're well past the threshold
-      const threshold = getThresholdForFactor(previousFactor);
-      if (cycleTimeMs > threshold * (1 + hysteresisMargin)) {
-        factor = targetFactor;
+      // Getting slower, can remove slowdown - only if well past threshold
+      if (cycleTimeMs > targetCycleTimeMs * (1 + hysteresisMargin)) {
+        factor = 1;
       }
     }
+  } else if (wasSlowed) {
+    // Still in slowdown mode - update factor smoothly
+    factor = targetFactor;
   }
+
+  // Calculate display cycle time
+  const displayCycleTimeMs = cycleTimeMs * factor;
 
   return {
     factor,
-    frequencyHz,
+    actualCycleTimeMs: cycleTimeMs,
+    displayCycleTimeMs,
     isSlowed: factor > 1,
   };
 }
@@ -74,28 +88,10 @@ export function getSlowdownInfo(cycleTimeMs: number, previousFactor: number = 1)
 /**
  * Simple version without hysteresis (for initial calculation)
  */
-export function getSlowdownFactor(cycleTimeMs: number): number {
-  if (cycleTimeMs < 67) return 16;
-  if (cycleTimeMs < 125) return 8;
-  if (cycleTimeMs < 250) return 4;
-  if (cycleTimeMs < 500) return 2;
-  return 1;
-}
-
-/**
- * Get the threshold (in ms) that triggers a given factor
- */
-function getThresholdForFactor(factor: number): number {
-  switch (factor) {
-    case 16:
-      return 67;
-    case 8:
-      return 125;
-    case 4:
-      return 250;
-    case 2:
-      return 500;
-    default:
-      return Infinity;
-  }
+export function getSlowdownFactor(
+  cycleTimeMs: number,
+  targetCycleTimeMs: number = DEFAULT_SLOWDOWN_CONFIG.targetCycleTimeMs
+): number {
+  if (cycleTimeMs <= 0) return 1;
+  return Math.max(1, targetCycleTimeMs / cycleTimeMs);
 }

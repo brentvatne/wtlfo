@@ -1,6 +1,6 @@
 import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
-import { Canvas, Rect, RoundedRect, Group, Line } from '@shopify/react-native-skia';
+import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, useAnimatedReaction, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
@@ -72,7 +72,7 @@ export function DestinationMeter({
   const animatedUpperBound = useSharedValue(targetUpperBound);
 
   // Animate when values change with a subtle spring (no overshoot)
-  const springConfig = { damping: 45, stiffness: 550, overshootClamping: true };
+  const springConfig = { damping: 40, stiffness: 380, overshootClamping: true };
   useEffect(() => {
     animatedCenterValue.value = withSpring(centerValue, springConfig);
     animatedLowerBound.value = withSpring(targetLowerBound, springConfig);
@@ -136,32 +136,32 @@ export function DestinationMeter({
 
   const upperBoundP1 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX, y: upperBoundY.value };
+    return vec(meterX, upperBoundY.value);
   }, []);
 
   const upperBoundP2 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX + meterWidth, y: upperBoundY.value };
+    return vec(meterX + meterWidth, upperBoundY.value);
   }, []);
 
   const lowerBoundP1 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX, y: lowerBoundY.value };
+    return vec(meterX, lowerBoundY.value);
   }, []);
 
   const lowerBoundP2 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX + meterWidth, y: lowerBoundY.value };
+    return vec(meterX + meterWidth, lowerBoundY.value);
   }, []);
 
   const currentValueP1 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX, y: currentValueY.value };
+    return vec(meterX, currentValueY.value);
   }, []);
 
   const currentValueP2 = useDerivedValue(() => {
     'worklet';
-    return { x: meterX + meterWidth, y: currentValueY.value };
+    return vec(meterX + meterWidth, currentValueY.value);
   }, []);
 
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)

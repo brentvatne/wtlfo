@@ -20,11 +20,21 @@ export function useSlowMotionPhase(
   const displayPhase = useSharedValue(realPhase.value);
   const lastRealPhase = useSharedValue(realPhase.value);
   const factorValue = useSharedValue(slowdownFactor);
+  // Track frames to detect discontinuities on first frame after changes
+  const frameCount = useSharedValue(0);
 
-  // Update factor when it changes
+  // Reset tracking when factor changes significantly
   useEffect(() => {
+    const oldFactor = factorValue.value;
     factorValue.value = slowdownFactor;
-  }, [slowdownFactor, factorValue]);
+
+    // If transitioning to/from slow motion, sync phases to prevent stale values
+    if ((oldFactor === 1 && slowdownFactor > 1) || (oldFactor > 1 && slowdownFactor === 1)) {
+      displayPhase.value = realPhase.value;
+      lastRealPhase.value = realPhase.value;
+      frameCount.value = 0;
+    }
+  }, [slowdownFactor, factorValue, displayPhase, realPhase, lastRealPhase, frameCount]);
 
   // Track phase changes and accumulate slowed delta
   useAnimatedReaction(
@@ -32,9 +42,34 @@ export function useSlowMotionPhase(
     (currentPhase) => {
       'worklet';
       const previousPhase = lastRealPhase.value;
+      frameCount.value++;
 
-      // Calculate phase delta, handling wrap-around
+      // Calculate raw phase delta
       let phaseDelta = currentPhase - previousPhase;
+
+      // Detect discontinuities: first frame after changes or unreasonably large delta
+      // indicates a retrigger/reset rather than normal phase progression
+      const isDiscontinuity = frameCount.value <= 1 || Math.abs(phaseDelta) > 0.9;
+
+      if (isDiscontinuity) {
+        // Reset to real phase on discontinuity
+        displayPhase.value = currentPhase;
+        lastRealPhase.value = currentPhase;
+        return;
+      }
+
+      // Detect phase resets (LFO retriggered or preset changed)
+      // A normal frame delta should be small (< 0.1 for most LFO speeds at 60fps)
+      // If the absolute delta is large but not near ±1 (wrap-around), it's a reset
+      const absRawDelta = Math.abs(phaseDelta);
+      const isLikelyReset = absRawDelta > 0.3 && absRawDelta < 0.7;
+
+      if (isLikelyReset) {
+        // Phase was reset - sync display phase immediately
+        displayPhase.value = currentPhase;
+        lastRealPhase.value = currentPhase;
+        return;
+      }
 
       // Handle wrap-around: if delta is large negative, phase wrapped forward
       // (e.g., 0.95 -> 0.05 = actual delta of 0.1, not -0.9)
@@ -44,6 +79,14 @@ export function useSlowMotionPhase(
       // If delta is large positive, phase wrapped backward (unusual, but handle it)
       else if (phaseDelta > 0.5) {
         phaseDelta -= 1;
+      }
+
+      // Secondary sanity check: if delta is still too large after adjustment,
+      // treat as discontinuity (e.g., multiple cycles skipped due to frame drops)
+      if (Math.abs(phaseDelta) > 0.5) {
+        displayPhase.value = currentPhase;
+        lastRealPhase.value = currentPhase;
+        return;
       }
 
       // Accumulate slowed delta

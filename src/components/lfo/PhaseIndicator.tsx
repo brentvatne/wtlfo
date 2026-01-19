@@ -2,7 +2,7 @@ import React from 'react';
 import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
-import { sampleWaveformWorklet } from './worklets';
+import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 
 export function PhaseIndicator({
   phase,
@@ -26,8 +26,11 @@ export function PhaseIndicator({
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2;
 
-  // Start phase offset (0-127 → 0.0-~1.0)
-  const startPhaseNormalized = (startPhase || 0) / 128;
+  // For RND waveform, startPhase acts as SLEW (0=sharp S&H, 127=max smoothing)
+  // For other waveforms, it's a phase offset (0-127 → 0.0-~1.0)
+  const isRandom = waveform === 'RND';
+  const slewValue = isRandom ? (startPhase || 0) : 0;
+  const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
   const depthScale = depth !== undefined ? depth / 63 : 1;
   // Check if fade applies (only when fade is set and mode is not FRE)
   const fadeApplies = fade !== undefined && fade !== 0 && mode !== 'FRE';
@@ -59,8 +62,11 @@ export function PhaseIndicator({
       const displayPhase = ((phaseVal - startPhaseNormalized) % 1 + 1) % 1;
 
       // Sample the waveform at the actual phase position
+      // Use slew for RND waveform to match visualization
       const waveformPhase = phaseVal;
-      let value = sampleWaveformWorklet(waveform, waveformPhase);
+      let value = isRandom
+        ? sampleWaveformWithSlew(waveform, waveformPhase, slewValue)
+        : sampleWaveformWorklet(waveform, waveformPhase);
 
       // Apply depth scaling
       value = value * depthScale;

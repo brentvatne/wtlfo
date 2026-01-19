@@ -21,11 +21,17 @@ export { useSlowMotionPhase } from './hooks/useSlowMotionPhase';
 
 // Slow motion visualization
 export { SlowMotionBadge } from './SlowMotionBadge';
-export { getSlowdownInfo, getSlowdownFactor } from './utils/getSlowdownInfo';
-export type { SlowdownInfo } from './utils/getSlowdownInfo';
+export { getSlowdownInfo, getSlowdownFactor, DEFAULT_SLOWDOWN_CONFIG } from './utils/getSlowdownInfo';
+export type { SlowdownInfo, SlowdownConfig } from './utils/getSlowdownInfo';
 
 // Worklets (for use inside Reanimated worklets)
-export { sampleWaveformWorklet, isUnipolarWorklet } from './worklets';
+export {
+  sampleWaveformWorklet,
+  sampleWaveformWithSlew,
+  sampleRandomWithSlew,
+  getRandomStepValue,
+  isUnipolarWorklet,
+} from './worklets';
 
 // Types
 export type {

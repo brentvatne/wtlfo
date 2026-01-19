@@ -13,17 +13,22 @@ type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' 
 // Parameter order matching the grid layout (row 1 then row 2)
 const PARAM_ORDER: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
 
-// Short labels for navigation buttons
+// Short labels for navigation buttons (startPhase is dynamic based on waveform)
 const PARAM_LABELS: Record<ParamKey, string> = {
   speed: 'SPD',
   multiplier: 'MULT',
   fade: 'FADE',
   destination: 'DEST',
   waveform: 'WAVE',
-  startPhase: 'SPH',
+  startPhase: 'SPH', // Dynamically changed to 'SLEW' for RND
   mode: 'MODE',
   depth: 'DEP',
 };
+
+// Get dynamic label for startPhase based on waveform
+function getStartPhaseLabel(waveform: string): string {
+  return waveform === 'RND' ? 'SLEW' : 'SPH';
+}
 
 const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
@@ -130,6 +135,19 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
   },
 };
 
+// SLEW-specific info (used when waveform is RND instead of Start Phase)
+const SLEW_INFO: ParamInfo = {
+  title: 'Slew',
+  description: 'Smooths transitions between random values. Higher values create more gradual, organic movements instead of sharp steps.',
+  details: [
+    'Range: 0 to 127',
+    '0 = No smoothing (sharp S&H steps)',
+    '64 = Moderate smoothing',
+    '127 = Maximum smoothing (very gradual)',
+    'Creates glide between random values',
+  ],
+};
+
 function formatMultiplier(value: number): string {
   return value >= 1024 ? `${value / 1024}k` : String(value);
 }
@@ -186,7 +204,10 @@ export default function EditParamScreen() {
     );
   }
 
-  const info = PARAM_INFO[activeParam];
+  // Use SLEW_INFO when startPhase is selected and waveform is RND
+  const info = (activeParam === 'startPhase' && currentConfig.waveform === 'RND')
+    ? SLEW_INFO
+    : PARAM_INFO[activeParam];
 
   const renderControl = () => {
     switch (activeParam) {
@@ -303,8 +324,20 @@ export default function EditParamScreen() {
       <Stack.Screen
         options={{
           title: info.title,
-          headerLeft: () => <NavButton direction="prev" label={PARAM_LABELS[prevParam]} onPress={goToPrev} />,
-          headerRight: () => <NavButton direction="next" label={PARAM_LABELS[nextParam]} onPress={goToNext} />,
+          headerLeft: () => (
+            <NavButton
+              direction="prev"
+              label={prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
+              onPress={goToPrev}
+            />
+          ),
+          headerRight: () => (
+            <NavButton
+              direction="next"
+              label={nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]}
+              onPress={goToNext}
+            />
+          ),
         }}
       />
       <Text style={styles.description}>{info.description}</Text>

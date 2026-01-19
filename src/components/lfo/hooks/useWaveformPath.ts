@@ -1,7 +1,7 @@
 import { useMemo } from 'react';
 import { Skia, SkPath } from '@shopify/react-native-skia';
 import type { WaveformType } from '../types';
-import { sampleWaveformWorklet, isUnipolarWorklet } from '../worklets';
+import { sampleWaveformWorklet, sampleWaveformWithSlew, isUnipolarWorklet } from '../worklets';
 
 /**
  * Re-export sampleWaveformWorklet as sampleWaveform for backward compatibility.
@@ -49,17 +49,22 @@ export function useWaveformPath(
     // Depth scaling (depth/63 gives -1 to 1 range)
     const depthScale = depth !== undefined ? depth / 63 : 1;
 
-    // Start phase offset (0-127 → 0.0-~1.0)
-    const startPhaseNormalized = (startPhase || 0) / 128;
+    // For RND waveform, startPhase acts as SLEW (0=sharp S&H, 127=max smoothing)
+    // For other waveforms, it's a phase offset (0-127 → 0.0-~1.0)
+    const isRandom = waveform === 'RND';
+    const slewValue = isRandom ? (startPhase || 0) : 0;
+    const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
 
     const startX = padding;
     const endX = padding + drawWidth;
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      // Shift phase so startPhaseNormalized appears at x=0
+      // Shift phase so startPhaseNormalized appears at x=0 (not used for RND)
       const phase = (xNormalized + startPhaseNormalized) % 1;
-      let value = sampleWaveformWorklet(waveform, phase);
+      let value = isRandom
+        ? sampleWaveformWithSlew(waveform, phase, slewValue)
+        : sampleWaveformWorklet(waveform, phase);
 
       // Apply depth scaling
       value = value * depthScale;

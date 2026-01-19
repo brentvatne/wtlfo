@@ -114,7 +114,8 @@ export default function HomeScreen() {
               strokeWidth={2.5}
             />
             <SlowMotionBadge
-              frequencyHz={slowdownInfo.frequencyHz}
+              factor={slowdownInfo.factor}
+              displayCycleTimeMs={slowdownInfo.displayCycleTimeMs}
               visible={slowdownInfo.isSlowed}
             />
           </View>
