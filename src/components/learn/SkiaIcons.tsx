@@ -15,7 +15,7 @@ const DEFAULT_SIZE = 40;
 const DEFAULT_COLOR = '#ff6600';
 const DEFAULT_STROKE_WIDTH = 1.5;
 
-// Icon 1: Question Mark with Wave
+// Icon 1: Sine Wave (for "What is an LFO?")
 export function QuestionWaveIcon({
   size = DEFAULT_SIZE,
   color = DEFAULT_COLOR,
@@ -26,27 +26,21 @@ export function QuestionWaveIcon({
 }: SkiaIconProps) {
   const padding = 6;
   const canvas = size - padding * 2;
-  const centerX = size / 2;
   const centerY = size / 2;
 
   const path = Skia.Path.Make();
 
-  // Question mark curve
-  const qRadius = canvas * 0.28;
-  const qX = centerX - canvas * 0.05;
-  const qY = centerY - canvas * 0.15;
+  // Draw a clean sine wave - 1.5 cycles
+  const steps = 24;
+  const cycles = 1.5;
+  const amp = canvas * 0.35;
 
-  path.moveTo(qX - qRadius, qY);
-  path.quadTo(qX - qRadius, qY - qRadius, qX, qY - qRadius);
-  path.quadTo(qX + qRadius, qY - qRadius, qX + qRadius, qY);
-  path.quadTo(qX + qRadius, qY + qRadius * 0.4, qX, qY + qRadius * 0.5);
-  path.lineTo(qX, qY + qRadius * 0.9);
-
-  // Small wave accent
-  const waveX = centerX + canvas * 0.22;
-  const waveY = centerY + canvas * 0.1;
-  path.moveTo(waveX, waveY - canvas * 0.2);
-  path.quadTo(waveX + canvas * 0.1, waveY, waveX, waveY + canvas * 0.2);
+  for (let i = 0; i <= steps; i++) {
+    const x = padding + (i / steps) * canvas;
+    const y = centerY + Math.sin((i / steps) * Math.PI * 2 * cycles) * amp;
+    if (i === 0) path.moveTo(x, y);
+    else path.lineTo(x, y);
+  }
 
   return (
     <View
@@ -66,8 +60,6 @@ export function QuestionWaveIcon({
           strokeCap="round"
           strokeJoin="round"
         />
-        {/* Question mark dot */}
-        <Circle cx={centerX - canvas * 0.05} cy={centerY + canvas * 0.35} r={strokeWidth * 0.8} color={color} />
       </Canvas>
     </View>
   );

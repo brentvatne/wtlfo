@@ -98,17 +98,25 @@ export default function HomeScreen() {
         </Pressable>
 
         {/* Destination Meter - same height as canvas (excluding timing info) */}
-        <View style={[styles.meterContainer, !hasDestination && styles.meterDimmed]}>
+        <Pressable
+          style={[
+            styles.meterContainer,
+            !hasDestination && styles.meterDimmed,
+            isPaused && styles.paused,
+          ]}
+          onPress={handleTap}
+        >
           <DestinationMeter
             lfoOutput={lfoOutput}
             destination={activeDestination}
             centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
             depth={currentConfig.depth}
+            waveform={currentConfig.waveform as WaveformType}
             width={METER_WIDTH}
             height={METER_HEIGHT}
             showValue={hasDestination}
           />
-        </View>
+        </Pressable>
       </View>
 
       {/* Parameter Grid - Full width */}

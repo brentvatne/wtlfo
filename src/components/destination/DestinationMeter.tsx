@@ -4,12 +4,17 @@ import { Canvas, Rect, RoundedRect, Group, Line } from '@shopify/react-native-sk
 import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
+import type { WaveformType } from '@/src/components/lfo/types';
+
+// Unipolar waveforms only output 0 to 1 (not -1 to +1)
+const UNIPOLAR_WAVEFORMS: WaveformType[] = ['EXP', 'RMP'];
 
 interface DestinationMeterProps {
   lfoOutput: SharedValue<number>;
   destination: DestinationDefinition | null;
   centerValue: number;
   depth: number;
+  waveform?: WaveformType;
   width?: number;
   height?: number;
   style?: ViewStyle;
@@ -21,6 +26,7 @@ export function DestinationMeter({
   destination,
   centerValue,
   depth,
+  waveform = 'SIN',
   width = 60,
   height = 108,
   style,
@@ -33,10 +39,32 @@ export function DestinationMeter({
   const maxModulation = range / 2;
   const depthScale = Math.abs(depth) / 63;
 
-  // Calculate bounds based on depth
+  // Calculate bounds based on depth and waveform type
   const swing = maxModulation * depthScale;
-  const lowerBound = Math.max(min, centerValue - swing);
-  const upperBound = Math.min(max, centerValue + swing);
+  const isUnipolar = UNIPOLAR_WAVEFORMS.includes(waveform);
+
+  // For unipolar waveforms (EXP, RMP):
+  // - Positive depth: only modulates above center
+  // - Negative depth: only modulates below center
+  // For bipolar waveforms: modulates both directions
+  let lowerBound: number;
+  let upperBound: number;
+
+  if (isUnipolar) {
+    if (depth >= 0) {
+      // Unipolar + positive depth: center to center + swing
+      lowerBound = centerValue;
+      upperBound = Math.min(max, centerValue + swing);
+    } else {
+      // Unipolar + negative depth: center - swing to center
+      lowerBound = Math.max(min, centerValue - swing);
+      upperBound = centerValue;
+    }
+  } else {
+    // Bipolar: both directions
+    lowerBound = Math.max(min, centerValue - swing);
+    upperBound = Math.min(max, centerValue + swing);
+  }
 
   // Track current value for display
   const [currentValue, setCurrentValue] = useState(centerValue);
