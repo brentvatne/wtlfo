@@ -62,6 +62,7 @@ export default function HomeLayout() {
           presentation: 'formSheet',
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.5, 0.75],
+          contentStyle: { backgroundColor: '#0a0a0a' },
         }}
       />
       <Stack.Screen
@@ -70,6 +71,7 @@ export default function HomeLayout() {
           presentation: 'formSheet',
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.35, 0.5],
+          contentStyle: { backgroundColor: '#0a0a0a' },
         }}
       />
     </Stack>

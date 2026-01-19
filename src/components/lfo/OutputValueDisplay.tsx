@@ -3,7 +3,7 @@ import { View, StyleSheet, Text } from 'react-native';
 import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { OutputValueDisplayProps } from './types';
 
-export function OutputValueDisplay({ output, theme }: OutputValueDisplayProps) {
+export function OutputValueDisplay({ output, theme, isEditing }: OutputValueDisplayProps) {
   const [displayValue, setDisplayValue] = useState({ text: '+0.00', isPositive: true });
 
   const updateDisplay = useCallback((val: number) => {
@@ -28,10 +28,10 @@ export function OutputValueDisplay({ output, theme }: OutputValueDisplayProps) {
       <Text
         style={[
           styles.text,
-          { color: displayValue.isPositive ? theme.positive : theme.negative },
+          { color: isEditing ? theme.textSecondary : (displayValue.isPositive ? theme.positive : theme.negative) },
         ]}
       >
-        {displayValue.text}
+        {isEditing ? '-' : displayValue.text}
       </Text>
     </View>
   );

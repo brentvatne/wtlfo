@@ -9,7 +9,7 @@ import { ParamGrid } from '@/src/components/params';
 import { usePreset } from '@/src/context/preset-context';
 
 export default function HomeScreen() {
-  const { currentConfig, bpm } = usePreset();
+  const { currentConfig, debouncedConfig, bpm, isEditing } = usePreset();
   const { width: screenWidth } = useWindowDimensions();
 
   // Calculate visualizer width to match ParamGrid (screen width minus padding)
@@ -34,9 +34,9 @@ export default function HomeScreen() {
   // Animation frame ref for cleanup
   const animationRef = useRef<number>(0);
 
-  // Create/recreate LFO when config changes
+  // Create/recreate LFO when debounced config changes (100ms after last edit)
   useEffect(() => {
-    lfoRef.current = new LFO(currentConfig, bpm);
+    lfoRef.current = new LFO(debouncedConfig, bpm);
 
     // Reset pause state when config changes
     setIsPaused(false);
@@ -49,10 +49,10 @@ export default function HomeScreen() {
     });
 
     // Auto-trigger for modes that need it
-    if (currentConfig.mode === 'TRG' || currentConfig.mode === 'ONE' || currentConfig.mode === 'HLF') {
+    if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
       lfoRef.current.trigger();
     }
-  }, [currentConfig, bpm]);
+  }, [debouncedConfig, bpm]);
 
   // Animation loop
   useEffect(() => {
@@ -99,7 +99,7 @@ export default function HomeScreen() {
       <ParamGrid />
 
       {/* Main Visualizer - tap to pause/play/restart */}
-      <Pressable style={{ marginTop: 8, marginBottom: 24 }} onPress={handleTap}>
+      <Pressable style={{ marginTop: 8, marginBottom: 24, opacity: isPaused ? 0.5 : 1 }} onPress={handleTap}>
         <LFOVisualizer
           phase={phase}
           output={output}
@@ -118,7 +118,7 @@ export default function HomeScreen() {
           theme={ELEKTRON_THEME}
           showParameters={false}
           showTiming={true}
-          showOutput={true}
+          isEditing={isEditing}
           strokeWidth={2.5}
         />
       </Pressable>

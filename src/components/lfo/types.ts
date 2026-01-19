@@ -74,8 +74,14 @@ export interface LFOVisualizerProps {
   /** Show numeric output value */
   showOutput?: boolean;
 
+  /** Show phase indicator (dot and crosshairs) */
+  showPhaseIndicator?: boolean;
+
   /** Waveform line thickness */
   strokeWidth?: number;
+
+  /** When true, shows placeholder values instead of live data (during parameter editing) */
+  isEditing?: boolean;
 
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: number;
@@ -131,6 +137,8 @@ export interface PhaseIndicatorProps {
   dotRadius?: number;
   /** Start phase offset (0-127) to shift indicator position */
   startPhase?: number;
+  /** Animated opacity value (0-1) */
+  opacity?: SharedValue<number>;
 }
 
 /**
@@ -176,4 +184,6 @@ export interface TimingInfoProps {
 export interface OutputValueDisplayProps {
   output: SharedValue<number>;
   theme: LFOTheme;
+  /** When true, shows "-" placeholder instead of actual value */
+  isEditing?: boolean;
 }

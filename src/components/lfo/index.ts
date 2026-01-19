@@ -11,6 +11,10 @@ export { ParameterBadges } from './ParameterBadges';
 export { TimingInfo } from './TimingInfo';
 export { OutputValueDisplay } from './OutputValueDisplay';
 
+// Small inline waveform icon (sparkline-style)
+export { WaveformIcon } from './WaveformIcon';
+export type { WaveformIconProps } from './WaveformIcon';
+
 // Hooks
 export { useWaveformPath, isUnipolar, sampleWaveform } from './hooks/useWaveformPath';
 

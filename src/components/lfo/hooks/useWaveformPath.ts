@@ -55,6 +55,7 @@ export function isUnipolar(waveform: WaveformType): boolean {
  *
  * @param depth - Optional depth value (-64 to +63). Scales and potentially inverts the waveform.
  * @param startPhase - Optional start phase offset (0-127). Shifts the waveform so this phase appears at x=0.
+ * @param closePath - If true, closes the path to the baseline for proper fill rendering.
  */
 export function useWaveformPath(
   waveform: WaveformType,
@@ -63,7 +64,8 @@ export function useWaveformPath(
   resolution: number = 128,
   padding: number = 8,
   depth?: number,
-  startPhase?: number
+  startPhase?: number,
+  closePath: boolean = false
 ): SkPath {
   return useMemo(() => {
     const path = Skia.Path.Make();
@@ -81,6 +83,9 @@ export function useWaveformPath(
 
     // Start phase offset (0-127 → 0.0-~1.0)
     const startPhaseNormalized = (startPhase || 0) / 128;
+
+    const startX = padding;
+    const endX = padding + drawWidth;
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
@@ -101,8 +106,15 @@ export function useWaveformPath(
       }
     }
 
+    // Close path to baseline for fill rendering
+    if (closePath) {
+      path.lineTo(endX, centerY);
+      path.lineTo(startX, centerY);
+      path.close();
+    }
+
     return path;
-  }, [waveform, width, height, resolution, padding, depth, startPhase]);
+  }, [waveform, width, height, resolution, padding, depth, startPhase, closePath]);
 }
 
 export { sampleWaveform };

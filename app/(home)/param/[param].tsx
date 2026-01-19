@@ -4,6 +4,7 @@ import { useLocalSearchParams, Stack } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
+import { WaveformIcon, type WaveformType } from '@/src/components/lfo';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
 
@@ -11,24 +12,30 @@ const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
 const MULTIPLIERS: Multiplier[] = [1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 2048];
 
+interface WaveformDetail {
+  type: WaveformType;
+  desc: string;
+}
+
 interface ParamInfo {
   title: string;
   description: string;
   details?: string[];
+  waveformDetails?: WaveformDetail[];
 }
 
 const PARAM_INFO: Record<ParamKey, ParamInfo> = {
   waveform: {
     title: 'Waveform',
     description: 'The shape of the modulation over time. Each waveform creates a different character of movement.',
-    details: [
-      'TRI - Smooth triangle wave, classic vibrato',
-      'SIN - Rounded sine wave, natural movement',
-      'SQR - Instant on/off, rhythmic gating',
-      'SAW - Rising ramp, building effects',
-      'EXP - Accelerating curve (unipolar)',
-      'RMP - Falling ramp (unipolar)',
-      'RND - Random sample-and-hold',
+    waveformDetails: [
+      { type: 'TRI' as WaveformType, desc: 'Smooth triangle wave, classic vibrato' },
+      { type: 'SIN' as WaveformType, desc: 'Rounded sine wave, natural movement' },
+      { type: 'SQR' as WaveformType, desc: 'Instant on/off, rhythmic gating' },
+      { type: 'SAW' as WaveformType, desc: 'Rising ramp, building effects' },
+      { type: 'EXP' as WaveformType, desc: 'Accelerating curve (unipolar)' },
+      { type: 'RMP' as WaveformType, desc: 'Falling ramp (unipolar)' },
+      { type: 'RND' as WaveformType, desc: 'Random sample-and-hold' },
     ],
   },
   speed: {
@@ -240,6 +247,18 @@ export default function EditParamScreen() {
         {renderControl()}
       </View>
 
+      {info.waveformDetails && (
+        <View style={styles.detailsSection}>
+          {info.waveformDetails.map((item) => (
+            <View key={item.type} style={styles.waveformDetailRow}>
+              <WaveformIcon waveform={item.type} size={18} color="#ff6600" />
+              <Text style={styles.waveformLabel}>{item.type}</Text>
+              <Text style={styles.waveformDesc}>{item.desc}</Text>
+            </View>
+          ))}
+        </View>
+      )}
+
       {info.details && (
         <View style={styles.detailsSection}>
           {info.details.map((detail, index) => (
@@ -288,6 +307,23 @@ const styles = StyleSheet.create({
     fontSize: 12,
     lineHeight: 17,
     marginBottom: 2,
+  },
+  waveformDetailRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    marginBottom: 6,
+  },
+  waveformLabel: {
+    color: '#ffffff',
+    fontSize: 12,
+    fontWeight: '600',
+    width: 30,
+  },
+  waveformDesc: {
+    color: '#888899',
+    fontSize: 12,
+    flex: 1,
   },
   placeholderContainer: {
     alignItems: 'center',

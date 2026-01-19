@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Canvas, Group } from '@shopify/react-native-skia';
-import { useSharedValue } from 'react-native-reanimated';
+import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { WaveformDisplay } from './WaveformDisplay';
@@ -34,7 +34,9 @@ export function LFOVisualizer({
   showParameters = true,
   showTiming = true,
   showOutput = true,
+  showPhaseIndicator = true,
   strokeWidth = 2,
+  isEditing = false,
   fadeMultiplier,
   randomSamples,
 }: LFOVisualizerProps) {
@@ -69,6 +71,15 @@ export function LFOVisualizer({
   // Use the appropriate shared value (from props or internal)
   const phaseValue = isPhaseShared ? (phase as SharedValue<number>) : internalPhase;
   const outputValue = isOutputShared ? (output as SharedValue<number>) : internalOutput;
+
+  // Animated opacity for phase indicator (fades out when editing)
+  const phaseIndicatorOpacity = useSharedValue(1);
+  useEffect(() => {
+    phaseIndicatorOpacity.value = withTiming(isEditing ? 0 : 1, {
+      duration: 100,
+      easing: Easing.inOut(Easing.ease),
+    });
+  }, [isEditing, phaseIndicatorOpacity]);
 
   // Calculate canvas dimensions (excluding padding for info displays)
   const parameterHeight = showParameters ? 40 : 0;
@@ -144,17 +155,20 @@ export function LFOVisualizer({
             />
           )}
 
-          {/* Animated phase indicator */}
-          <PhaseIndicator
-            phase={phaseValue}
-            output={outputValue}
-            width={width}
-            height={canvasHeight}
-            color={resolvedTheme.phaseIndicator}
-            showDot={true}
-            dotRadius={6}
-            startPhase={startPhase}
-          />
+          {/* Animated phase indicator - always rendered, opacity controlled */}
+          {showPhaseIndicator && (
+            <PhaseIndicator
+              phase={phaseValue}
+              output={outputValue}
+              width={width}
+              height={canvasHeight}
+              color={resolvedTheme.phaseIndicator}
+              showDot={true}
+              dotRadius={6}
+              startPhase={startPhase}
+              opacity={phaseIndicatorOpacity}
+            />
+          )}
         </Group>
       </Canvas>
 
@@ -163,6 +177,7 @@ export function LFOVisualizer({
         <OutputValueDisplay
           output={outputValue}
           theme={resolvedTheme}
+          isEditing={isEditing}
         />
       )}
 

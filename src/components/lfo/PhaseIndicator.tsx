@@ -1,6 +1,6 @@
 import React from 'react';
 import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
 
 export function PhaseIndicator({
@@ -12,7 +12,11 @@ export function PhaseIndicator({
   showDot = true,
   dotRadius = 6,
   startPhase,
+  opacity: opacityProp,
 }: PhaseIndicatorProps) {
+  // Default opacity to 1 if not provided
+  const defaultOpacity = useSharedValue(1);
+  const opacity = opacityProp ?? defaultOpacity;
   const padding = 8;
   const drawWidth = width - padding * 2;
   const drawHeight = height - padding * 2;
@@ -51,8 +55,14 @@ export function PhaseIndicator({
     return vec(xPosition.value, height - padding);
   }, [xPosition]);
 
+  // Derived opacity for the line (half of main opacity)
+  const lineOpacity = useDerivedValue(() => {
+    'worklet';
+    return opacity.value * 0.5;
+  }, [opacity]);
+
   return (
-    <Group>
+    <Group opacity={opacity}>
       {/* Vertical line showing current phase position */}
       <Line
         p1={p1}
@@ -60,7 +70,7 @@ export function PhaseIndicator({
         color={color}
         style="stroke"
         strokeWidth={1}
-        opacity={0.5}
+        opacity={lineOpacity}
       />
 
       {/* Dot at current output value */}

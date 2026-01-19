@@ -14,18 +14,21 @@ export function WaveformDisplay({
   depth,
   startPhase,
 }: WaveformDisplayProps) {
-  const path = useWaveformPath(waveform, width, height, resolution, 8, depth, startPhase);
+  // Stroke path (open)
+  const strokePath = useWaveformPath(waveform, width, height, resolution, 8, depth, startPhase, false);
+  // Fill path (closed to baseline)
+  const fillPath = useWaveformPath(waveform, width, height, resolution, 8, depth, startPhase, true);
 
   return (
     <>
-      {/* Optional fill */}
+      {/* Optional fill - closed path to baseline */}
       {fillColor && (
-        <Path path={path} color={fillColor} style="fill" opacity={0.2} />
+        <Path path={fillPath} color={fillColor} style="fill" opacity={0.2} />
       )}
 
-      {/* Stroke */}
+      {/* Stroke - open path */}
       <Path
-        path={path}
+        path={strokePath}
         color={strokeColor}
         style="stroke"
         strokeWidth={strokeWidth}

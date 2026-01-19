@@ -31,17 +31,20 @@ export function RandomWaveform({
   const depthScale = depth !== undefined ? depth / 63 : 1;
   const startPhaseNormalized = (startPhase || 0) / 128;
 
-  const path = useMemo(() => {
-    const p = Skia.Path.Make();
+  const { strokePath, fillPath } = useMemo(() => {
+    const stroke = Skia.Path.Make();
+    const fill = Skia.Path.Make();
 
     if (samples.length === 0) {
-      return p;
+      return { strokePath: stroke, fillPath: fill };
     }
 
     const drawWidth = width - padding * 2;
     const drawHeight = height - padding * 2;
     const centerY = height / 2;
     const scaleY = -drawHeight / 2;
+    const startX = padding;
+    const endX = padding + drawWidth;
 
     // Shift samples so startPhaseNormalized appears at x=0
     // displayPhase = (sample.phase - startPhaseNormalized + 1) % 1
@@ -62,14 +65,17 @@ export function RandomWaveform({
 
       if (i === 0) {
         // Start from left edge at the first sample's value
-        p.moveTo(padding, y);
-        p.lineTo(x, y);
+        stroke.moveTo(padding, y);
+        stroke.lineTo(x, y);
+        fill.moveTo(padding, y);
+        fill.lineTo(x, y);
       } else {
         // Horizontal line to this sample's x position at previous y
         const prevY = centerY + shiftedSamples[i - 1].value * depthScale * scaleY;
-        p.lineTo(x, prevY);
-        // Vertical line to this sample's y
-        p.lineTo(x, y);
+        stroke.lineTo(x, prevY);
+        stroke.lineTo(x, y);
+        fill.lineTo(x, prevY);
+        fill.lineTo(x, y);
       }
     }
 
@@ -77,10 +83,16 @@ export function RandomWaveform({
     if (shiftedSamples.length > 0) {
       const lastSample = shiftedSamples[shiftedSamples.length - 1];
       const lastY = centerY + lastSample.value * depthScale * scaleY;
-      p.lineTo(padding + drawWidth, lastY);
+      stroke.lineTo(endX, lastY);
+      fill.lineTo(endX, lastY);
+
+      // Close fill path to baseline
+      fill.lineTo(endX, centerY);
+      fill.lineTo(startX, centerY);
+      fill.close();
     }
 
-    return p;
+    return { strokePath: stroke, fillPath: fill };
   }, [samples, width, height, depthScale, startPhaseNormalized]);
 
   if (samples.length === 0) {
@@ -90,10 +102,10 @@ export function RandomWaveform({
   return (
     <>
       {fillColor && (
-        <Path path={path} color={fillColor} style="fill" opacity={0.2} />
+        <Path path={fillPath} color={fillColor} style="fill" opacity={0.2} />
       )}
       <Path
-        path={path}
+        path={strokePath}
         color={strokeColor}
         style="stroke"
         strokeWidth={strokeWidth}

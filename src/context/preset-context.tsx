@@ -1,6 +1,8 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
+import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Storage } from 'expo-sqlite/kv-store';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
+
+const ENGINE_DEBOUNCE_MS = 100;
 
 const STORAGE_KEY = 'activePreset';
 const BPM_STORAGE_KEY = 'bpm';
@@ -43,7 +45,12 @@ interface PresetContextValue {
   preset: LFOPreset;
   setActivePreset: (index: number) => void;
   presets: LFOPreset[];
+  /** Immediate config - updates instantly for UI display */
   currentConfig: LFOPresetConfig;
+  /** Debounced config - updates 100ms after last change, use for engine creation */
+  debouncedConfig: LFOPresetConfig;
+  /** True while user is actively editing (before debounce settles) */
+  isEditing: boolean;
   updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
   resetToPreset: () => void;
   bpm: number;
@@ -57,7 +64,32 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(
     () => ({ ...PRESETS[getInitialPreset()].config })
   );
+  const [debouncedConfig, setDebouncedConfig] = useState<LFOPresetConfig>(
+    () => ({ ...PRESETS[getInitialPreset()].config })
+  );
   const [bpm, setBPMState] = useState(getInitialBPM);
+  const [isEditing, setIsEditing] = useState(false);
+  const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Debounce config changes for engine restart
+  useEffect(() => {
+    // Mark as editing when config changes
+    setIsEditing(true);
+
+    if (debounceRef.current) {
+      clearTimeout(debounceRef.current);
+    }
+    debounceRef.current = setTimeout(() => {
+      setDebouncedConfig({ ...currentConfig });
+      setIsEditing(false);
+    }, ENGINE_DEBOUNCE_MS);
+
+    return () => {
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+      }
+    };
+  }, [currentConfig]);
 
   const setActivePreset = useCallback((index: number) => {
     setActivePresetState(index);
@@ -101,6 +133,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setActivePreset,
     presets: PRESETS,
     currentConfig,
+    debouncedConfig,
+    isEditing,
     updateParameter,
     resetToPreset,
     bpm,
