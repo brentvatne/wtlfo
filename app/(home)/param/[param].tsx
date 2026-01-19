@@ -170,12 +170,12 @@ export default function EditParamScreen() {
   const nextParam = PARAM_ORDER[(currentIndex + 1) % PARAM_ORDER.length];
 
   const goToPrev = () => {
-    setActiveParam(prevParam); // Instant UI update
-    router.replace(`/param/${prevParam}`); // Silent URL update
+    setActiveParam(prevParam);
+    router.setParams({ param: prevParam }); // No navigation = no animation
   };
   const goToNext = () => {
-    setActiveParam(nextParam); // Instant UI update
-    router.replace(`/param/${nextParam}`); // Silent URL update
+    setActiveParam(nextParam);
+    router.setParams({ param: nextParam }); // No navigation = no animation
   };
 
   if (!activeParam || !(activeParam in PARAM_INFO)) {
