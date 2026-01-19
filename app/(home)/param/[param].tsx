@@ -176,6 +176,13 @@ export default function EditParamScreen() {
   const handleSlidingStart = () => setIsEditing(true);
   const handleSlidingEnd = () => setIsEditing(false);
 
+  // Reset isEditing on unmount to prevent stuck state if user navigates while sliding
+  useEffect(() => {
+    return () => {
+      setIsEditing(false);
+    };
+  }, [setIsEditing]);
+
   // Use internal state for instant switching (no animation)
   const [activeParam, setActiveParam] = useState<ParamKey>(urlParam as ParamKey);
 
