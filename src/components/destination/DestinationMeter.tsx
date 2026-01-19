@@ -1,7 +1,7 @@
-import React, { useState } from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line } from '@shopify/react-native-skia';
-import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType } from '@/src/components/lfo/types';
@@ -47,24 +47,37 @@ export function DestinationMeter({
   // - Positive depth: only modulates above center
   // - Negative depth: only modulates below center
   // For bipolar waveforms: modulates both directions
-  let lowerBound: number;
-  let upperBound: number;
+  let targetLowerBound: number;
+  let targetUpperBound: number;
 
   if (isUnipolar) {
     if (depth >= 0) {
       // Unipolar + positive depth: center to center + swing
-      lowerBound = centerValue;
-      upperBound = Math.min(max, centerValue + swing);
+      targetLowerBound = centerValue;
+      targetUpperBound = Math.min(max, centerValue + swing);
     } else {
       // Unipolar + negative depth: center - swing to center
-      lowerBound = Math.max(min, centerValue - swing);
-      upperBound = centerValue;
+      targetLowerBound = Math.max(min, centerValue - swing);
+      targetUpperBound = centerValue;
     }
   } else {
     // Bipolar: both directions
-    lowerBound = Math.max(min, centerValue - swing);
-    upperBound = Math.min(max, centerValue + swing);
+    targetLowerBound = Math.max(min, centerValue - swing);
+    targetUpperBound = Math.min(max, centerValue + swing);
   }
+
+  // Animated shared values for smooth transitions
+  const animatedCenterValue = useSharedValue(centerValue);
+  const animatedLowerBound = useSharedValue(targetLowerBound);
+  const animatedUpperBound = useSharedValue(targetUpperBound);
+
+  // Animate when values change with a subtle spring (no overshoot)
+  const springConfig = { damping: 45, stiffness: 550, overshootClamping: true };
+  useEffect(() => {
+    animatedCenterValue.value = withSpring(centerValue, springConfig);
+    animatedLowerBound.value = withSpring(targetLowerBound, springConfig);
+    animatedUpperBound.value = withSpring(targetUpperBound, springConfig);
+  }, [centerValue, targetLowerBound, targetUpperBound]);
 
   // Track current value for display
   const [currentValue, setCurrentValue] = useState(centerValue);
@@ -72,25 +85,14 @@ export function DestinationMeter({
   // Update current value from animation
   // Note: lfoOutput is already depth-scaled by the LFO engine (range: -depth/63 to +depth/63)
   useAnimatedReaction(
-    () => lfoOutput.value,
-    (output) => {
+    () => ({ output: lfoOutput.value, center: animatedCenterValue.value }),
+    ({ output, center }) => {
       const modulationAmount = output * maxModulation;
-      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
+      const value = Math.round(Math.max(min, Math.min(max, center + modulationAmount)));
       runOnJS(setCurrentValue)(value);
     },
-    [centerValue, maxModulation, min, max]
+    [maxModulation, min, max]
   );
-
-  // Calculate the current modulated value position
-  // lfoOutput is already depth-scaled, so we only multiply by maxModulation
-  const meterFillHeight = useDerivedValue(() => {
-    'worklet';
-    const modulationAmount = lfoOutput.value * maxModulation;
-    const currentVal = centerValue + modulationAmount;
-    const clampedValue = Math.max(min, Math.min(max, currentVal));
-    const normalized = (clampedValue - min) / range;
-    return normalized * (height - 16); // Leave padding
-  }, [lfoOutput, centerValue, maxModulation, min, max, range, height]);
 
   // Position calculations
   const meterX = 8;
@@ -98,15 +100,33 @@ export function DestinationMeter({
   const meterTop = 8;
   const meterHeight = height - 16;
 
-  // Upper and lower bound Y positions
-  const upperBoundY = meterTop + meterHeight - ((upperBound - min) / range) * meterHeight;
-  const lowerBoundY = meterTop + meterHeight - ((lowerBound - min) / range) * meterHeight;
+  // Calculate the current modulated value position (animated)
+  // lfoOutput is already depth-scaled, so we only multiply by maxModulation
+  const meterFillHeight = useDerivedValue(() => {
+    'worklet';
+    const modulationAmount = lfoOutput.value * maxModulation;
+    const currentVal = animatedCenterValue.value + modulationAmount;
+    const clampedValue = Math.max(min, Math.min(max, currentVal));
+    const normalized = (clampedValue - min) / range;
+    return normalized * (height - 16); // Leave padding
+  }, [maxModulation, min, max, range, height]);
+
+  // Animated upper and lower bound Y positions
+  const upperBoundY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - ((animatedUpperBound.value - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range]);
+
+  const lowerBoundY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - ((animatedLowerBound.value - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range]);
 
   // Animated current value Y position
   const currentValueY = useDerivedValue(() => {
     'worklet';
     return meterTop + meterHeight - meterFillHeight.value;
-  }, [meterFillHeight, meterTop, meterHeight]);
+  }, [meterTop, meterHeight]);
 
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
   const gridLines = [];
@@ -148,7 +168,7 @@ export function DestinationMeter({
             x={meterX}
             y={upperBoundY}
             width={meterWidth}
-            height={lowerBoundY - upperBoundY}
+            height={useDerivedValue(() => lowerBoundY.value - upperBoundY.value, [])}
             color="rgba(255, 102, 0, 0.2)"
           />
         )}
@@ -156,8 +176,8 @@ export function DestinationMeter({
         {/* Upper bound line - orange */}
         {depth !== 0 && (
           <Line
-            p1={{ x: meterX, y: upperBoundY }}
-            p2={{ x: meterX + meterWidth, y: upperBoundY }}
+            p1={useDerivedValue(() => ({ x: meterX, y: upperBoundY.value }), [])}
+            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: upperBoundY.value }), [])}
             color="#ff6600"
             strokeWidth={1.5}
           />
@@ -166,8 +186,8 @@ export function DestinationMeter({
         {/* Lower bound line - orange */}
         {depth !== 0 && (
           <Line
-            p1={{ x: meterX, y: lowerBoundY }}
-            p2={{ x: meterX + meterWidth, y: lowerBoundY }}
+            p1={useDerivedValue(() => ({ x: meterX, y: lowerBoundY.value }), [])}
+            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: lowerBoundY.value }), [])}
             color="#ff6600"
             strokeWidth={1.5}
           />

@@ -146,7 +146,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   visualizerRow: {
     flexDirection: 'row',
-    marginBottom: 12,
+    marginTop: 8,
+    marginBottom: 8,
   },
   visualizerContainer: {
     flex: 1,
@@ -164,7 +165,7 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingHorizontal: 20,
-    marginTop: 20,
+    marginTop: 12,
     marginBottom: 8,
   },
   meterContainer: {
