@@ -213,10 +213,10 @@ describe('worklets', () => {
         const phases = Array.from({ length: 100 }, (_, i) => i / 100);
         phases.forEach(phase => {
           const value = sampleWaveformWorklet('RND', phase);
-          // Based on implementation: Math.sin(step * 12.9898) * 0.8
-          // Max value is 0.8, min is -0.8
-          expect(value).toBeGreaterThanOrEqual(-0.8);
-          expect(value).toBeLessThanOrEqual(0.8);
+          // Based on implementation: Math.sin(step * 78.233 + 0.5) * 0.9
+          // Max value is 0.9, min is -0.9
+          expect(value).toBeGreaterThanOrEqual(-0.9);
+          expect(value).toBeLessThanOrEqual(0.9);
         });
       });
     });
