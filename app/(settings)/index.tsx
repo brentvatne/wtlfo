@@ -86,7 +86,7 @@ export default function SettingsScreen() {
         </Text>
         <ParameterSlider
           label="BPM"
-          min={30}
+          min={20}
           max={300}
           value={bpm}
           onChange={setBPM}
