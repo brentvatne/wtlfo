@@ -2,7 +2,6 @@ import React from 'react';
 import { ScrollView, Pressable, useWindowDimensions } from 'react-native';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
-import { QuickEditPanel } from '@/src/components/ParameterEditor';
 import { ParamGrid } from '@/src/components/params';
 import { usePreset } from '@/src/context/preset-context';
 import { colors } from '@/src/theme';
@@ -52,11 +51,8 @@ export default function HomeScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* Parameter Grid - Elektron style */}
-      <ParamGrid />
-
       {/* Main Visualizer - tap to pause/play/restart */}
-      <Pressable style={{ marginTop: 8, marginBottom: 24, opacity: isPaused ? 0.5 : 1 }} onPress={handleTap}>
+      <Pressable style={{ marginBottom: 16, opacity: isPaused ? 0.5 : 1 }} onPress={handleTap}>
         <LFOVisualizer
           phase={lfoPhase}
           output={lfoOutput}
@@ -80,8 +76,8 @@ export default function HomeScreen() {
         />
       </Pressable>
 
-      {/* Quick Edit Panel */}
-      <QuickEditPanel />
+      {/* Parameter Grid - Elektron style */}
+      <ParamGrid />
     </ScrollView>
   );
 }

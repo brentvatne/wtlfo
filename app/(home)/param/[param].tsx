@@ -1,6 +1,6 @@
 import React from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
+import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
@@ -9,6 +9,9 @@ import { DestinationPickerInline } from '@/src/components/destination';
 import { colors } from '@/src/theme';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
+
+// Parameter order matching the grid layout (row 1 then row 2)
+const PARAM_ORDER: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
 
 const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
@@ -119,9 +122,30 @@ function formatMultiplier(value: number): string {
   return value >= 1024 ? `${value / 1024}k` : String(value);
 }
 
+function NavButton({ direction, onPress }: { direction: 'prev' | 'next'; onPress: () => void }) {
+  return (
+    <Pressable
+      onPress={onPress}
+      style={styles.navButton}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Text style={styles.navButtonText}>{direction === 'prev' ? '‹' : '›'}</Text>
+    </Pressable>
+  );
+}
+
 export default function EditParamScreen() {
   const { param } = useLocalSearchParams<{ param: ParamKey }>();
   const { currentConfig, updateParameter } = usePreset();
+  const router = useRouter();
+
+  // Navigation between parameters
+  const currentIndex = PARAM_ORDER.indexOf(param as ParamKey);
+  const prevParam = PARAM_ORDER[(currentIndex - 1 + PARAM_ORDER.length) % PARAM_ORDER.length];
+  const nextParam = PARAM_ORDER[(currentIndex + 1) % PARAM_ORDER.length];
+
+  const goToPrev = () => router.replace(`/param/${prevParam}`);
+  const goToNext = () => router.replace(`/param/${nextParam}`);
 
   if (!param || !(param in PARAM_INFO)) {
     return (
@@ -241,7 +265,13 @@ export default function EditParamScreen() {
 
   return (
     <ScrollView style={styles.container} contentContainerStyle={styles.content}>
-      <Stack.Screen options={{ title: info.title }} />
+      <Stack.Screen
+        options={{
+          title: info.title,
+          headerLeft: () => <NavButton direction="prev" onPress={goToPrev} />,
+          headerRight: () => <NavButton direction="next" onPress={goToNext} />,
+        }}
+      />
       <Text style={styles.description}>{info.description}</Text>
 
       <View style={styles.controlSection}>
@@ -272,6 +302,15 @@ export default function EditParamScreen() {
 }
 
 const styles = StyleSheet.create({
+  navButton: {
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+  },
+  navButtonText: {
+    color: colors.accent,
+    fontSize: 28,
+    fontWeight: '300',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
