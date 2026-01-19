@@ -28,8 +28,9 @@ export function useSlowMotionPhase(
   realPhase: SharedValue<number>,
   slowdownFactor: number
 ): SharedValue<number> {
-  const displayPhase = useSharedValue(realPhase.value);
-  const lastRealPhase = useSharedValue(realPhase.value);
+  // Initialize with 0, will sync on first frame via useAnimatedReaction
+  const displayPhase = useSharedValue(0);
+  const lastRealPhase = useSharedValue(0);
   const factorValue = useSharedValue(slowdownFactor);
   // Track frames to detect discontinuities after changes
   const frameCount = useSharedValue(0);

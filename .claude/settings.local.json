@@ -30,7 +30,12 @@
       "Bash(pngcrush:*)",
       "WebFetch(domain:www.manualslib.com)",
       "WebFetch(domain:www.elektronauts.com)",
-      "WebFetch(domain:www.elektron.se)"
+      "WebFetch(domain:www.elektron.se)",
+      "WebFetch(domain:oscarg.ws)",
+      "WebFetch(domain:docs.expo.dev)",
+      "WebFetch(domain:github.com)",
+      "Bash(npm ls:*)",
+      "Bash(yarn why:*)"
     ]
   }
 }
