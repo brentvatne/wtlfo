@@ -129,6 +129,33 @@ export default function TimingScreen() {
         </Text>
       </ExpandableSection>
 
+      <ExpandableSection title="Modulation Update Rate">
+        <Text style={styles.expandedText}>
+          The Digitakt LFO updates <Text style={styles.bold}>continuously</Text>, not quantized to sequencer steps.
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          On real hardware, modulation runs at audio-rate (44.1-48kHz) for smooth, sample-accurate control.
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          <Text style={styles.bold}>Key points:</Text>
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 4 }]}>
+          • Update rate is independent of BPM
+        </Text>
+        <Text style={styles.expandedText}>
+          • BPM only affects cycle duration
+        </Text>
+        <Text style={styles.expandedText}>
+          • Phase advances smoothly (float64 precision)
+        </Text>
+        <Text style={styles.expandedText}>
+          • No stepping artifacts in output
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          This is standard for professional synths—continuous modulation independent of step quantization.
+        </Text>
+      </ExpandableSection>
+
       <View style={styles.tipBox}>
         <Text style={styles.tipTitle}>Quick Tip</Text>
         <Text style={styles.tipText}>

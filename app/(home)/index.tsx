@@ -1,9 +1,13 @@
 import React, { useRef } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { useDerivedValue } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
   SlowMotionBadge,
+  useSlowMotionPhase,
+  getSlowdownInfo,
+  sampleWaveformWorklet,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -47,15 +51,29 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
-  // Slow-motion preview disabled for now - needs investigation at higher speeds
-  // TODO: Re-enable once issues are resolved
-  const slowdownInfo = { factor: 1, isSlowed: false, displayCycleTimeMs: timingInfo.cycleTimeMs };
-  const displayPhase = lfoPhase; // Use real phase directly
-  const displayOutput = lfoOutput; // Use real output directly
-
-  // Keep refs for when slow-motion is re-enabled
+  // Slow-motion preview for fast LFOs
+  // Track previous factor for hysteresis calculations
   const previousFactorRef = useRef(1);
-  void previousFactorRef; // Silence unused warning
+  const slowdownInfo = getSlowdownInfo(
+    timingInfo.cycleTimeMs,
+    previousFactorRef.current
+  );
+  previousFactorRef.current = slowdownInfo.factor;
+
+  // Create slowed display phase using the fixed hook
+  const displayPhase = useSlowMotionPhase(lfoPhase, slowdownInfo.factor);
+
+  // Derive display output from display phase (for destination meter sync)
+  const waveformForWorklet = currentConfig.waveform as WaveformType;
+  // Pre-compute clamped depth scale (handles asymmetric range -64 to +63)
+  const depthScaleForWorklet = Math.max(-1, Math.min(1, currentConfig.depth / 63));
+  const displayOutput = useDerivedValue(() => {
+    'worklet';
+    // Sample the waveform at the slowed display phase
+    const rawOutput = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
+    // Apply depth scaling
+    return rawOutput * depthScaleForWorklet;
+  }, [waveformForWorklet, depthScaleForWorklet]);
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -112,7 +130,6 @@ export default function HomeScreen() {
             />
             <SlowMotionBadge
               factor={slowdownInfo.factor}
-              displayCycleTimeMs={slowdownInfo.displayCycleTimeMs}
               visible={slowdownInfo.isSlowed}
             />
           </View>

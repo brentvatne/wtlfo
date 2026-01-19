@@ -4,30 +4,25 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { colors } from '@/src/theme';
 
 interface SlowMotionBadgeProps {
-  /** Slowdown factor (e.g., 2.5 for 2.5x slower) */
+  /** Slowdown factor (e.g., 4 means 1/4 speed) */
   factor: number;
-  /** Displayed cycle time in milliseconds */
-  displayCycleTimeMs: number;
   /** Whether badge should be visible */
   visible: boolean;
 }
 
 /**
  * Badge overlay showing that the visualization is in slow-motion preview mode.
- * Displays the slowdown factor and displayed cycle time.
+ * Displays the speed as a fraction (e.g., "1/4 SPEED") to clearly indicate slowing.
  */
-export function SlowMotionBadge({ factor, displayCycleTimeMs, visible }: SlowMotionBadgeProps) {
+export function SlowMotionBadge({ factor, visible }: SlowMotionBadgeProps) {
   if (!visible) return null;
 
-  // Format factor for display (1 decimal for non-integers, none for integers)
-  const factorDisplay = Number.isInteger(factor)
-    ? `${factor}x`
-    : `${factor.toFixed(1)}x`;
-
-  // Format cycle time (whole ms for >= 100ms, otherwise 1 decimal)
-  const cycleDisplay = displayCycleTimeMs >= 100
-    ? `${Math.round(displayCycleTimeMs)}ms`
-    : `${displayCycleTimeMs.toFixed(1)}ms`;
+  // Format as fraction: factor of 4 means 1/4 speed
+  // For clean fractions (2, 4, 5, 8, 10), show as "1/N"
+  // For others, show decimal like "1/2.5"
+  const speedDisplay = Number.isInteger(factor)
+    ? `1/${factor}`
+    : `1/${factor.toFixed(1)}`;
 
   return (
     <Animated.View
@@ -36,11 +31,7 @@ export function SlowMotionBadge({ factor, displayCycleTimeMs, visible }: SlowMot
       exiting={FadeOut.duration(150)}
     >
       <View style={styles.badge}>
-        <View style={styles.topRow}>
-          <Text style={styles.factorText}>{factorDisplay}</Text>
-          <Text style={styles.previewText}>PREVIEW</Text>
-        </View>
-        <Text style={styles.cycleText}>{cycleDisplay}</Text>
+        <Text style={styles.speedText}>{speedDisplay} SPEED</Text>
       </View>
     </Animated.View>
   );
@@ -57,32 +48,16 @@ const styles = StyleSheet.create({
     backgroundColor: 'rgba(0, 0, 0, 0.75)',
     borderRadius: 4,
     paddingHorizontal: 8,
-    paddingVertical: 4,
+    paddingVertical: 5,
     alignItems: 'center',
     borderWidth: 1,
     borderColor: colors.accent,
   },
-  topRow: {
-    flexDirection: 'row',
-    alignItems: 'baseline',
-    gap: 4,
-  },
-  factorText: {
+  speedText: {
     color: colors.accent,
-    fontSize: 14,
+    fontSize: 12,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
-  },
-  previewText: {
-    color: colors.textSecondary,
-    fontSize: 9,
-    fontWeight: '600',
-    letterSpacing: 0.5,
-  },
-  cycleText: {
-    color: colors.textMuted,
-    fontSize: 10,
-    fontVariant: ['tabular-nums'],
-    marginTop: 2,
+    letterSpacing: 0.3,
   },
 });

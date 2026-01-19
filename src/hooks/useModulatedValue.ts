@@ -53,7 +53,8 @@ export function useModulationInfo(
   const max = destination?.max ?? 127;
   const range = max - min;
   const maxModulation = range / 2;
-  const depthScale = Math.abs(lfoDepth / 63);
+  // Clamp to max 1 to handle asymmetric range (-64 to +63)
+  const depthScale = Math.min(1, Math.abs(lfoDepth / 63));
   const swing = maxModulation * depthScale;
 
   return {

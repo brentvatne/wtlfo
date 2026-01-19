@@ -35,7 +35,8 @@ export function FadeEnvelope({
   startPhase,
 }: FadeEnvelopeProps) {
   const padding = 8;
-  const depthScale = depth !== undefined ? depth / 63 : 1;
+  // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
+  const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
   const startPhaseNormalized = (startPhase || 0) / 128;
 
   // Create the path for the trajectory with fade applied

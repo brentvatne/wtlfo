@@ -25,7 +25,12 @@
       "Bash(eas update:*)",
       "Bash(find:*)",
       "Bash(npm test:*)",
-      "Bash(node:*)"
+      "Bash(node:*)",
+      "Bash(npm view:*)",
+      "Bash(pngcrush:*)",
+      "WebFetch(domain:www.manualslib.com)",
+      "WebFetch(domain:www.elektronauts.com)",
+      "WebFetch(domain:www.elektron.se)"
     ]
   }
 }

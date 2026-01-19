@@ -47,7 +47,8 @@ export function useWaveformPath(
     const scaleY = -drawHeight / 2;
 
     // Depth scaling (depth/63 gives -1 to 1 range)
-    const depthScale = depth !== undefined ? depth / 63 : 1;
+    // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
+    const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
 
     // For RND waveform, startPhase acts as SLEW (0=sharp S&H, 127=max smoothing)
     // For other waveforms, it's a phase offset (0-127 → 0.0-~1.0)

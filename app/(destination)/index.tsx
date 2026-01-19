@@ -54,7 +54,8 @@ export default function DestinationScreen() {
   // Calculate modulation range
   const range = destMax - destMin;
   const maxModulation = range / 2;
-  const depthScale = Math.abs(currentConfig.depth / 63);
+  // Clamp to max 1 to handle asymmetric range (-64 to +63)
+  const depthScale = Math.min(1, Math.abs(currentConfig.depth / 63));
   const swing = maxModulation * depthScale;
   const minValue = Math.max(destMin, Math.round(centerValue - swing));
   const maxValue = Math.min(destMax, Math.round(centerValue + swing));

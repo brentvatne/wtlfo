@@ -31,7 +31,8 @@ export function PhaseIndicator({
   const isRandom = waveform === 'RND';
   const slewValue = isRandom ? (startPhase || 0) : 0;
   const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
-  const depthScale = depth !== undefined ? depth / 63 : 1;
+  // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
+  const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
   // Check if fade applies (only when fade is set and mode is not FRE)
   const fadeApplies = fade !== undefined && fade !== 0 && mode !== 'FRE';
   const fadeValue = fade ?? 0;

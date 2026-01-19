@@ -40,7 +40,8 @@ export function DestinationMeter({
   const max = destination?.max ?? 127;
   const range = max - min;
   const maxModulation = range / 2;
-  const depthScale = Math.abs(depth) / 63;
+  // Clamp to max 1 to handle asymmetric range (-64 to +63)
+  const depthScale = Math.min(1, Math.abs(depth) / 63);
 
   // Calculate bounds based on depth and waveform type
   const swing = maxModulation * depthScale;
