@@ -55,23 +55,23 @@ export default function DestinationScreen() {
   const range = destMax - destMin;
   const maxModulation = range / 2;
   const depthScale = Math.abs(currentConfig.depth / 63);
-  const depthSign = Math.sign(currentConfig.depth) || 1;
   const swing = maxModulation * depthScale;
   const minValue = Math.max(destMin, Math.round(centerValue - swing));
   const maxValue = Math.min(destMax, Math.round(centerValue + swing));
 
   // React to LFO output changes and compute the actual value
+  // Note: lfoOutput is already depth-scaled by the elektron-lfo engine
+  // (output range is -depth/63 to +depth/63, including sign)
   useAnimatedReaction(
     () => lfoOutput.value,
     (output) => {
-      // lfoOutput ranges from -1 to 1, apply to swing with depth direction
-      const modulation = output * swing * depthSign;
+      const modulation = output * maxModulation;
       const newValue = Math.round(
         Math.max(destMin, Math.min(destMax, centerValue + modulation))
       );
       runOnJS(setComputedValue)(newValue);
     },
-    [centerValue, swing, depthSign, destMin, destMax]
+    [centerValue, maxModulation, destMin, destMax]
   );
 
   return (

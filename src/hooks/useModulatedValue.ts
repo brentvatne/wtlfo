@@ -26,12 +26,14 @@ export function useModulatedValue({
   const max = destination?.max ?? 127;
   const range = max - min;
   const maxModulation = range / 2;
-  const depthScale = lfoDepth / 63; // -1 to +1
+  // Note: lfoOutput is already depth-scaled by the elektron-lfo engine
+  // (output range is -depth/63 to +depth/63, not -1 to +1)
+  // So we only multiply by maxModulation, not by depthScale
 
   // Return a single number, NOT an object
   return useDerivedValue(() => {
     'worklet';
-    const modulationAmount = lfoOutput.value * depthScale * maxModulation;
+    const modulationAmount = lfoOutput.value * maxModulation;
     const raw = centerValue + modulationAmount;
     return Math.max(min, Math.min(max, raw));
   }, [lfoOutput]);
