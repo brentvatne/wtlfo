@@ -121,6 +121,7 @@ export default function HomeScreen() {
 
       {/* Parameter Grid - Full width */}
       <View style={styles.gridContainer}>
+        <Text style={styles.sectionHeading}>PARAMETERS</Text>
         <ParamGrid />
       </View>
 
@@ -155,6 +156,16 @@ const styles = StyleSheet.create({
   },
   gridContainer: {
     // Full width
+  },
+  sectionHeading: {
+    color: '#ff6600',
+    fontSize: 14,
+    fontWeight: '700',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
+    paddingHorizontal: 20,
+    marginTop: 20,
+    marginBottom: 8,
   },
   meterContainer: {
     justifyContent: 'center',

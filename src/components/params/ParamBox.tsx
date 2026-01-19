@@ -8,9 +8,10 @@ export interface ParamBoxProps {
   onPress: () => void;
   isActive?: boolean;
   disabled?: boolean;
+  icon?: React.ReactNode;
 }
 
-export function ParamBox({ label, value, onPress, isActive = false, disabled = false }: ParamBoxProps) {
+export function ParamBox({ label, value, onPress, isActive = false, disabled = false, icon }: ParamBoxProps) {
   return (
     <Pressable
       onPress={onPress}
@@ -25,7 +26,10 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
       accessibilityHint={`Double tap to edit ${label} parameter`}
       accessibilityState={{ selected: isActive, disabled }}
     >
-      <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
+      <View style={styles.valueRow}>
+        {icon && <View style={[styles.iconContainer, disabled && styles.disabledIcon]}>{icon}</View>}
+        <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
+      </View>
       <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
     </Pressable>
   );
@@ -50,8 +54,19 @@ const styles = StyleSheet.create({
   active: {
     backgroundColor: 'rgba(255, 102, 0, 0.1)',
   },
+  valueRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+  },
+  iconContainer: {
+    opacity: 0.9,
+  },
+  disabledIcon: {
+    opacity: 0.4,
+  },
   label: {
-    color: '#555566',
+    color: '#777788',
     fontSize: 10,
     fontWeight: '600',
     letterSpacing: 1,
