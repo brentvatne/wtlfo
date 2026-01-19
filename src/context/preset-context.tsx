@@ -103,9 +103,33 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // LFO animation state - persists across tab switches
   const lfoPhase = useSharedValue(0);
   const lfoOutput = useSharedValue(0);
+  // Create LFO engine immediately (not after debounce) to avoid jitter on app start
   const lfoRef = useRef<LFO | null>(null);
+  // Synchronously initialize LFO on first render
+  if (lfoRef.current === null) {
+    const initialConfig = PRESETS[getInitialPreset()].config;
+    const initialBpm = getInitialBPM();
+    lfoRef.current = new LFO(initialConfig, initialBpm);
+    // Auto-trigger for modes that need it
+    if (initialConfig.mode === 'TRG' || initialConfig.mode === 'ONE' || initialConfig.mode === 'HLF') {
+      lfoRef.current.trigger();
+    }
+  }
   const animationRef = useRef<number>(0);
-  const [timingInfo, setTimingInfo] = useState<TimingInfo>({ cycleTimeMs: 0, noteValue: '', steps: 0 });
+  // Initialize timing info from the LFO we just created
+  const [timingInfo, setTimingInfo] = useState<TimingInfo>(() => {
+    if (lfoRef.current) {
+      const info = lfoRef.current.getTimingInfo();
+      const initialBpm = getInitialBPM();
+      const msPerStep = 15000 / initialBpm;
+      return {
+        cycleTimeMs: info.cycleTimeMs,
+        noteValue: info.noteValue,
+        steps: info.cycleTimeMs / msPerStep,
+      };
+    }
+    return { cycleTimeMs: 0, noteValue: '', steps: 0 };
+  });
 
   // Track whether we paused the animation due to app going to background
   // This is separate from user-initiated pause (isPaused state)
@@ -119,8 +143,16 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const hasMainLoopStarted = useRef(false);
 
   // Debounce config changes for engine restart
+  // Skip the initial render - LFO is already created synchronously above
   // Note: isEditing is now controlled externally by slider interactions
+  const isFirstRender = useRef(true);
   useEffect(() => {
+    // Skip debounce on first render - LFO is already initialized
+    if (isFirstRender.current) {
+      isFirstRender.current = false;
+      return;
+    }
+
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
@@ -201,8 +233,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isPaused, lfoPhase, lfoOutput]);
 
-  // Create/recreate LFO when debounced config changes
+  // Recreate LFO when debounced config changes (after initial creation)
+  // Skip on first render - LFO is already created synchronously above
   useEffect(() => {
+    // Skip on first render - LFO already exists
+    if (isInitialLFOCreation.current) {
+      isInitialLFOCreation.current = false;
+      return;
+    }
+
     lfoRef.current = new LFO(debouncedConfig, bpm);
 
     // Get timing info
@@ -216,18 +255,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       steps,
     });
 
-    // Only reset phase on config changes AFTER initial creation
-    // This prevents the "jitter" where animation appears to restart on app start
-    if (isInitialLFOCreation.current) {
-      isInitialLFOCreation.current = false;
-    } else {
-      // Reset phase to start phase for clean state on preset/config change
-      const startPhaseNormalized = debouncedConfig.startPhase / 128;
-      lfoPhase.value = startPhaseNormalized;
-      lfoOutput.value = 0;
-      // Clear pause state when config changes (only after initial creation)
-      setIsPaused(false);
-    }
+    // Reset phase to start phase for clean state on preset/config change
+    const startPhaseNormalized = debouncedConfig.startPhase / 128;
+    lfoPhase.value = startPhaseNormalized;
+    lfoOutput.value = 0;
+    // Clear pause state when config changes
+    setIsPaused(false);
 
     // Auto-trigger for modes that need it (resets phase and starts running)
     if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
