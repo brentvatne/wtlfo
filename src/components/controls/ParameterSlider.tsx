@@ -34,27 +34,24 @@ export function ParameterSlider({
     }
   }, [value]);
 
-  // Throttle parent updates to prevent native crash from rapid events
-  const lastUpdateTime = useRef(0);
-  const throttleMs = 32; // ~30fps - safe rate that avoids crash
-
-  // Handle slider changes - update local state immediately, throttle parent updates
+  // Handle slider changes - update local state immediately for smooth visuals
   const handleValueChange = useCallback((newValue: number) => {
     setLocalValue(newValue);
-
-    // Throttle parent updates to prevent Fabric event dispatcher crash
-    const now = Date.now();
-    if (now - lastUpdateTime.current >= throttleMs) {
-      lastUpdateTime.current = now;
-      onChange(Math.round(newValue));
+    const rounded = Math.round(newValue);
+    // Only call onChange if the rounded value changed
+    if (rounded !== lastCommittedValue.current) {
+      lastCommittedValue.current = rounded;
+      onChange(rounded);
     }
   }, [onChange]);
 
-  // Always commit final value when sliding completes
+  // Commit final value when sliding completes (in case it wasn't sent yet)
   const handleSlidingComplete = useCallback((newValue: number) => {
     const rounded = Math.round(newValue);
-    lastCommittedValue.current = rounded;
-    onChange(rounded);
+    if (rounded !== lastCommittedValue.current) {
+      lastCommittedValue.current = rounded;
+      onChange(rounded);
+    }
   }, [onChange]);
 
   return (

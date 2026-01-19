@@ -37,34 +37,24 @@ export function CenterValueSlider({
     return String(rounded);
   };
 
-  // Throttle parent updates to prevent native crash from rapid events
-  const lastUpdateTime = useRef(0);
-  const pendingValue = useRef<number | null>(null);
-  const throttleMs = 16; // ~60fps max
-
-  // Handle slider changes - update local state immediately for visual feedback
+  // Handle slider changes - update local state immediately for smooth visuals
   const handleValueChange = useCallback((newValue: number) => {
     setLocalValue(newValue);
-
-    // Throttle parent updates to prevent Fabric event dispatcher crash
-    const now = Date.now();
     const rounded = Math.round(newValue);
-
-    if (now - lastUpdateTime.current >= throttleMs) {
-      lastUpdateTime.current = now;
+    // Only call onChange if the rounded value changed
+    if (rounded !== lastCommittedValue.current) {
+      lastCommittedValue.current = rounded;
       onChange(rounded);
-      pendingValue.current = null;
-    } else {
-      pendingValue.current = rounded;
     }
   }, [onChange]);
 
-  // Commit final value when sliding completes (ensure any pending update is applied)
+  // Commit final value when sliding completes (in case it wasn't sent yet)
   const handleSlidingComplete = useCallback((newValue: number) => {
     const rounded = Math.round(newValue);
-    lastCommittedValue.current = rounded;
-    pendingValue.current = null;
-    onChange(rounded);
+    if (rounded !== lastCommittedValue.current) {
+      lastCommittedValue.current = rounded;
+      onChange(rounded);
+    }
   }, [onChange]);
 
   return (
