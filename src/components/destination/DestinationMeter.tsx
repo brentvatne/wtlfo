@@ -19,6 +19,8 @@ interface DestinationMeterProps {
   height?: number;
   style?: ViewStyle;
   showValue?: boolean;
+  /** When true, hides the current value line and shows center value instead */
+  isEditing?: boolean;
 }
 
 export function DestinationMeter({
@@ -31,6 +33,7 @@ export function DestinationMeter({
   height = 108,
   style,
   showValue = false,
+  isEditing = false,
 }: DestinationMeterProps) {
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
@@ -229,21 +232,24 @@ export function DestinationMeter({
           />
         )}
 
-        {/* Animated current value - white line */}
-        <Group>
-          <Line
-            p1={currentValueP1}
-            p2={currentValueP2}
-            color="#ffffff"
-            strokeWidth={2.5}
-          />
-        </Group>
+        {/* Animated current value - white line (hidden when editing) */}
+        {!isEditing && (
+          <Group>
+            <Line
+              p1={currentValueP1}
+              p2={currentValueP2}
+              color="#ffffff"
+              strokeWidth={2.5}
+            />
+          </Group>
+        )}
       </Canvas>
 
       {/* Current value display - matches TimingInfo styling */}
+      {/* Shows center value when editing, current modulated value otherwise */}
       <View style={styles.valueContainer}>
         <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
-          {currentValue}
+          {isEditing ? Math.round(centerValue) : currentValue}
         </Text>
         <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
           VALUE

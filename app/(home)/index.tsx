@@ -139,6 +139,7 @@ export default function HomeScreen() {
             width={METER_WIDTH}
             height={METER_HEIGHT}
             showValue={hasDestination}
+            isEditing={isEditing}
           />
         </Pressable>
       </View>
