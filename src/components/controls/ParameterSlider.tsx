@@ -11,6 +11,10 @@ interface ParameterSliderProps {
   onChange: (value: number) => void;
   formatValue?: (value: number) => string;
   step?: number;
+  /** Called when user starts sliding */
+  onSlidingStart?: () => void;
+  /** Called when user finishes sliding */
+  onSlidingEnd?: () => void;
 }
 
 export function ParameterSlider({
@@ -21,6 +25,8 @@ export function ParameterSlider({
   onChange,
   formatValue = (v) => String(Math.round(v)),
   step = 1,
+  onSlidingStart,
+  onSlidingEnd,
 }: ParameterSliderProps) {
   // Local state for smooth visual updates during dragging
   const [localValue, setLocalValue] = useState(value);
@@ -45,6 +51,11 @@ export function ParameterSlider({
     }
   }, [onChange]);
 
+  // Called when user starts dragging
+  const handleSlidingStart = useCallback(() => {
+    onSlidingStart?.();
+  }, [onSlidingStart]);
+
   // Commit final value when sliding completes (in case it wasn't sent yet)
   const handleSlidingComplete = useCallback((newValue: number) => {
     const rounded = Math.round(newValue);
@@ -52,7 +63,8 @@ export function ParameterSlider({
       lastCommittedValue.current = rounded;
       onChange(rounded);
     }
-  }, [onChange]);
+    onSlidingEnd?.();
+  }, [onChange, onSlidingEnd]);
 
   return (
     <View style={styles.container}>
@@ -66,6 +78,7 @@ export function ParameterSlider({
         maximumValue={max}
         value={localValue}
         onValueChange={handleValueChange}
+        onSlidingStart={handleSlidingStart}
         onSlidingComplete={handleSlidingComplete}
         step={step}
         minimumTrackTintColor={colors.accent}

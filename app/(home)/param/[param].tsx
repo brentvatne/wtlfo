@@ -169,8 +169,12 @@ function NavButton({ direction, label, onPress }: { direction: 'prev' | 'next'; 
 
 export default function EditParamScreen() {
   const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
-  const { currentConfig, updateParameter } = usePreset();
+  const { currentConfig, updateParameter, setIsEditing } = usePreset();
   const router = useRouter();
+
+  // Callbacks for slider interaction tracking
+  const handleSlidingStart = () => setIsEditing(true);
+  const handleSlidingEnd = () => setIsEditing(false);
 
   // Use internal state for instant switching (no animation)
   const [activeParam, setActiveParam] = useState<ParamKey>(urlParam as ParamKey);
@@ -260,6 +264,8 @@ export default function EditParamScreen() {
             value={currentConfig.speed}
             onChange={(value) => updateParameter('speed', Math.round(value))}
             formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            onSlidingStart={handleSlidingStart}
+            onSlidingEnd={handleSlidingEnd}
           />
         );
 
@@ -272,6 +278,8 @@ export default function EditParamScreen() {
             value={currentConfig.depth}
             onChange={(value) => updateParameter('depth', Math.round(value))}
             formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            onSlidingStart={handleSlidingStart}
+            onSlidingEnd={handleSlidingEnd}
           />
         );
 
@@ -292,6 +300,8 @@ export default function EditParamScreen() {
               value={currentConfig.fade}
               onChange={(value) => updateParameter('fade', Math.round(value))}
               formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+              onSlidingStart={handleSlidingStart}
+              onSlidingEnd={handleSlidingEnd}
             />
           </View>
         );
@@ -304,6 +314,8 @@ export default function EditParamScreen() {
             max={127}
             value={currentConfig.startPhase}
             onChange={(value) => updateParameter('startPhase', Math.round(value))}
+            onSlidingStart={handleSlidingStart}
+            onSlidingEnd={handleSlidingEnd}
           />
         );
 

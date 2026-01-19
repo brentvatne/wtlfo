@@ -59,8 +59,10 @@ interface PresetContextValue {
   currentConfig: LFOPresetConfig;
   /** Debounced config - updates 100ms after last change, use for engine creation */
   debouncedConfig: LFOPresetConfig;
-  /** True while user is actively editing (before debounce settles) */
+  /** True while user is actively interacting with a control */
   isEditing: boolean;
+  /** Set editing state - call with true when interaction starts, false when it ends */
+  setIsEditing: (editing: boolean) => void;
   updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
   resetToPreset: () => void;
   bpm: number;
@@ -113,16 +115,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const isPausedRef = useRef(false);
 
   // Debounce config changes for engine restart
+  // Note: isEditing is now controlled externally by slider interactions
   useEffect(() => {
-    // Mark as editing when config changes
-    setIsEditing(true);
-
     if (debounceRef.current) {
       clearTimeout(debounceRef.current);
     }
     debounceRef.current = setTimeout(() => {
       setDebouncedConfig({ ...currentConfig });
-      setIsEditing(false);
     }, ENGINE_DEBOUNCE_MS);
 
     return () => {
@@ -286,6 +285,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     currentConfig,
     debouncedConfig,
     isEditing,
+    setIsEditing,
     updateParameter,
     resetToPreset,
     bpm,
