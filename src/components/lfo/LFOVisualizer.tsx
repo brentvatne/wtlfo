@@ -1,7 +1,7 @@
 import React, { useMemo, useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Canvas, Group } from '@shopify/react-native-skia';
-import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import { useSharedValue, withTiming, Easing, useReducedMotion } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { WaveformDisplay } from './WaveformDisplay';
@@ -41,6 +41,9 @@ export function LFOVisualizer({
   fadeMultiplier,
   randomSamples,
 }: LFOVisualizerProps) {
+  // Check if user prefers reduced motion (accessibility setting)
+  const reducedMotion = useReducedMotion();
+
   // Resolve theme
   const resolvedTheme: LFOTheme = useMemo(() => {
     if (typeof theme === 'object') return theme;
@@ -156,8 +159,8 @@ export function LFOVisualizer({
             />
           )}
 
-          {/* Animated phase indicator - always rendered, opacity controlled */}
-          {showPhaseIndicator && (
+          {/* Animated phase indicator - hidden when reduced motion is enabled */}
+          {showPhaseIndicator && !reducedMotion && (
             <PhaseIndicator
               phase={phaseValue}
               output={outputValue}
