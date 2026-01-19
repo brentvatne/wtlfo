@@ -16,7 +16,7 @@ export interface SlowdownConfig {
 }
 
 export const DEFAULT_SLOWDOWN_CONFIG: SlowdownConfig = {
-  targetCycleTimeMs: 250,
+  targetCycleTimeMs: 500,
   hysteresisMargin: 0.15,
 };
 
