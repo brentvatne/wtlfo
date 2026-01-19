@@ -34,7 +34,7 @@ function getInitialBPM(): number {
     const saved = Storage.getItemSync(BPM_STORAGE_KEY);
     if (saved !== null) {
       const bpm = parseInt(saved, 10);
-      if (!isNaN(bpm) && bpm >= 20 && bpm <= 300) {
+      if (!isNaN(bpm) && bpm >= 30 && bpm <= 300) {
         return bpm;
       }
     }
@@ -142,7 +142,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   const setBPM = useCallback((newBPM: number) => {
-    const clampedBPM = Math.max(20, Math.min(300, Math.round(newBPM)));
+    const clampedBPM = Math.max(30, Math.min(300, Math.round(newBPM)));
     setBPMState(clampedBPM);
     try {
       Storage.setItemSync(BPM_STORAGE_KEY, String(clampedBPM));
