@@ -12,7 +12,6 @@ export default function SettingsScreen() {
   const { bpm, setBPM } = usePreset();
   const {
     currentlyRunning,
-    isUpdateAvailable,
     isUpdatePending,
     isChecking,
     isDownloading,
@@ -31,19 +30,14 @@ export default function SettingsScreen() {
 
     try {
       const result = await Updates.checkForUpdateAsync();
-      if (!result.isAvailable) {
+      if (result.isAvailable) {
+        // Automatically download and prompt for restart
+        await Updates.fetchUpdateAsync();
+      } else {
         Alert.alert('Up to Date', "You're running the latest version.");
       }
     } catch (e) {
       Alert.alert('Error', `Failed to check for updates: ${e}`);
-    }
-  };
-
-  const handleDownloadUpdate = async () => {
-    try {
-      await Updates.fetchUpdateAsync();
-    } catch (e) {
-      Alert.alert('Error', `Failed to download update: ${e}`);
     }
   };
 
@@ -146,7 +140,7 @@ export default function SettingsScreen() {
           v{APP_VERSION}
         </Text>
         <Pressable
-          onPress={isUpdateAvailable ? handleDownloadUpdate : handleCheckUpdate}
+          onPress={handleCheckUpdate}
           disabled={isChecking || isDownloading}
         >
           {isChecking || isDownloading ? (
@@ -156,10 +150,6 @@ export default function SettingsScreen() {
                 {isDownloading ? 'Downloading...' : 'Checking...'}
               </Text>
             </View>
-          ) : isUpdateAvailable ? (
-            <Text style={styles.updateAvailableText}>
-              Update available - tap to download
-            </Text>
           ) : (
             <Text style={styles.updateIdText} selectable>
               {getUpdateId()}
@@ -214,11 +204,6 @@ const styles = StyleSheet.create({
   updateCheckingText: {
     fontSize: 12,
     color: '#888',
-  },
-  updateAvailableText: {
-    fontSize: 12,
-    color: '#34C759',
-    fontWeight: '600',
   },
   updateIdText: {
     fontSize: 12,
