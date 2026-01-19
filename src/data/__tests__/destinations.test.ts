@@ -14,20 +14,20 @@ describe('destinations', () => {
       const expectedIds: DestinationId[] = [
         'filter_cutoff',
         'filter_resonance',
-        'filter_drive',
         'filter_env_depth',
         'volume',
         'pan',
         'amp_attack',
+        'amp_hold',
         'amp_decay',
-        'amp_sustain',
-        'amp_release',
         'pitch',
         'pitch_fine',
         'sample_start',
         'sample_length',
+        'sample_loop',
         'delay_send',
         'reverb_send',
+        'chorus_send',
         'overdrive',
         'bit_reduction',
       ];
@@ -132,21 +132,22 @@ describe('destinations', () => {
   describe('getDestinationsByCategory', () => {
     it('should return all filter destinations', () => {
       const filterDests = getDestinationsByCategory('filter');
-      expect(filterDests.length).toBe(4);
+      expect(filterDests.length).toBe(3);
       expect(filterDests.map(d => d.id)).toEqual([
         'filter_cutoff',
         'filter_resonance',
-        'filter_drive',
         'filter_env_depth',
       ]);
     });
 
     it('should return all amp destinations', () => {
       const ampDests = getDestinationsByCategory('amp');
-      expect(ampDests.length).toBe(6);
+      expect(ampDests.length).toBe(5);
       expect(ampDests.map(d => d.id)).toContain('volume');
       expect(ampDests.map(d => d.id)).toContain('pan');
       expect(ampDests.map(d => d.id)).toContain('amp_attack');
+      expect(ampDests.map(d => d.id)).toContain('amp_hold');
+      expect(ampDests.map(d => d.id)).toContain('amp_decay');
     });
 
     it('should return all pitch destinations', () => {
@@ -157,16 +158,17 @@ describe('destinations', () => {
 
     it('should return all sample destinations', () => {
       const sampleDests = getDestinationsByCategory('sample');
-      expect(sampleDests.length).toBe(2);
-      expect(sampleDests.map(d => d.id)).toEqual(['sample_start', 'sample_length']);
+      expect(sampleDests.length).toBe(3);
+      expect(sampleDests.map(d => d.id)).toEqual(['sample_start', 'sample_length', 'sample_loop']);
     });
 
     it('should return all fx destinations', () => {
       const fxDests = getDestinationsByCategory('fx');
-      expect(fxDests.length).toBe(4);
+      expect(fxDests.length).toBe(5);
       expect(fxDests.map(d => d.id)).toEqual([
         'delay_send',
         'reverb_send',
+        'chorus_send',
         'overdrive',
         'bit_reduction',
       ]);
