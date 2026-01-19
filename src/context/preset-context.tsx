@@ -188,7 +188,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, []);
 
   // Sync currentConfig when activePreset changes
+  // Skip on first render - config is already initialized to match activePreset
+  const isFirstPresetSync = useRef(true);
   useEffect(() => {
+    if (isFirstPresetSync.current) {
+      isFirstPresetSync.current = false;
+      return;
+    }
     setCurrentConfig({ ...PRESETS[activePreset].config });
   }, [activePreset]);
 
