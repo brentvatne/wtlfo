@@ -1,6 +1,7 @@
 // Destination types for LFO modulation targets
 
 export type DestinationId =
+  | 'none'
   | 'filter_cutoff'
   | 'filter_resonance'
   | 'filter_drive'

@@ -76,35 +76,43 @@ describe('destinations', () => {
   });
 
   describe('getDestination', () => {
+    it('should return null for none destination', () => {
+      const dest = getDestination('none');
+      expect(dest).toBeNull();
+    });
+
     it('should return the correct destination for filter_cutoff', () => {
       const dest = getDestination('filter_cutoff');
-      expect(dest.id).toBe('filter_cutoff');
-      expect(dest.name).toBe('Filter Cutoff');
-      expect(dest.displayName).toBe('CUTOFF');
-      expect(dest.min).toBe(0);
-      expect(dest.max).toBe(127);
-      expect(dest.defaultValue).toBe(64);
-      expect(dest.category).toBe('filter');
-      expect(dest.bipolar).toBe(false);
+      expect(dest).not.toBeNull();
+      expect(dest!.id).toBe('filter_cutoff');
+      expect(dest!.name).toBe('Filter Cutoff');
+      expect(dest!.displayName).toBe('CUTOFF');
+      expect(dest!.min).toBe(0);
+      expect(dest!.max).toBe(127);
+      expect(dest!.defaultValue).toBe(64);
+      expect(dest!.category).toBe('filter');
+      expect(dest!.bipolar).toBe(false);
     });
 
     it('should return the correct destination for pan (bipolar)', () => {
       const dest = getDestination('pan');
-      expect(dest.id).toBe('pan');
-      expect(dest.min).toBe(-64);
-      expect(dest.max).toBe(63);
-      expect(dest.defaultValue).toBe(0);
-      expect(dest.bipolar).toBe(true);
-      expect(dest.unit).toBe('L/R');
+      expect(dest).not.toBeNull();
+      expect(dest!.id).toBe('pan');
+      expect(dest!.min).toBe(-64);
+      expect(dest!.max).toBe(63);
+      expect(dest!.defaultValue).toBe(0);
+      expect(dest!.bipolar).toBe(true);
+      expect(dest!.unit).toBe('L/R');
     });
 
     it('should return the correct destination for pitch (bipolar with unit)', () => {
       const dest = getDestination('pitch');
-      expect(dest.id).toBe('pitch');
-      expect(dest.min).toBe(-24);
-      expect(dest.max).toBe(24);
-      expect(dest.unit).toBe('st');
-      expect(dest.bipolar).toBe(true);
+      expect(dest).not.toBeNull();
+      expect(dest!.id).toBe('pitch');
+      expect(dest!.min).toBe(-24);
+      expect(dest!.max).toBe(24);
+      expect(dest!.unit).toBe('st');
+      expect(dest!.bipolar).toBe(true);
     });
 
     it('should throw an error for unknown destination ID', () => {
@@ -177,12 +185,12 @@ describe('destinations', () => {
   });
 
   describe('DEFAULT_DESTINATION', () => {
-    it('should be filter_cutoff', () => {
-      expect(DEFAULT_DESTINATION).toBe('filter_cutoff');
+    it('should be none', () => {
+      expect(DEFAULT_DESTINATION).toBe('none');
     });
 
-    it('should be a valid destination ID', () => {
-      expect(() => getDestination(DEFAULT_DESTINATION)).not.toThrow();
+    it('should return null when used with getDestination', () => {
+      expect(getDestination(DEFAULT_DESTINATION)).toBeNull();
     });
   });
 

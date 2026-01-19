@@ -191,7 +191,8 @@ export const DESTINATIONS: DestinationDefinition[] = [
   },
 ];
 
-export function getDestination(id: DestinationId): DestinationDefinition {
+export function getDestination(id: DestinationId): DestinationDefinition | null {
+  if (id === 'none') return null;
   const dest = DESTINATIONS.find(d => d.id === id);
   if (!dest) throw new Error(`Unknown destination: ${id}`);
   return dest;
@@ -201,7 +202,7 @@ export function getDestinationsByCategory(category: DestinationCategory) {
   return DESTINATIONS.filter(d => d.category === category);
 }
 
-export const DEFAULT_DESTINATION: DestinationId = 'filter_cutoff';
+export const DEFAULT_DESTINATION: DestinationId = 'none';
 
 export const CATEGORY_ORDER: DestinationCategory[] = ['filter', 'amp', 'pitch', 'sample', 'fx'];
 

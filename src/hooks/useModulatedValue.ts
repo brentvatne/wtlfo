@@ -22,8 +22,8 @@ export function useModulatedValue({
 }: UseModulatedValueProps): SharedValue<number> {
   // Extract primitives OUTSIDE the worklet to avoid object access in worklet
   const destination = getDestination(destinationId);
-  const min = destination.min;
-  const max = destination.max;
+  const min = destination?.min ?? 0;
+  const max = destination?.max ?? 127;
   const range = max - min;
   const maxModulation = range / 2;
   const depthScale = lfoDepth / 63; // -1 to +1
@@ -47,14 +47,16 @@ export function useModulationInfo(
   lfoDepth: number
 ) {
   const destination = getDestination(destinationId);
-  const range = destination.max - destination.min;
+  const min = destination?.min ?? 0;
+  const max = destination?.max ?? 127;
+  const range = max - min;
   const maxModulation = range / 2;
   const depthScale = Math.abs(lfoDepth / 63);
   const swing = maxModulation * depthScale;
 
   return {
-    minValue: Math.max(destination.min, centerValue - swing),
-    maxValue: Math.min(destination.max, centerValue + swing),
+    minValue: Math.max(min, centerValue - swing),
+    maxValue: Math.min(max, centerValue + swing),
     destination,
   };
 }

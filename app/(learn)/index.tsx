@@ -1,10 +1,21 @@
 import React from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
+import {
+  QuestionWaveIcon,
+  SlidersIcon,
+  WaveformsIcon,
+  SpeedometerIcon,
+  EnvelopeIcon,
+  TriggersIcon,
+  DestinationsIcon,
+  TimingMathIcon,
+  PresetsIcon,
+} from '@/src/components/learn';
 
 interface TopicCard {
   id: string;
-  icon: string;
+  IconComponent: React.ComponentType<{ size?: number; color?: string; strokeWidth?: number; backgroundColor?: string }>;
   title: string;
   description: string;
   route: string;
@@ -13,63 +24,63 @@ interface TopicCard {
 const TOPICS: TopicCard[] = [
   {
     id: 'intro',
-    icon: '?',
+    IconComponent: QuestionWaveIcon,
     title: 'What is an LFO?',
     description: 'The basics of low frequency oscillators',
     route: '/intro',
   },
   {
     id: 'parameters',
-    icon: '7',
+    IconComponent: SlidersIcon,
     title: 'The 7 Parameters',
     description: 'Visual guide to every LFO control',
     route: '/parameters',
   },
   {
     id: 'waveforms',
-    icon: '~',
+    IconComponent: WaveformsIcon,
     title: 'Waveforms',
     description: 'Shapes that define modulation character',
     route: '/waveforms',
   },
   {
     id: 'speed',
-    icon: '>',
+    IconComponent: SpeedometerIcon,
     title: 'Speed & Timing',
     description: 'How SPD and MULT control LFO rate',
     route: '/speed',
   },
   {
     id: 'depth',
-    icon: '+',
+    IconComponent: EnvelopeIcon,
     title: 'Depth & Fade',
     description: 'Controlling intensity and envelope',
     route: '/depth',
   },
   {
     id: 'modes',
-    icon: 'M',
+    IconComponent: TriggersIcon,
     title: 'Trigger Modes',
     description: 'FRE, TRG, HLD, ONE, HLF explained',
     route: '/modes',
   },
   {
     id: 'destinations',
-    icon: '@',
+    IconComponent: DestinationsIcon,
     title: 'Destinations',
     description: 'Where LFOs can be routed',
     route: '/destinations',
   },
   {
     id: 'timing',
-    icon: '=',
+    IconComponent: TimingMathIcon,
     title: 'Timing Math',
     description: 'Formulas for calculating cycle times',
     route: '/timing',
   },
   {
     id: 'presets',
-    icon: '*',
+    IconComponent: PresetsIcon,
     title: 'Preset Recipes',
     description: 'Ready-to-use LFO configurations',
     route: '/presets',
@@ -77,6 +88,8 @@ const TOPICS: TopicCard[] = [
 ];
 
 function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () => void }) {
+  const { IconComponent } = topic;
+
   return (
     <Pressable
       onPress={onPress}
@@ -85,14 +98,17 @@ function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () 
         pressed && styles.cardPressed,
       ]}
     >
-      <View style={styles.iconContainer}>
-        <Text style={styles.icon}>{topic.icon}</Text>
-      </View>
+      <IconComponent
+        size={40}
+        color="#ff6600"
+        strokeWidth={1.5}
+        backgroundColor="#2a2a2a"
+      />
       <View style={styles.cardContent}>
         <Text style={styles.cardTitle}>{topic.title}</Text>
         <Text style={styles.cardDescription}>{topic.description}</Text>
       </View>
-      <Text style={styles.chevron}>›</Text>
+      <Text style={styles.chevron}>&rsaquo;</Text>
     </Pressable>
   );
 }
@@ -140,19 +156,6 @@ const styles = StyleSheet.create({
   },
   cardPressed: {
     backgroundColor: '#252525',
-  },
-  iconContainer: {
-    width: 40,
-    height: 40,
-    borderRadius: 8,
-    backgroundColor: '#2a2a2a',
-    justifyContent: 'center',
-    alignItems: 'center',
-  },
-  icon: {
-    fontSize: 18,
-    fontWeight: '700',
-    color: '#ff6600',
   },
   cardContent: {
     flex: 1,

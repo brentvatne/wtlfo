@@ -37,21 +37,28 @@ export default function DestinationScreen() {
   // State for the live computed value
   const [computedValue, setComputedValue] = useState(centerValue);
 
+  // Handle null destination (none selected)
+  const destMin = destination?.min ?? 0;
+  const destMax = destination?.max ?? 127;
+  const destName = destination?.name ?? 'None';
+  const destDisplayName = destination?.displayName ?? '—';
+  const destBipolar = destination?.bipolar ?? false;
+
   // Update navigation title when destination changes
   useEffect(() => {
     navigation.setOptions({
-      title: `${destination.name} (${destination.displayName})`,
+      title: destination ? `${destName} (${destDisplayName})` : 'No Destination',
     });
-  }, [navigation, destination.name, destination.displayName]);
+  }, [navigation, destination, destName, destDisplayName]);
 
   // Calculate modulation range
-  const range = destination.max - destination.min;
+  const range = destMax - destMin;
   const maxModulation = range / 2;
   const depthScale = Math.abs(currentConfig.depth / 63);
   const depthSign = Math.sign(currentConfig.depth) || 1;
   const swing = maxModulation * depthScale;
-  const minValue = Math.max(destination.min, Math.round(centerValue - swing));
-  const maxValue = Math.min(destination.max, Math.round(centerValue + swing));
+  const minValue = Math.max(destMin, Math.round(centerValue - swing));
+  const maxValue = Math.min(destMax, Math.round(centerValue + swing));
 
   // React to LFO output changes and compute the actual value
   useAnimatedReaction(
@@ -60,11 +67,11 @@ export default function DestinationScreen() {
       // lfoOutput ranges from -1 to 1, apply to swing with depth direction
       const modulation = output * swing * depthSign;
       const newValue = Math.round(
-        Math.max(destination.min, Math.min(destination.max, centerValue + modulation))
+        Math.max(destMin, Math.min(destMax, centerValue + modulation))
       );
       runOnJS(setComputedValue)(newValue);
     },
-    [centerValue, swing, depthSign, destination.min, destination.max]
+    [centerValue, swing, depthSign, destMin, destMax]
   );
 
   return (
@@ -133,10 +140,10 @@ export default function DestinationScreen() {
         <CenterValueSlider
           value={centerValue}
           onChange={(v) => setCenterValue(activeDestinationId, v)}
-          min={destination.min}
-          max={destination.max}
+          min={destMin}
+          max={destMax}
           label="CENTER VALUE"
-          bipolar={destination.bipolar}
+          bipolar={destBipolar}
         />
       </View>
 
@@ -144,8 +151,8 @@ export default function DestinationScreen() {
       <View style={styles.infoCard}>
         <Text style={styles.infoTitle}>Modulation</Text>
         <Text style={styles.infoText}>
-          The LFO modulates {destination.name.toLowerCase()} around the center value.
-          {destination.bipolar
+          The LFO modulates {destName.toLowerCase()} around the center value.
+          {destBipolar
             ? ' This is a bipolar parameter that can go positive or negative from center.'
             : ' This parameter ranges from minimum to maximum.'}
         </Text>

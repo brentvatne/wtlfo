@@ -73,10 +73,12 @@ export function ModulationProvider({ children }: { children: React.ReactNode }) 
   }, [routings]);
 
   const setCenterValue = useCallback((destinationId: DestinationId, value: number) => {
+    if (destinationId === 'none') return; // No-op for 'none'
     setCenterValues(prev => ({ ...prev, [destinationId]: value }));
   }, []);
 
   const getCenterValue = useCallback((destinationId: DestinationId): number => {
+    if (destinationId === 'none') return 0;
     if (centerValues[destinationId] !== undefined) {
       return centerValues[destinationId]!;
     }

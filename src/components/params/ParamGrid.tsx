@@ -50,8 +50,9 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   const { activeDestinationId } = useModulation();
   const router = useRouter();
 
-  // Get the display name for the active destination
-  const destinationDisplayName = getDestination(activeDestinationId).displayName;
+  // Get the display name for the active destination (show dash for none)
+  const destination = getDestination(activeDestinationId);
+  const destinationDisplayName = destination?.displayName ?? '—';
 
   const handlePress = (param: ParamKey) => {
     router.push(`/param/${param}`);
@@ -126,11 +127,11 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 6,
+    gap: 4, // Tighter spacing for OLED-like density
     marginBottom: 8,
   },
   row: {
     flexDirection: 'row',
-    gap: 6,
+    gap: 4, // Tighter horizontal gap
   },
 });

@@ -33,40 +33,44 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: colors.surface,
-    borderRadius: 8,
-    paddingVertical: 10,
-    paddingHorizontal: 8,
+    backgroundColor: '#121212', // Darker for OLED-like contrast
+    borderRadius: 6, // Tighter radius
+    paddingVertical: 8,
+    paddingHorizontal: 6,
     flex: 1,
-    minHeight: 54,
+    minHeight: 52,
     justifyContent: 'center',
     alignItems: 'center',
     borderWidth: 1,
-    borderColor: 'transparent',
+    borderColor: '#2a2a2a', // Subtle outline always visible
   },
   pressed: {
-    backgroundColor: colors.surfaceHover,
+    backgroundColor: '#1a1a1a',
+    borderColor: '#3a3a3a',
   },
   active: {
     borderColor: colors.accent,
+    backgroundColor: '#1a1a0a', // Subtle warm tint when active
   },
   label: {
-    color: colors.textSecondary,
-    fontSize: 11,
-    fontWeight: '600',
-    letterSpacing: 0.5,
+    color: '#666677',
+    fontSize: 10, // Slightly smaller for tighter look
+    fontWeight: '700',
+    letterSpacing: 0.8, // More letter spacing
     marginTop: 2,
+    textTransform: 'uppercase',
   },
   value: {
-    color: colors.textPrimary,
-    fontSize: 15,
+    color: '#ffffff',
+    fontSize: 16, // Larger for better readability
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
+    fontFamily: 'monospace',
   },
   disabled: {
-    opacity: 0.35,
+    opacity: 0.3,
   },
   disabledText: {
-    opacity: 0.6,
+    opacity: 0.5,
   },
 });
