@@ -161,7 +161,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     key: K,
     value: LFOPresetConfig[K]
   ) => {
-    setCurrentConfig(prev => ({ ...prev, [key]: value }));
+    setCurrentConfig(prev => {
+      // Skip update if value hasn't changed - avoids unnecessary debounce cycles
+      if (prev[key] === value) return prev;
+      return { ...prev, [key]: value };
+    });
   }, []);
 
   const resetToPreset = useCallback(() => {
