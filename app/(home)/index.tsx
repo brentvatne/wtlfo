@@ -1,11 +1,13 @@
 import React, { useMemo, useRef } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { useDerivedValue } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
   useSlowMotionPhase,
   SlowMotionBadge,
   getSlowdownInfo,
+  sampleWaveformWithSlew,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -59,6 +61,20 @@ export default function HomeScreen() {
 
   // Create slowed display phase for visualization (keeps lfoPhase unchanged for actual output)
   const displayPhase = useSlowMotionPhase(lfoPhase, slowdownInfo.factor);
+
+  // Create slowed output that matches the display phase
+  // This samples the waveform at the display phase and applies depth scaling
+  const waveform = currentConfig.waveform as WaveformType;
+  const depth = currentConfig.depth;
+  const startPhase = currentConfig.startPhase;
+  const displayOutput = useDerivedValue(() => {
+    'worklet';
+    // Sample waveform at display phase (with slew for RND)
+    const slew = waveform === 'RND' ? startPhase : 0;
+    const rawValue = sampleWaveformWithSlew(waveform, displayPhase.value, slew);
+    // Apply depth scaling (depth/63 gives -1 to 1 range)
+    return rawValue * (depth / 63);
+  }, [waveform, depth, startPhase]);
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -131,7 +147,7 @@ export default function HomeScreen() {
           onPress={handleTap}
         >
           <DestinationMeter
-            lfoOutput={lfoOutput}
+            lfoOutput={displayOutput}
             destination={activeDestination}
             centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
             depth={currentConfig.depth}
