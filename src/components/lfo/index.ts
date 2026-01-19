@@ -17,6 +17,12 @@ export type { WaveformIconProps } from './WaveformIcon';
 
 // Hooks
 export { useWaveformPath, isUnipolar, sampleWaveform } from './hooks/useWaveformPath';
+export { useSlowMotionPhase } from './hooks/useSlowMotionPhase';
+
+// Slow motion visualization
+export { SlowMotionBadge } from './SlowMotionBadge';
+export { getSlowdownInfo, getSlowdownFactor } from './utils/getSlowdownInfo';
+export type { SlowdownInfo } from './utils/getSlowdownInfo';
 
 // Worklets (for use inside Reanimated worklets)
 export { sampleWaveformWorklet, isUnipolarWorklet } from './worklets';

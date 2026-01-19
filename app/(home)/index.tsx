@@ -1,6 +1,12 @@
-import React from 'react';
+import React, { useMemo, useRef } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
-import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
+import {
+  LFOVisualizer,
+  ELEKTRON_THEME,
+  useSlowMotionPhase,
+  SlowMotionBadge,
+  getSlowdownInfo,
+} from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
 import { DestinationMeter, CenterValueSlider } from '@/src/components/destination';
@@ -43,6 +49,17 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
+  // Calculate slowdown info for fast LFOs (with hysteresis to prevent flickering)
+  const previousFactorRef = useRef(1);
+  const slowdownInfo = useMemo(() => {
+    const info = getSlowdownInfo(timingInfo.cycleTimeMs, previousFactorRef.current);
+    previousFactorRef.current = info.factor;
+    return info;
+  }, [timingInfo.cycleTimeMs]);
+
+  // Create slowed display phase for visualization (keeps lfoPhase unchanged for actual output)
+  const displayPhase = useSlowMotionPhase(lfoPhase, slowdownInfo.factor);
+
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
     if (isPaused) {
@@ -67,34 +84,40 @@ export default function HomeScreen() {
     >
       {/* LFO Visualizer + Destination Meter Row */}
       <View style={styles.visualizerRow}>
-        {/* LFO Visualizer */}
+        {/* LFO Visualizer with slow-motion support */}
         <Pressable
           style={[styles.visualizerContainer, isPaused && styles.paused]}
           onPress={handleTap}
         >
-          <LFOVisualizer
-            phase={lfoPhase}
-            output={lfoOutput}
-            waveform={currentConfig.waveform as WaveformType}
-            speed={currentConfig.speed}
-            multiplier={currentConfig.multiplier}
-            startPhase={currentConfig.startPhase}
-            mode={currentConfig.mode as TriggerMode}
-            depth={currentConfig.depth}
-            fade={currentConfig.fade}
-            bpm={bpm}
-            cycleTimeMs={timingInfo.cycleTimeMs}
-            noteValue={timingInfo.noteValue}
-            steps={timingInfo.steps}
-            width={visualizerWidth}
-            height={VISUALIZER_HEIGHT}
-            theme={ELEKTRON_THEME}
-            showParameters={false}
-            showTiming={true}
-            showOutput={false}
-            isEditing={isEditing}
-            strokeWidth={2.5}
-          />
+          <View>
+            <LFOVisualizer
+              phase={displayPhase}
+              output={lfoOutput}
+              waveform={currentConfig.waveform as WaveformType}
+              speed={currentConfig.speed}
+              multiplier={currentConfig.multiplier}
+              startPhase={currentConfig.startPhase}
+              mode={currentConfig.mode as TriggerMode}
+              depth={currentConfig.depth}
+              fade={currentConfig.fade}
+              bpm={bpm}
+              cycleTimeMs={timingInfo.cycleTimeMs}
+              noteValue={timingInfo.noteValue}
+              steps={timingInfo.steps}
+              width={visualizerWidth}
+              height={VISUALIZER_HEIGHT}
+              theme={ELEKTRON_THEME}
+              showParameters={false}
+              showTiming={true}
+              showOutput={false}
+              isEditing={isEditing}
+              strokeWidth={2.5}
+            />
+            <SlowMotionBadge
+              frequencyHz={slowdownInfo.frequencyHz}
+              visible={slowdownInfo.isSlowed}
+            />
+          </View>
         </Pressable>
 
         {/* Destination Meter - same height as canvas (excluding timing info) */}
