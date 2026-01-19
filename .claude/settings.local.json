@@ -35,7 +35,20 @@
       "WebFetch(domain:docs.expo.dev)",
       "WebFetch(domain:github.com)",
       "Bash(npm ls:*)",
-      "Bash(yarn why:*)"
+      "Bash(yarn why:*)",
+      "WebFetch(domain:www.analoguehaven.com)",
+      "WebFetch(domain:studylib.net)",
+      "WebFetch(domain:www.bhphotovideo.com)",
+      "WebFetch(domain:www.59perlen.com)",
+      "Bash(git diff:*)",
+      "Bash(ls:*)",
+      "Bash(xargs:*)",
+      "Bash(for dir in docs/research/*/)",
+      "Bash(tree:*)",
+      "Bash(git reset:*)",
+      "Bash(npx eas:*)",
+      "Bash(npx testflight:*)",
+      "WebFetch(domain:www.qualityology.com)"
     ]
   }
 }

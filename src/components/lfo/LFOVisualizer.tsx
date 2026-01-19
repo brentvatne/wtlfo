@@ -80,40 +80,35 @@ export function LFOVisualizer({
   const phaseIndicatorOpacity = useSharedValue(1);
   const prevWaveformRef = useRef(waveform);
 
-  // Fade out when editing
+  // Single consolidated effect for phase indicator opacity
+  // Handles: editing state changes, waveform changes, and their combinations
   useEffect(() => {
+    // Check if waveform changed since last render
+    const waveformChanged = prevWaveformRef.current !== waveform;
+    if (waveformChanged) {
+      prevWaveformRef.current = waveform;
+    }
+
     if (isEditing) {
+      // Editing: fade out quickly
       phaseIndicatorOpacity.value = withTiming(0, {
         duration: 100,
         easing: Easing.inOut(Easing.ease),
       });
-    }
-  }, [isEditing, phaseIndicatorOpacity]);
-
-  // Fade out/in when waveform changes (smooth transition)
-  useEffect(() => {
-    if (prevWaveformRef.current !== waveform) {
-      prevWaveformRef.current = waveform;
-      // Skip animation if editing (already hidden) or reduced motion
-      if (!isEditing && !reducedMotion) {
-        // Fade out quickly, then fade back in
-        phaseIndicatorOpacity.value = withSequence(
-          withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
-        );
-      }
-    }
-  }, [waveform, isEditing, reducedMotion, phaseIndicatorOpacity]);
-
-  // Fade back in when editing ends (if not currently animating waveform change)
-  useEffect(() => {
-    if (!isEditing) {
+    } else if (waveformChanged && !reducedMotion) {
+      // Waveform changed while not editing: cross-fade
+      phaseIndicatorOpacity.value = withSequence(
+        withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
+      );
+    } else if (!isEditing) {
+      // Not editing (includes editing just ended): fade back in
       phaseIndicatorOpacity.value = withTiming(1, {
         duration: 350,
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [isEditing, phaseIndicatorOpacity]);
+  }, [isEditing, waveform, reducedMotion, phaseIndicatorOpacity]);
 
   // Calculate canvas dimensions (excluding padding for info displays)
   const parameterHeight = showParameters ? 40 : 0;

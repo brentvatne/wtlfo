@@ -79,34 +79,35 @@ export function DestinationMeter({
   const currentValueOpacity = useSharedValue(isEditing ? 0 : 1);
   const prevWaveformRef = useRef(waveform);
 
-  // Fade out when editing starts, fade in when editing ends
+  // Single consolidated effect for current value opacity
+  // Handles: editing state changes, waveform changes, and their combinations
   useEffect(() => {
+    // Check if waveform changed since last render
+    const waveformChanged = prevWaveformRef.current !== waveform;
+    if (waveformChanged) {
+      prevWaveformRef.current = waveform;
+    }
+
     if (isEditing) {
+      // Editing: fade out quickly
       currentValueOpacity.value = withTiming(0, {
         duration: 100,
         easing: Easing.inOut(Easing.ease),
       });
+    } else if (waveformChanged) {
+      // Waveform changed while not editing: cross-fade
+      currentValueOpacity.value = withSequence(
+        withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
+        withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
+      );
     } else {
+      // Not editing (includes editing just ended): fade back in
       currentValueOpacity.value = withTiming(1, {
         duration: 350,
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [isEditing, currentValueOpacity]);
-
-  // Fade out/in when waveform changes (smooth transition)
-  useEffect(() => {
-    if (prevWaveformRef.current !== waveform) {
-      prevWaveformRef.current = waveform;
-      // Skip animation if editing (already hidden)
-      if (!isEditing) {
-        currentValueOpacity.value = withSequence(
-          withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
-          withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
-        );
-      }
-    }
-  }, [waveform, isEditing, currentValueOpacity]);
+  }, [isEditing, waveform, currentValueOpacity]);
 
   // Animate when values change with a subtle spring (no overshoot)
   const springConfig = { damping: 40, stiffness: 380, overshootClamping: true };

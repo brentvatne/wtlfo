@@ -176,6 +176,26 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
+  // Restart animation loop when user unpauses
+  // This handles the case where:
+  // 1. User pauses visualization
+  // 2. App goes to background (animation loop cancelled)
+  // 3. App returns to foreground (loop not restarted because user was paused)
+  // 4. User taps to unpause - this effect restarts the loop
+  useEffect(() => {
+    if (!isPaused && animationRef.current === 0) {
+      const animate = (timestamp: number) => {
+        if (lfoRef.current) {
+          const state = lfoRef.current.update(timestamp);
+          lfoPhase.value = state.phase;
+          lfoOutput.value = state.output;
+        }
+        animationRef.current = requestAnimationFrame(animate);
+      };
+      animationRef.current = requestAnimationFrame(animate);
+    }
+  }, [isPaused, lfoPhase, lfoOutput]);
+
   // Create/recreate LFO when debounced config changes
   useEffect(() => {
     lfoRef.current = new LFO(debouncedConfig, bpm);
