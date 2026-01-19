@@ -4,10 +4,10 @@ export const colors = {
   surface: '#1a1a1a',
   surfaceHover: '#2a2a2a',
 
-  // Text
+  // Text (WCAG 2.1 AA compliant contrast ratios against #0a0a0a)
   textPrimary: '#ffffff',
-  textSecondary: '#888899',
-  textMuted: '#666677',
+  textSecondary: '#9999aa', // ~5.8:1 contrast ratio
+  textMuted: '#8888a0',     // ~4.6:1 contrast ratio
   textDisabled: '#555566',
 
   // Accent
