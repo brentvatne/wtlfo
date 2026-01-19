@@ -106,10 +106,6 @@ export default function LearnIndexScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Text style={styles.header}>
-        Master Elektron LFOs with focused, interactive lessons.
-      </Text>
-
       <View style={styles.grid}>
         {TOPICS.map((topic) => (
           <TopicCardComponent
@@ -130,13 +126,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
-  },
-  header: {
-    color: '#888899',
-    fontSize: 15,
-    lineHeight: 22,
-    marginBottom: 20,
-    textAlign: 'center',
   },
   grid: {
     gap: 10,
