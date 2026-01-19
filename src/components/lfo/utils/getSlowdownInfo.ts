@@ -1,12 +1,12 @@
 /**
- * Calculates time-warp factor for LFO visualization.
+ * Calculates slowdown factor for fast LFO visualization.
  *
- * Uses a simple formula: factor = targetCycleTimeMs / cycleTimeMs
- * - factor > 1: slow down fast LFOs
- * - factor < 1: speed up slow LFOs
- * - factor = 1: display at actual speed
+ * Uses a simple formula: factor = max(1, targetCycleTimeMs / cycleTimeMs)
+ * - factor > 1: slow down fast LFOs to make them visible
+ * - factor = 1: display at actual speed (for slow LFOs)
  *
- * This ensures ALL LFOs are displayed at a consistent pace (default 500ms).
+ * This ensures fast LFOs are displayed at a comfortable pace (default 500ms).
+ * Slow LFOs are displayed at their actual speed.
  */
 
 /**
@@ -17,7 +17,7 @@ export interface SlowdownConfig {
   targetCycleTimeMs: number;
   /** Hysteresis margin to prevent flickering (0-1). Default: 0.15 */
   hysteresisMargin: number;
-  /** Minimum factor (max speedup). Default: 1/32 (32x faster max) */
+  /** Minimum factor. Default: 1 (no speedup, only slowdown) */
   minFactor: number;
   /** Maximum factor (max slowdown). Default: 32 */
   maxFactor: number;
@@ -26,8 +26,8 @@ export interface SlowdownConfig {
 export const DEFAULT_SLOWDOWN_CONFIG: SlowdownConfig = {
   targetCycleTimeMs: 500,
   hysteresisMargin: 0.1,
-  minFactor: 1 / 32, // Don't speed up more than 32x (symmetric with maxFactor)
-  maxFactor: 32,     // Don't slow down more than 32x
+  minFactor: 1,   // Never speed up (factor >= 1 always)
+  maxFactor: 32,  // Don't slow down more than 32x
 };
 
 export interface SlowdownInfo {
@@ -37,21 +37,36 @@ export interface SlowdownInfo {
   actualCycleTimeMs: number;
   /** Displayed cycle time after time-warp (ms) */
   displayCycleTimeMs: number;
-  /** Whether time-warp is active (factor != 1) */
+  /** Whether slowdown is active (factor > 1) */
   isSlowed: boolean;
 }
 
 /**
- * Calculate time-warp info based on cycle time.
+ * Calculate slowdown info based on cycle time.
  * Always targets the configured display cycle time.
  *
  * Formula: factor = clamp(targetCycleTimeMs / cycleTimeMs, minFactor, maxFactor)
+ *
+ * NOTE: Feature is currently disabled - always returns factor=1.
+ * Set ENABLE_SLOWDOWN to true to re-enable.
  */
+const ENABLE_SLOWDOWN = false;
+
 export function getSlowdownInfo(
   cycleTimeMs: number,
   previousFactor: number = 1,
   config: SlowdownConfig = DEFAULT_SLOWDOWN_CONFIG
 ): SlowdownInfo {
+  // Feature disabled - return passthrough values
+  if (!ENABLE_SLOWDOWN) {
+    return {
+      factor: 1,
+      actualCycleTimeMs: cycleTimeMs,
+      displayCycleTimeMs: cycleTimeMs,
+      isSlowed: false,
+    };
+  }
+
   const { targetCycleTimeMs, hysteresisMargin, minFactor, maxFactor } = config;
 
   // Calculate raw factor needed to reach target cycle time
@@ -81,7 +96,7 @@ export function getSlowdownInfo(
     factor,
     actualCycleTimeMs: cycleTimeMs,
     displayCycleTimeMs,
-    isSlowed: Math.abs(factor - 1) > 0.01,
+    isSlowed: factor > 1.01,
   };
 }
 
