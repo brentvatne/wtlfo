@@ -1,7 +1,7 @@
-import React, { useMemo, useEffect } from 'react';
+import React, { useMemo, useEffect, useRef } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { Canvas, Group } from '@shopify/react-native-skia';
-import { useSharedValue, withTiming, Easing, useReducedMotion } from 'react-native-reanimated';
+import { useSharedValue, withTiming, withSequence, Easing, useReducedMotion } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 import { WaveformDisplay } from './WaveformDisplay';
@@ -76,13 +76,43 @@ export function LFOVisualizer({
   const phaseValue = isPhaseShared ? (phase as SharedValue<number>) : internalPhase;
   const outputValue = isOutputShared ? (output as SharedValue<number>) : internalOutput;
 
-  // Animated opacity for phase indicator (fades out when editing)
+  // Animated opacity for phase indicator (fades out when editing or waveform changing)
   const phaseIndicatorOpacity = useSharedValue(1);
+  const prevWaveformRef = useRef(waveform);
+
+  // Fade out when editing
   useEffect(() => {
-    phaseIndicatorOpacity.value = withTiming(isEditing ? 0 : 1, {
-      duration: 100,
-      easing: Easing.inOut(Easing.ease),
-    });
+    if (isEditing) {
+      phaseIndicatorOpacity.value = withTiming(0, {
+        duration: 100,
+        easing: Easing.inOut(Easing.ease),
+      });
+    }
+  }, [isEditing, phaseIndicatorOpacity]);
+
+  // Fade out/in when waveform changes (smooth transition)
+  useEffect(() => {
+    if (prevWaveformRef.current !== waveform) {
+      prevWaveformRef.current = waveform;
+      // Skip animation if editing (already hidden) or reduced motion
+      if (!isEditing && !reducedMotion) {
+        // Fade out quickly, then fade back in
+        phaseIndicatorOpacity.value = withSequence(
+          withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
+        );
+      }
+    }
+  }, [waveform, isEditing, reducedMotion, phaseIndicatorOpacity]);
+
+  // Fade back in when editing ends (if not currently animating waveform change)
+  useEffect(() => {
+    if (!isEditing) {
+      phaseIndicatorOpacity.value = withTiming(1, {
+        duration: 100,
+        easing: Easing.inOut(Easing.ease),
+      });
+    }
   }, [isEditing, phaseIndicatorOpacity]);
 
   // Calculate canvas dimensions (excluding padding for info displays)
