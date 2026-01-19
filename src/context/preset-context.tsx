@@ -87,31 +87,32 @@ interface PresetContextValue {
 
 const PresetContext = createContext<PresetContextValue | null>(null);
 
+// Compute initial values ONCE, outside the component, to ensure consistency
+const INITIAL_PRESET_INDEX = getInitialPreset();
+const INITIAL_CONFIG = { ...PRESETS[INITIAL_PRESET_INDEX].config };
+const INITIAL_BPM = getInitialBPM();
+const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
+
 export function PresetProvider({ children }: { children: React.ReactNode }) {
-  const [activePreset, setActivePresetState] = useState(getInitialPreset);
-  const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(
-    () => ({ ...PRESETS[getInitialPreset()].config })
-  );
-  const [debouncedConfig, setDebouncedConfig] = useState<LFOPresetConfig>(
-    () => ({ ...PRESETS[getInitialPreset()].config })
-  );
-  const [bpm, setBPMState] = useState(getInitialBPM);
+  const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
+  const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(() => ({ ...INITIAL_CONFIG }));
+  const [debouncedConfig, setDebouncedConfig] = useState<LFOPresetConfig>(() => ({ ...INITIAL_CONFIG }));
+  const [bpm, setBPMState] = useState(INITIAL_BPM);
   const [isEditing, setIsEditing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
-  const lfoPhase = useSharedValue(0);
+  // Initialize phase to match the preset's startPhase to avoid first-frame jump
+  const lfoPhase = useSharedValue(INITIAL_START_PHASE);
   const lfoOutput = useSharedValue(0);
   // Create LFO engine immediately (not after debounce) to avoid jitter on app start
   const lfoRef = useRef<LFO | null>(null);
   // Synchronously initialize LFO on first render
   if (lfoRef.current === null) {
-    const initialConfig = PRESETS[getInitialPreset()].config;
-    const initialBpm = getInitialBPM();
-    lfoRef.current = new LFO(initialConfig, initialBpm);
+    lfoRef.current = new LFO(INITIAL_CONFIG, INITIAL_BPM);
     // Auto-trigger for modes that need it
-    if (initialConfig.mode === 'TRG' || initialConfig.mode === 'ONE' || initialConfig.mode === 'HLF') {
+    if (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF') {
       lfoRef.current.trigger();
     }
   }
@@ -120,8 +121,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [timingInfo, setTimingInfo] = useState<TimingInfo>(() => {
     if (lfoRef.current) {
       const info = lfoRef.current.getTimingInfo();
-      const initialBpm = getInitialBPM();
-      const msPerStep = 15000 / initialBpm;
+      const msPerStep = 15000 / INITIAL_BPM;
       return {
         cycleTimeMs: info.cycleTimeMs,
         noteValue: info.noteValue,
