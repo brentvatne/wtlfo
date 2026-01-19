@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useState, useEffect } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
@@ -12,6 +12,18 @@ type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' 
 
 // Parameter order matching the grid layout (row 1 then row 2)
 const PARAM_ORDER: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
+
+// Short labels for navigation buttons
+const PARAM_LABELS: Record<ParamKey, string> = {
+  speed: 'SPD',
+  multiplier: 'MULT',
+  fade: 'FADE',
+  destination: 'DEST',
+  waveform: 'WAVE',
+  startPhase: 'SPH',
+  mode: 'MODE',
+  depth: 'DEP',
+};
 
 const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
@@ -122,32 +134,51 @@ function formatMultiplier(value: number): string {
   return value >= 1024 ? `${value / 1024}k` : String(value);
 }
 
-function NavButton({ direction, onPress }: { direction: 'prev' | 'next'; onPress: () => void }) {
+function NavButton({ direction, label, onPress }: { direction: 'prev' | 'next'; label: string; onPress: () => void }) {
+  const isPrev = direction === 'prev';
   return (
     <Pressable
       onPress={onPress}
       style={styles.navButton}
       hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
     >
-      <Text style={styles.navButtonText}>{direction === 'prev' ? '‹' : '›'}</Text>
+      <Text style={styles.navButtonText}>
+        {isPrev ? `‹ ${label}` : `${label} ›`}
+      </Text>
     </Pressable>
   );
 }
 
 export default function EditParamScreen() {
-  const { param } = useLocalSearchParams<{ param: ParamKey }>();
+  const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
   const { currentConfig, updateParameter } = usePreset();
   const router = useRouter();
 
+  // Use internal state for instant switching (no animation)
+  const [activeParam, setActiveParam] = useState<ParamKey>(urlParam as ParamKey);
+
+  // Sync with URL param on mount or if URL changes externally
+  useEffect(() => {
+    if (urlParam && urlParam !== activeParam) {
+      setActiveParam(urlParam as ParamKey);
+    }
+  }, [urlParam]);
+
   // Navigation between parameters
-  const currentIndex = PARAM_ORDER.indexOf(param as ParamKey);
+  const currentIndex = PARAM_ORDER.indexOf(activeParam);
   const prevParam = PARAM_ORDER[(currentIndex - 1 + PARAM_ORDER.length) % PARAM_ORDER.length];
   const nextParam = PARAM_ORDER[(currentIndex + 1) % PARAM_ORDER.length];
 
-  const goToPrev = () => router.replace(`/param/${prevParam}`);
-  const goToNext = () => router.replace(`/param/${nextParam}`);
+  const goToPrev = () => {
+    setActiveParam(prevParam); // Instant UI update
+    router.replace(`/param/${prevParam}`); // Silent URL update
+  };
+  const goToNext = () => {
+    setActiveParam(nextParam); // Instant UI update
+    router.replace(`/param/${nextParam}`); // Silent URL update
+  };
 
-  if (!param || !(param in PARAM_INFO)) {
+  if (!activeParam || !(activeParam in PARAM_INFO)) {
     return (
       <View style={styles.container}>
         <Text style={styles.errorText}>Invalid parameter</Text>
@@ -155,10 +186,10 @@ export default function EditParamScreen() {
     );
   }
 
-  const info = PARAM_INFO[param];
+  const info = PARAM_INFO[activeParam];
 
   const renderControl = () => {
-    switch (param) {
+    switch (activeParam) {
       case 'waveform':
         return (
           <SegmentedControl
@@ -268,8 +299,8 @@ export default function EditParamScreen() {
       <Stack.Screen
         options={{
           title: info.title,
-          headerLeft: () => <NavButton direction="prev" onPress={goToPrev} />,
-          headerRight: () => <NavButton direction="next" onPress={goToNext} />,
+          headerLeft: () => <NavButton direction="prev" label={PARAM_LABELS[prevParam]} onPress={goToPrev} />,
+          headerRight: () => <NavButton direction="next" label={PARAM_LABELS[nextParam]} onPress={goToNext} />,
         }}
       />
       <Text style={styles.description}>{info.description}</Text>
@@ -303,13 +334,14 @@ export default function EditParamScreen() {
 
 const styles = StyleSheet.create({
   navButton: {
-    paddingHorizontal: 16,
+    paddingHorizontal: 12,
     paddingVertical: 8,
+    minWidth: 70,
   },
   navButtonText: {
     color: colors.accent,
-    fontSize: 28,
-    fontWeight: '300',
+    fontSize: 15,
+    fontWeight: '600',
   },
   container: {
     flex: 1,
