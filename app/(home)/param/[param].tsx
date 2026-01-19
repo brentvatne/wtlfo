@@ -126,11 +126,10 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
     title: 'Destination',
     description: 'Select which parameter the LFO will modulate.',
     details: [
-      'Filter: Cutoff, Resonance, Env Depth',
-      'Amp: Volume, Pan, Attack, Hold, Decay',
-      'Pitch: Tune, Fine',
-      'Sample: Start, Length, Loop',
-      'FX: Delay, Reverb, Chorus, Overdrive, Bit Reduction',
+      'SRC: Sample, Bank, Tune, Mode, Start, Length, Loop, Level',
+      'FILTER: Freq, Reso, Type, Env ADSR, Env Depth',
+      'AMP: Attack, Hold, Decay, Sustain, Release, Pan, Volume',
+      'FX: Chorus, Delay, Reverb, Bit, SRR, Overdrive',
     ],
   },
 };

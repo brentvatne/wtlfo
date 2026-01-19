@@ -1,27 +1,45 @@
 // Destination types for LFO modulation targets
+// Based on Digitakt II manual - Appendix C: LFO Modulation Destinations
 
 export type DestinationId =
   | 'none'
-  | 'filter_cutoff'
-  | 'filter_resonance'
-  | 'filter_env_depth'
-  | 'volume'
-  | 'pan'
+  // SRC page
+  | 'sample_slot'
+  | 'sample_bank'
   | 'pitch'
-  | 'pitch_fine'
+  | 'play_mode'
   | 'sample_start'
   | 'sample_length'
   | 'sample_loop'
-  | 'delay_send'
-  | 'reverb_send'
-  | 'chorus_send'
+  | 'sample_level'
+  // Filter (Multi-Mode) page
+  | 'filter_freq'
+  | 'filter_reso'
+  | 'filter_type'
+  // Filter Envelope page
+  | 'filter_env_delay'
+  | 'filter_attack'
+  | 'filter_decay'
+  | 'filter_sustain'
+  | 'filter_release'
+  | 'filter_env_depth'
+  // AMP page
   | 'amp_attack'
   | 'amp_hold'
   | 'amp_decay'
-  | 'overdrive'
-  | 'bit_reduction';
+  | 'amp_sustain'
+  | 'amp_release'
+  | 'pan'
+  | 'volume'
+  // FX page
+  | 'chorus_send'
+  | 'delay_send'
+  | 'reverb_send'
+  | 'bit_reduction'
+  | 'srr'
+  | 'overdrive';
 
-export type DestinationCategory = 'filter' | 'amp' | 'sample' | 'fx' | 'pitch';
+export type DestinationCategory = 'src' | 'filter' | 'amp' | 'fx';
 
 export interface DestinationDefinition {
   id: DestinationId;

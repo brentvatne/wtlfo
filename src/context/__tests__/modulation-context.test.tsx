@@ -40,7 +40,7 @@ describe('modulation-context', () => {
     });
 
     it('should load saved center values from storage', () => {
-      const savedCenterValues = { filter_cutoff: 80, pan: -32 };
+      const savedCenterValues = { filter_freq: 80, pan: -32 };
       (Storage.getItemSync as jest.Mock).mockImplementation((key: string) => {
         if (key === 'centerValues') return JSON.stringify(savedCenterValues);
         return null;
@@ -87,17 +87,17 @@ describe('modulation-context', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
       });
 
-      expect(result.current.centerValues.filter_cutoff).toBe(80);
+      expect(result.current.centerValues.filter_freq).toBe(80);
     });
 
     it('should persist center values to storage', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
       });
 
       expect(Storage.setItemSync).toHaveBeenCalledWith(
@@ -108,32 +108,32 @@ describe('modulation-context', () => {
       const savedValue = (Storage.setItemSync as jest.Mock).mock.calls.find(
         (call) => call[0] === 'centerValues'
       )?.[1];
-      expect(JSON.parse(savedValue)).toEqual({ filter_cutoff: 80 });
+      expect(JSON.parse(savedValue)).toEqual({ filter_freq: 80 });
     });
 
     it('should update existing center value', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
       });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 100);
+        result.current.setCenterValue('filter_freq', 100);
       });
 
-      expect(result.current.centerValues.filter_cutoff).toBe(100);
+      expect(result.current.centerValues.filter_freq).toBe(100);
     });
 
     it('should preserve other center values when setting a new one', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
         result.current.setCenterValue('pan', -20);
       });
 
-      expect(result.current.centerValues.filter_cutoff).toBe(80);
+      expect(result.current.centerValues.filter_freq).toBe(80);
       expect(result.current.centerValues.pan).toBe(-20);
     });
   });
@@ -143,18 +143,18 @@ describe('modulation-context', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
       });
 
-      expect(result.current.getCenterValue('filter_cutoff')).toBe(80);
+      expect(result.current.getCenterValue('filter_freq')).toBe(80);
     });
 
     it('should return default value from destination definition if not stored', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
-      // filter_cutoff default is 64
-      const filterCutoffDef = DESTINATIONS.find(d => d.id === 'filter_cutoff');
-      expect(result.current.getCenterValue('filter_cutoff')).toBe(filterCutoffDef?.defaultValue);
+      // filter_freq default is 64
+      const filterCutoffDef = DESTINATIONS.find(d => d.id === 'filter_freq');
+      expect(result.current.getCenterValue('filter_freq')).toBe(filterCutoffDef?.defaultValue);
 
       // volume default is 100
       const volumeDef = DESTINATIONS.find(d => d.id === 'volume');
@@ -413,12 +413,12 @@ describe('modulation-context', () => {
 
       // Should not throw
       act(() => {
-        result.current.setCenterValue('filter_cutoff', 80);
+        result.current.setCenterValue('filter_freq', 80);
         result.current.setRouting('lfo1', 'pan');
       });
 
       // State should still be updated in memory
-      expect(result.current.centerValues.filter_cutoff).toBe(80);
+      expect(result.current.centerValues.filter_freq).toBe(80);
       expect(result.current.activeDestinationId).toBe('pan');
     });
   });
@@ -428,13 +428,13 @@ describe('modulation-context', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setRouting('lfo1', 'filter_cutoff');
+        result.current.setRouting('lfo1', 'filter_freq');
         result.current.setRouting('lfo2', 'pan');
         result.current.setRouting('lfo3', 'volume');
       });
 
       expect(result.current.routings).toHaveLength(3);
-      expect(result.current.getRouting('lfo1')?.destinationId).toBe('filter_cutoff');
+      expect(result.current.getRouting('lfo1')?.destinationId).toBe('filter_freq');
       expect(result.current.getRouting('lfo2')?.destinationId).toBe('pan');
       expect(result.current.getRouting('lfo3')?.destinationId).toBe('volume');
     });
@@ -443,7 +443,7 @@ describe('modulation-context', () => {
       const { result } = renderHook(() => useModulation(), { wrapper });
 
       act(() => {
-        result.current.setRouting('lfo1', 'filter_cutoff');
+        result.current.setRouting('lfo1', 'filter_freq');
         result.current.setRouting('lfo2', 'pan');
       });
 

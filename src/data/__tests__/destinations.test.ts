@@ -12,24 +12,40 @@ describe('destinations', () => {
   describe('DESTINATIONS array', () => {
     it('should contain all expected destination IDs', () => {
       const expectedIds: DestinationId[] = [
-        'filter_cutoff',
-        'filter_resonance',
-        'filter_env_depth',
-        'volume',
-        'pan',
-        'amp_attack',
-        'amp_hold',
-        'amp_decay',
+        // SRC
+        'sample_slot',
+        'sample_bank',
         'pitch',
-        'pitch_fine',
+        'play_mode',
         'sample_start',
         'sample_length',
         'sample_loop',
+        'sample_level',
+        // Filter
+        'filter_freq',
+        'filter_reso',
+        'filter_type',
+        'filter_env_delay',
+        'filter_attack',
+        'filter_decay',
+        'filter_sustain',
+        'filter_release',
+        'filter_env_depth',
+        // AMP
+        'amp_attack',
+        'amp_hold',
+        'amp_decay',
+        'amp_sustain',
+        'amp_release',
+        'pan',
+        'volume',
+        // FX
+        'chorus_send',
         'delay_send',
         'reverb_send',
-        'chorus_send',
-        'overdrive',
         'bit_reduction',
+        'srr',
+        'overdrive',
       ];
 
       const actualIds = DESTINATIONS.map(d => d.id);
@@ -46,7 +62,7 @@ describe('destinations', () => {
     });
 
     it('should have valid category assignments', () => {
-      const validCategories: DestinationCategory[] = ['filter', 'amp', 'pitch', 'sample', 'fx'];
+      const validCategories: DestinationCategory[] = ['src', 'filter', 'amp', 'fx'];
       DESTINATIONS.forEach(dest => {
         expect(validCategories).toContain(dest.category);
       });
@@ -81,12 +97,12 @@ describe('destinations', () => {
       expect(dest).toBeNull();
     });
 
-    it('should return the correct destination for filter_cutoff', () => {
-      const dest = getDestination('filter_cutoff');
+    it('should return the correct destination for filter_freq', () => {
+      const dest = getDestination('filter_freq');
       expect(dest).not.toBeNull();
-      expect(dest!.id).toBe('filter_cutoff');
-      expect(dest!.name).toBe('Filter Cutoff');
-      expect(dest!.displayName).toBe('CUTOFF');
+      expect(dest!.id).toBe('filter_freq');
+      expect(dest!.name).toBe('Filter Frequency');
+      expect(dest!.displayName).toBe('FREQ');
       expect(dest!.min).toBe(0);
       expect(dest!.max).toBe(127);
       expect(dest!.defaultValue).toBe(64);
@@ -130,47 +146,41 @@ describe('destinations', () => {
   });
 
   describe('getDestinationsByCategory', () => {
+    it('should return all src destinations', () => {
+      const srcDests = getDestinationsByCategory('src');
+      expect(srcDests.length).toBe(8);
+      expect(srcDests.map(d => d.id)).toContain('sample_slot');
+      expect(srcDests.map(d => d.id)).toContain('pitch');
+      expect(srcDests.map(d => d.id)).toContain('sample_start');
+    });
+
     it('should return all filter destinations', () => {
       const filterDests = getDestinationsByCategory('filter');
-      expect(filterDests.length).toBe(3);
-      expect(filterDests.map(d => d.id)).toEqual([
-        'filter_cutoff',
-        'filter_resonance',
-        'filter_env_depth',
-      ]);
+      expect(filterDests.length).toBe(9);
+      expect(filterDests.map(d => d.id)).toContain('filter_freq');
+      expect(filterDests.map(d => d.id)).toContain('filter_reso');
+      expect(filterDests.map(d => d.id)).toContain('filter_env_depth');
     });
 
     it('should return all amp destinations', () => {
       const ampDests = getDestinationsByCategory('amp');
-      expect(ampDests.length).toBe(5);
+      expect(ampDests.length).toBe(7);
       expect(ampDests.map(d => d.id)).toContain('volume');
       expect(ampDests.map(d => d.id)).toContain('pan');
       expect(ampDests.map(d => d.id)).toContain('amp_attack');
-      expect(ampDests.map(d => d.id)).toContain('amp_hold');
-      expect(ampDests.map(d => d.id)).toContain('amp_decay');
-    });
-
-    it('should return all pitch destinations', () => {
-      const pitchDests = getDestinationsByCategory('pitch');
-      expect(pitchDests.length).toBe(2);
-      expect(pitchDests.map(d => d.id)).toEqual(['pitch', 'pitch_fine']);
-    });
-
-    it('should return all sample destinations', () => {
-      const sampleDests = getDestinationsByCategory('sample');
-      expect(sampleDests.length).toBe(3);
-      expect(sampleDests.map(d => d.id)).toEqual(['sample_start', 'sample_length', 'sample_loop']);
+      expect(ampDests.map(d => d.id)).toContain('amp_sustain');
     });
 
     it('should return all fx destinations', () => {
       const fxDests = getDestinationsByCategory('fx');
-      expect(fxDests.length).toBe(5);
+      expect(fxDests.length).toBe(6);
       expect(fxDests.map(d => d.id)).toEqual([
+        'chorus_send',
         'delay_send',
         'reverb_send',
-        'chorus_send',
-        'overdrive',
         'bit_reduction',
+        'srr',
+        'overdrive',
       ]);
     });
 
@@ -180,7 +190,7 @@ describe('destinations', () => {
     });
 
     it('should return all destinations when combined across categories', () => {
-      const allCategories: DestinationCategory[] = ['filter', 'amp', 'pitch', 'sample', 'fx'];
+      const allCategories: DestinationCategory[] = ['src', 'filter', 'amp', 'fx'];
       const allFromCategories = allCategories.flatMap(cat => getDestinationsByCategory(cat));
       expect(allFromCategories.length).toBe(DESTINATIONS.length);
     });
@@ -198,20 +208,19 @@ describe('destinations', () => {
 
   describe('CATEGORY_ORDER', () => {
     it('should contain all categories in the expected order', () => {
-      expect(CATEGORY_ORDER).toEqual(['filter', 'amp', 'pitch', 'sample', 'fx']);
+      expect(CATEGORY_ORDER).toEqual(['src', 'filter', 'amp', 'fx']);
     });
 
-    it('should contain exactly 5 categories', () => {
-      expect(CATEGORY_ORDER.length).toBe(5);
+    it('should contain exactly 4 categories', () => {
+      expect(CATEGORY_ORDER.length).toBe(4);
     });
   });
 
   describe('CATEGORY_LABELS', () => {
     it('should have labels for all categories', () => {
+      expect(CATEGORY_LABELS.src).toBe('SRC');
       expect(CATEGORY_LABELS.filter).toBe('FILTER');
       expect(CATEGORY_LABELS.amp).toBe('AMP');
-      expect(CATEGORY_LABELS.pitch).toBe('PITCH');
-      expect(CATEGORY_LABELS.sample).toBe('SAMPLE');
       expect(CATEGORY_LABELS.fx).toBe('FX');
     });
 

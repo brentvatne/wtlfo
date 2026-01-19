@@ -32,7 +32,7 @@ export const PRESETS: LFOPreset[] = [
       depth: 47,
       fade: 0,
     },
-    destination: 'filter_cutoff',
+    destination: 'filter_freq',
     centerValue: 64,
   },
   {
@@ -47,7 +47,7 @@ export const PRESETS: LFOPreset[] = [
       depth: 48,
       fade: 0,
     },
-    destination: 'filter_cutoff',
+    destination: 'filter_freq',
     centerValue: 80,
   },
   {
@@ -107,7 +107,7 @@ export const PRESETS: LFOPreset[] = [
       depth: 63,
       fade: -32,
     },
-    destination: 'filter_cutoff',
+    destination: 'filter_freq',
     centerValue: 32,
   },
 ];
