@@ -1,5 +1,6 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet, ScrollView } from 'react-native';
+import { colors } from '@/src/theme';
 
 interface SegmentedControlProps<T extends string | number> {
   label: string;
@@ -17,7 +18,11 @@ export function SegmentedControl<T extends string | number>({
   formatOption = (opt) => String(opt),
 }: SegmentedControlProps<T>) {
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessibilityLabel={`${label} selection`}
+      accessibilityRole="radiogroup"
+    >
       <Text style={styles.label}>{label}</Text>
       <ScrollView
         horizontal
@@ -28,6 +33,7 @@ export function SegmentedControl<T extends string | number>({
           const isSelected = option === value;
           const isFirst = index === 0;
           const isLast = index === options.length - 1;
+          const displayValue = formatOption(option);
 
           return (
             <Pressable
@@ -39,6 +45,10 @@ export function SegmentedControl<T extends string | number>({
                 isLast && styles.segmentLast,
                 isSelected && styles.segmentSelected,
               ]}
+              accessibilityLabel={`${displayValue}`}
+              accessibilityRole="radio"
+              accessibilityHint={`Select ${displayValue} for ${label}`}
+              accessibilityState={{ checked: isSelected }}
             >
               <Text
                 style={[
@@ -46,7 +56,7 @@ export function SegmentedControl<T extends string | number>({
                   isSelected && styles.segmentTextSelected,
                 ]}
               >
-                {formatOption(option)}
+                {displayValue}
               </Text>
             </Pressable>
           );
@@ -61,7 +71,7 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   label: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     marginBottom: 8,
@@ -74,7 +84,7 @@ const styles = StyleSheet.create({
   segment: {
     paddingHorizontal: 12,
     paddingVertical: 8,
-    backgroundColor: '#2a2a2a',
+    backgroundColor: colors.surfaceHover,
     borderWidth: 1,
     borderColor: '#3a3a3a',
     borderLeftWidth: 0,
@@ -89,15 +99,15 @@ const styles = StyleSheet.create({
     borderBottomRightRadius: 6,
   },
   segmentSelected: {
-    backgroundColor: '#ff6600',
-    borderColor: '#ff6600',
+    backgroundColor: colors.accent,
+    borderColor: colors.accent,
   },
   segmentText: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 13,
     fontWeight: '600',
   },
   segmentTextSelected: {
-    color: '#ffffff',
+    color: colors.textPrimary,
   },
 });

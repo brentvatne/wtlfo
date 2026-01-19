@@ -6,6 +6,7 @@ import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
 import { WaveformIcon, type WaveformType } from '@/src/components/lfo';
 import { DestinationPickerInline } from '@/src/components/destination';
+import { colors } from '@/src/theme';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
 
@@ -251,7 +252,7 @@ export default function EditParamScreen() {
         <View style={styles.detailsSection}>
           {info.waveformDetails.map((item) => (
             <View key={item.type} style={styles.waveformDetailRow}>
-              <WaveformIcon waveform={item.type} size={18} color="#ff6600" />
+              <WaveformIcon waveform={item.type} size={18} color={colors.accent} />
               <Text style={styles.waveformLabel}>{item.type}</Text>
               <Text style={styles.waveformDesc}>{item.desc}</Text>
             </View>
@@ -273,14 +274,14 @@ export default function EditParamScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 16,
     paddingTop: 12,
   },
   errorText: {
-    color: '#ff4444',
+    color: colors.error,
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
@@ -298,12 +299,12 @@ const styles = StyleSheet.create({
     height: 16,
   },
   detailsSection: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     padding: 12,
   },
   detailText: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 12,
     lineHeight: 17,
     marginBottom: 2,
@@ -315,26 +316,26 @@ const styles = StyleSheet.create({
     marginBottom: 6,
   },
   waveformLabel: {
-    color: '#ffffff',
+    color: colors.textPrimary,
     fontSize: 12,
     fontWeight: '600',
     width: 30,
   },
   waveformDesc: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 12,
     flex: 1,
   },
   warningBanner: {
-    backgroundColor: '#3a2a00',
+    backgroundColor: colors.warningBackground,
     borderRadius: 8,
     padding: 12,
     marginBottom: 16,
     borderWidth: 1,
-    borderColor: '#665500',
+    borderColor: colors.warningBorder,
   },
   warningText: {
-    color: '#ffaa00',
+    color: colors.warning,
     fontSize: 13,
     lineHeight: 18,
   },

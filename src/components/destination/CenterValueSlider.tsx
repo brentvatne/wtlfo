@@ -41,6 +41,10 @@ export function CenterValueSlider({
         minimumTrackTintColor="#ff6600"
         maximumTrackTintColor="#3a3a3a"
         thumbTintColor="#ff6600"
+        accessibilityLabel={`${label} slider`}
+        accessibilityRole="adjustable"
+        accessibilityHint={`Adjust ${label} value between ${min} and ${max}${bipolar ? ', centered at zero' : ''}`}
+        accessibilityValue={{ min, max, now: value }}
       />
       <View style={styles.rangeLabels}>
         <Text style={styles.rangeLabel}>{min}</Text>

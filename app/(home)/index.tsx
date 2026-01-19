@@ -5,8 +5,12 @@ import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { QuickEditPanel } from '@/src/components/ParameterEditor';
 import { ParamGrid } from '@/src/components/params';
 import { usePreset } from '@/src/context/preset-context';
+import { colors } from '@/src/theme';
 
 export default function HomeScreen() {
+  // TODO: Remove this test throw after verifying ErrorBoundary works
+  // throw new Error('Test error to verify ErrorBoundary is working');
+
   const {
     currentConfig,
     bpm,
@@ -44,7 +48,7 @@ export default function HomeScreen() {
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#0a0a0a' }}
+      style={{ flex: 1, backgroundColor: colors.background }}
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >

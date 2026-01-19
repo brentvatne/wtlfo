@@ -38,6 +38,10 @@ export function DestinationPicker() {
           Haptics.selectionAsync();
           setIsOpen(true);
         }}
+        accessibilityLabel={`Destination: ${currentDestination?.displayName ?? 'CUTOFF'}`}
+        accessibilityRole="button"
+        accessibilityHint="Double tap to open destination picker"
+        accessibilityState={{ expanded: isOpen }}
       >
         <Text style={styles.pickerLabel}>DEST</Text>
         <View style={styles.pickerValue}>
@@ -61,6 +65,9 @@ export function DestinationPicker() {
             <Pressable
               style={styles.closeButton}
               onPress={() => setIsOpen(false)}
+              accessibilityLabel="Done"
+              accessibilityRole="button"
+              accessibilityHint="Close destination picker"
             >
               <Text style={styles.closeButtonText}>Done</Text>
             </Pressable>
@@ -88,6 +95,10 @@ export function DestinationPicker() {
                             isSelected && styles.destinationItemSelected,
                           ]}
                           onPress={() => handleSelect(dest.id)}
+                          accessibilityLabel={`${dest.displayName}, ${dest.name}`}
+                          accessibilityRole="radio"
+                          accessibilityHint={`Select ${dest.name} as modulation destination`}
+                          accessibilityState={{ checked: isSelected }}
                         >
                           <Text
                             style={[

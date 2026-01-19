@@ -3,8 +3,8 @@ import { View, Text, StyleSheet, Platform } from 'react-native';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import type { WaveformType } from './types';
 
-// Import the existing sampleWaveform function (don't duplicate)
-import { sampleWaveform } from './hooks/useWaveformPath';
+// Import the waveform sampling function from the centralized worklets module
+import { sampleWaveformWorklet } from './worklets';
 
 export interface WaveformIconProps {
   /** Waveform type to display */
@@ -56,7 +56,7 @@ function getCachedPath(
 
     for (let i = 0; i <= resolution; i++) {
       const phase = i / resolution;
-      const value = sampleWaveform(waveform, phase);
+      const value = sampleWaveformWorklet(waveform, phase);
 
       const x = padding + (i / resolution) * drawWidth;
       const y = centerY + value * scaleY;

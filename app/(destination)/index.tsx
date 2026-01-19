@@ -1,6 +1,7 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
 import { useNavigation } from 'expo-router';
+import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
@@ -8,6 +9,7 @@ import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { DestinationMeter } from '@/src/components/destination/DestinationMeter';
 import { CenterValueSlider } from '@/src/components/destination/CenterValueSlider';
+import { colors } from '@/src/theme';
 
 export default function DestinationScreen() {
   const navigation = useNavigation();
@@ -32,6 +34,9 @@ export default function DestinationScreen() {
   const destination = getDestination(activeDestinationId);
   const centerValue = getCenterValue(activeDestinationId);
 
+  // State for the live computed value
+  const [computedValue, setComputedValue] = useState(centerValue);
+
   // Update navigation title when destination changes
   useEffect(() => {
     navigation.setOptions({
@@ -43,9 +48,24 @@ export default function DestinationScreen() {
   const range = destination.max - destination.min;
   const maxModulation = range / 2;
   const depthScale = Math.abs(currentConfig.depth / 63);
+  const depthSign = Math.sign(currentConfig.depth) || 1;
   const swing = maxModulation * depthScale;
   const minValue = Math.max(destination.min, Math.round(centerValue - swing));
   const maxValue = Math.min(destination.max, Math.round(centerValue + swing));
+
+  // React to LFO output changes and compute the actual value
+  useAnimatedReaction(
+    () => lfoOutput.value,
+    (output) => {
+      // lfoOutput ranges from -1 to 1, apply to swing with depth direction
+      const modulation = output * swing * depthSign;
+      const newValue = Math.round(
+        Math.max(destination.min, Math.min(destination.max, centerValue + modulation))
+      );
+      runOnJS(setComputedValue)(newValue);
+    },
+    [centerValue, swing, depthSign, destination.min, destination.max]
+  );
 
   return (
     <ScrollView
@@ -98,6 +118,10 @@ export default function DestinationScreen() {
           <Text style={styles.valueLabel}>CENTER</Text>
           <Text style={styles.valueNumber}>{Math.round(centerValue)}</Text>
         </View>
+        <View style={[styles.valueBox, styles.valueBoxHighlight]}>
+          <Text style={styles.valueLabel}>VALUE</Text>
+          <Text style={styles.valueNumberLive}>{computedValue}</Text>
+        </View>
         <View style={styles.valueBox}>
           <Text style={styles.valueLabel}>RANGE</Text>
           <Text style={styles.valueNumber}>{minValue} — {maxValue}</Text>
@@ -137,7 +161,7 @@ export default function DestinationScreen() {
 const styles = StyleSheet.create({
   container: {
     flex: 1,
-    backgroundColor: '#0a0a0a',
+    backgroundColor: colors.background,
   },
   content: {
     padding: 20,
@@ -160,38 +184,52 @@ const styles = StyleSheet.create({
   valueBox: {
     alignItems: 'center',
   },
+  valueBoxHighlight: {
+    backgroundColor: colors.surface,
+    borderRadius: 8,
+    paddingHorizontal: 16,
+    paddingVertical: 8,
+    borderWidth: 1,
+    borderColor: colors.accent,
+  },
   valueLabel: {
     fontSize: 11,
-    color: '#666677',
+    color: colors.textMuted,
     fontWeight: '600',
     marginBottom: 4,
   },
   valueNumber: {
     fontSize: 18,
-    color: '#ffffff',
+    color: colors.textPrimary,
     fontFamily: 'monospace',
     fontWeight: '500',
   },
+  valueNumberLive: {
+    fontSize: 24,
+    color: colors.accent,
+    fontFamily: 'monospace',
+    fontWeight: '700',
+  },
   sliderContainer: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
     marginBottom: 20,
   },
   infoCard: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
     borderRadius: 12,
     padding: 16,
   },
   infoTitle: {
     fontSize: 16,
     fontWeight: '600',
-    color: '#ffffff',
+    color: colors.textPrimary,
     marginBottom: 8,
   },
   infoText: {
     fontSize: 14,
-    color: '#888899',
+    color: colors.textSecondary,
     lineHeight: 20,
     marginBottom: 8,
   },

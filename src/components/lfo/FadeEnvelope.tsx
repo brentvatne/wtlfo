@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
 import type { WaveformType } from './types';
-import { sampleWaveform } from './hooks/useWaveformPath';
+import { sampleWaveformWorklet } from './worklets';
 
 interface FadeEnvelopeProps {
   waveform: WaveformType;
@@ -50,7 +50,7 @@ export function FadeEnvelope({
       const xNormalized = i / resolution;
       // Shift phase for waveform sampling (same as WaveformDisplay)
       const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
-      let value = sampleWaveform(waveform, waveformPhase);
+      let value = sampleWaveformWorklet(waveform, waveformPhase);
 
       // Apply depth scaling
       value = value * depthScale;

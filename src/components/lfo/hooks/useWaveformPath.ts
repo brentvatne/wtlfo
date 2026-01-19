@@ -1,51 +1,19 @@
 import { useMemo } from 'react';
 import { Skia, SkPath } from '@shopify/react-native-skia';
 import type { WaveformType } from '../types';
+import { sampleWaveformWorklet, isUnipolarWorklet } from '../worklets';
 
 /**
- * Generates waveform sample based on Digitakt II specifications
+ * Re-export sampleWaveformWorklet as sampleWaveform for backward compatibility.
+ * The worklet version can be safely called from non-worklet contexts.
  */
-function sampleWaveform(waveform: WaveformType, phase: number): number {
-  switch (waveform) {
-    case 'TRI': // Triangle - Bipolar (0 → +1 → -1 → 0)
-      if (phase < 0.25) return phase * 4;           // 0 to +1
-      if (phase < 0.75) return 1 - (phase - 0.25) * 4; // +1 to -1
-      return -1 + (phase - 0.75) * 4;               // -1 to 0
-
-    case 'SIN': // Sine - Bipolar
-      return Math.sin(phase * 2 * Math.PI);
-
-    case 'SQR': // Square - Bipolar
-      return phase < 0.5 ? 1 : -1;
-
-    case 'SAW': // Sawtooth - Bipolar (rising)
-      return phase * 2 - 1;
-
-    case 'EXP': // Exponential - Unipolar (0 to 1)
-      const k = 4;
-      return (Math.exp(phase * k) - 1) / (Math.exp(k) - 1);
-
-    case 'RMP': // Ramp - Unipolar (1 to 0, falling)
-      return 1 - phase;
-
-    case 'RND': // Random - show as noise pattern for static display
-      // For static display, show a representative S&H pattern
-      const steps = 8;
-      const step = Math.floor(phase * steps);
-      // Use deterministic "random" for consistent display
-      return Math.sin(step * 12.9898) * 0.8;
-
-    default:
-      return 0;
-  }
-}
+export const sampleWaveform = sampleWaveformWorklet;
 
 /**
  * Determines if waveform is unipolar (0 to 1) vs bipolar (-1 to 1)
+ * Re-exported from worklets for backward compatibility.
  */
-export function isUnipolar(waveform: WaveformType): boolean {
-  return waveform === 'EXP' || waveform === 'RMP';
-}
+export const isUnipolar = isUnipolarWorklet;
 
 /**
  * Hook to generate a Skia Path for the waveform
@@ -91,7 +59,7 @@ export function useWaveformPath(
       const xNormalized = i / resolution;
       // Shift phase so startPhaseNormalized appears at x=0
       const phase = (xNormalized + startPhaseNormalized) % 1;
-      let value = sampleWaveform(waveform, phase);
+      let value = sampleWaveformWorklet(waveform, phase);
 
       // Apply depth scaling
       value = value * depthScale;
@@ -117,4 +85,3 @@ export function useWaveformPath(
   }, [waveform, width, height, resolution, padding, depth, startPhase, closePath]);
 }
 
-export { sampleWaveform };

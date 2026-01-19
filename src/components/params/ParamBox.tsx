@@ -1,5 +1,6 @@
 import React from 'react';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
+import { colors } from '@/src/theme';
 
 export interface ParamBoxProps {
   label: string;
@@ -19,6 +20,10 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
         isActive && styles.active,
         disabled && styles.disabled,
       ]}
+      accessibilityLabel={`${label} parameter, current value: ${value}`}
+      accessibilityRole="button"
+      accessibilityHint={`Double tap to edit ${label} parameter`}
+      accessibilityState={{ selected: isActive, disabled }}
     >
       <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
       <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
@@ -28,7 +33,7 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: '#1a1a1a',
+    backgroundColor: colors.surface,
     borderRadius: 8,
     paddingVertical: 10,
     paddingHorizontal: 8,
@@ -40,20 +45,20 @@ const styles = StyleSheet.create({
     borderColor: 'transparent',
   },
   pressed: {
-    backgroundColor: '#2a2a2a',
+    backgroundColor: colors.surfaceHover,
   },
   active: {
-    borderColor: '#ff6600',
+    borderColor: colors.accent,
   },
   label: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 11,
     fontWeight: '600',
     letterSpacing: 0.5,
     marginTop: 2,
   },
   value: {
-    color: '#ffffff',
+    color: colors.textPrimary,
     fontSize: 15,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],

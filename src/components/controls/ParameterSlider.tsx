@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import Slider from '@react-native-community/slider';
+import { colors } from '@/src/theme';
 
 interface ParameterSliderProps {
   label: string;
@@ -34,9 +35,13 @@ export function ParameterSlider({
         value={value}
         onValueChange={onChange}
         step={step}
-        minimumTrackTintColor="#ff6600"
+        minimumTrackTintColor={colors.accent}
         maximumTrackTintColor="#3a3a3a"
-        thumbTintColor="#ff6600"
+        thumbTintColor={colors.accent}
+        accessibilityLabel={`${label} slider`}
+        accessibilityRole="adjustable"
+        accessibilityHint={`Adjust ${label} value between ${min} and ${max}`}
+        accessibilityValue={{ min, max, now: value }}
       />
     </View>
   );
@@ -53,14 +58,14 @@ const styles = StyleSheet.create({
     marginBottom: 4,
   },
   label: {
-    color: '#888899',
+    color: colors.textSecondary,
     fontSize: 12,
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 0.5,
   },
   value: {
-    color: '#ff6600',
+    color: colors.accent,
     fontSize: 14,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],

@@ -59,9 +59,13 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessible={true}
+      accessibilityLabel="LFO Parameters"
+    >
       {/* Row 1: SPD, MULT, FADE, DEST */}
-      <View style={styles.row}>
+      <View style={styles.row} accessibilityRole="none">
         <ParamBox
           label={PARAM_LABELS.speed}
           value={formatValue('speed', currentConfig.speed)}
@@ -90,7 +94,7 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
       </View>
 
       {/* Row 2: WAVE, SPH, MODE, DEP */}
-      <View style={styles.row}>
+      <View style={styles.row} accessibilityRole="none">
         <ParamBox
           label={PARAM_LABELS.waveform}
           value={currentConfig.waveform}

@@ -1,4 +1,5 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
+import { AppState, type AppStateStatus } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
 import { useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
@@ -103,6 +104,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const animationRef = useRef<number>(0);
   const [timingInfo, setTimingInfo] = useState<TimingInfo>({ cycleTimeMs: 0, noteValue: '' });
 
+  // Track whether we paused the animation due to app going to background
+  // This is separate from user-initiated pause (isPaused state)
+  const wasRunningBeforeBackgroundRef = useRef<boolean>(false);
+  const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+
   // Debounce config changes for engine restart
   useEffect(() => {
     // Mark as editing when config changes
@@ -193,6 +199,56 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     return () => cancelAnimationFrame(animationRef.current);
   }, [lfoPhase, lfoOutput]);
+
+  // Pause animation loop when app goes to background to save battery
+  useEffect(() => {
+    const handleAppStateChange = (nextAppState: AppStateStatus) => {
+      const previousState = appStateRef.current;
+
+      if (
+        previousState === 'active' &&
+        (nextAppState === 'inactive' || nextAppState === 'background')
+      ) {
+        // App is going to background
+        // Remember if animation was running (and not user-paused)
+        wasRunningBeforeBackgroundRef.current = !isPaused && (lfoRef.current?.isRunning() ?? false);
+
+        // Stop the animation loop
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = 0;
+        }
+      } else if (
+        (previousState === 'inactive' || previousState === 'background') &&
+        nextAppState === 'active'
+      ) {
+        // App is coming back to foreground
+        // Only resume if we were running before going to background
+        // Don't resume if user had manually paused
+        if (wasRunningBeforeBackgroundRef.current && !isPaused) {
+          // Restart the animation loop
+          const animate = (timestamp: number) => {
+            if (lfoRef.current) {
+              const state = lfoRef.current.update(timestamp);
+              lfoPhase.value = state.phase;
+              lfoOutput.value = state.output;
+            }
+            animationRef.current = requestAnimationFrame(animate);
+          };
+          animationRef.current = requestAnimationFrame(animate);
+        }
+        wasRunningBeforeBackgroundRef.current = false;
+      }
+
+      appStateRef.current = nextAppState;
+    };
+
+    const subscription = AppState.addEventListener('change', handleAppStateChange);
+
+    return () => {
+      subscription.remove();
+    };
+  }, [isPaused, lfoPhase, lfoOutput]);
 
   // LFO control methods
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);

@@ -18,11 +18,20 @@ export function DestinationPickerInline() {
   };
 
   return (
-    <View style={styles.container}>
+    <View
+      style={styles.container}
+      accessibilityLabel="Modulation destination selector"
+      accessibilityRole="radiogroup"
+    >
       {CATEGORY_ORDER.map(category => {
         const destinations = getDestinationsByCategory(category);
         return (
-          <View key={category} style={styles.categorySection}>
+          <View
+            key={category}
+            style={styles.categorySection}
+            accessible={true}
+            accessibilityLabel={`${CATEGORY_LABELS[category]} destinations`}
+          >
             <Text style={styles.categoryLabel}>
               {CATEGORY_LABELS[category]}
             </Text>
@@ -37,6 +46,10 @@ export function DestinationPickerInline() {
                       isSelected && styles.destinationItemSelected,
                     ]}
                     onPress={() => handleSelect(dest.id)}
+                    accessibilityLabel={`${dest.displayName}, ${dest.name}`}
+                    accessibilityRole="radio"
+                    accessibilityHint={`Select ${dest.name} as modulation destination`}
+                    accessibilityState={{ checked: isSelected }}
                   >
                     <Text
                       style={[
