@@ -3,22 +3,26 @@ import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 
 /**
- * Hook to create a slowed-down display phase from the real LFO phase.
+ * Hook to create a time-warped display phase from the real LFO phase.
  *
  * Instead of dividing phase (which limits range to 0-1/factor), this hook
- * tracks phase deltas and accumulates them at a slower rate. This ensures
- * the display phase still completes full 0-1 cycles, just slower.
+ * tracks phase deltas and accumulates them at a modified rate. This ensures
+ * the display phase still completes full 0-1 cycles, just at a different speed.
+ *
+ * Supports both slowdown (factor > 1) and speedup (factor < 1):
+ * - factor = 2: display moves at half speed (slowdown)
+ * - factor = 0.5: display moves at double speed (speedup)
  *
  * Fixed issues:
  * 1. Reset on ANY factor change (not just 1↔>1 transitions)
- * 2. Adaptive discontinuity thresholds based on slowdown factor
+ * 2. Adaptive discontinuity thresholds based on time-warp factor
  * 3. Periodic drift correction to prevent accumulated floating-point errors
  * 4. Extended frame detection window for post-change stability
  * 5. Improved wrap-around detection with expected delta estimation
  *
  * @param realPhase - The actual LFO phase (0-1) SharedValue
- * @param slowdownFactor - Factor to slow down (1 = normal, 2 = half speed, etc.)
- * @returns A SharedValue containing the slowed display phase (0-1)
+ * @param timeWarpFactor - Factor to warp time (>1 = slower, <1 = faster, 1 = normal)
+ * @returns A SharedValue containing the time-warped display phase (0-1)
  */
 export function useSlowMotionPhase(
   realPhase: SharedValue<number>,
@@ -144,11 +148,12 @@ export function useSlowMotionPhase(
 
       // Periodic drift correction every ~60 frames (1 second at 60fps)
       // Ensures accumulated floating-point errors don't compound
-      if (frameCount.value % 60 === 0 && factor > 1) {
+      // Apply for both slowdown (factor > 1) and speedup (factor < 1)
+      if (frameCount.value % 60 === 0 && Math.abs(factor - 1) > 0.01) {
         // Calculate expected display phase based on real cycles
         // display_cycles = real_cycles / factor
         const expectedDisplayCycles = realCycleCount.value / factor;
-        const expectedDisplayPhase = (realPhase.value / factor) % 1;
+        const expectedDisplayPhase = ((realPhase.value / factor) % 1 + 1) % 1;
 
         // If drift is significant (> 0.02), apply small correction
         const drift = newDisplayPhase - expectedDisplayPhase;

@@ -4,25 +4,34 @@ import Animated, { FadeIn, FadeOut } from 'react-native-reanimated';
 import { colors } from '@/src/theme';
 
 interface SlowMotionBadgeProps {
-  /** Slowdown factor (e.g., 4 means 1/4 speed) */
+  /** Time-warp factor: >1 = slowdown (e.g., 4 = 1/4 speed), <1 = speedup (e.g., 0.5 = 2x speed) */
   factor: number;
   /** Whether badge should be visible */
   visible: boolean;
 }
 
 /**
- * Badge overlay showing that the visualization is in slow-motion preview mode.
- * Displays the speed as a fraction (e.g., "1/4 SPEED") to clearly indicate slowing.
+ * Badge overlay showing that the visualization is in time-warped mode.
+ * - For slowdown (factor > 1): displays "1/N SPEED" (e.g., "1/4 SPEED")
+ * - For speedup (factor < 1): displays "Nx SPEED" (e.g., "2x SPEED")
  */
 export function SlowMotionBadge({ factor, visible }: SlowMotionBadgeProps) {
   if (!visible) return null;
 
-  // Format as fraction: factor of 4 means 1/4 speed
-  // For clean fractions (2, 4, 5, 8, 10), show as "1/N"
-  // For others, show decimal like "1/2.5"
-  const speedDisplay = Number.isInteger(factor)
-    ? `1/${factor}`
-    : `1/${factor.toFixed(1)}`;
+  // Format display based on whether we're speeding up or slowing down
+  let speedDisplay: string;
+  if (factor >= 1) {
+    // Slowdown: factor of 4 means 1/4 speed
+    speedDisplay = Number.isInteger(factor)
+      ? `1/${factor}`
+      : `1/${factor.toFixed(1)}`;
+  } else {
+    // Speedup: factor of 0.5 means 2x speed
+    const multiplier = 1 / factor;
+    speedDisplay = Number.isInteger(multiplier)
+      ? `${multiplier}x`
+      : `${multiplier.toFixed(1)}x`;
+  }
 
   return (
     <Animated.View
