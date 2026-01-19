@@ -2,7 +2,13 @@ import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import type { TimingInfoProps } from './types';
 
-export function TimingInfo({ bpm, cycleTimeMs, noteValue, theme }: TimingInfoProps) {
+export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: TimingInfoProps) {
+  // Format steps - show decimal only if not a whole number
+  const formatSteps = (s: number): string => {
+    if (Number.isInteger(s)) return String(s);
+    return s.toFixed(1);
+  };
+
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
       {bpm !== undefined && (
@@ -27,6 +33,13 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, theme }: TimingInfoPro
         <View style={styles.item}>
           <Text style={[styles.value, { color: theme.accent }]}>{noteValue}</Text>
           <Text style={[styles.label, { color: theme.textSecondary }]}>NOTE</Text>
+        </View>
+      )}
+
+      {steps !== undefined && steps > 0 && (
+        <View style={styles.item}>
+          <Text style={[styles.value, { color: theme.text }]}>{formatSteps(steps)}</Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>STEPS</Text>
         </View>
       )}
     </View>

@@ -127,11 +127,14 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
 
 const styles = StyleSheet.create({
   container: {
-    gap: 4, // Tighter spacing for OLED-like density
+    gap: 0,
     marginBottom: 8,
+    backgroundColor: '#0a0a0a', // Match app background
   },
   row: {
     flexDirection: 'row',
-    gap: 4, // Tighter horizontal gap
+    gap: 0,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#1a1a1a',
   },
 });

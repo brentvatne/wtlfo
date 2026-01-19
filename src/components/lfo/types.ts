@@ -54,6 +54,9 @@ export interface LFOVisualizerProps {
   /** Musical note value string (e.g., "1/4", "1 bar", "16 bars") */
   noteValue?: string;
 
+  /** Number of 1/16 steps in one LFO cycle */
+  steps?: number;
+
   // === OPTIONAL: Styling ===
 
   /** Width of the visualizer */
@@ -183,6 +186,7 @@ export interface TimingInfoProps {
   bpm?: number;
   cycleTimeMs?: number;
   noteValue?: string;
+  steps?: number;
   theme: LFOTheme;
 }
 

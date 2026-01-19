@@ -33,36 +33,34 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
 
 const styles = StyleSheet.create({
   box: {
-    backgroundColor: '#121212', // Darker for OLED-like contrast
-    borderRadius: 6, // Tighter radius
-    paddingVertical: 8,
-    paddingHorizontal: 6,
+    backgroundColor: 'transparent', // Seamless with background
+    borderRadius: 0,
+    paddingVertical: 10,
+    paddingHorizontal: 4,
     flex: 1,
     minHeight: 52,
     justifyContent: 'center',
     alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#2a2a2a', // Subtle outline always visible
+    borderRightWidth: StyleSheet.hairlineWidth,
+    borderRightColor: '#1a1a1a',
   },
   pressed: {
-    backgroundColor: '#1a1a1a',
-    borderColor: '#3a3a3a',
+    backgroundColor: 'rgba(255, 255, 255, 0.05)',
   },
   active: {
-    borderColor: colors.accent,
-    backgroundColor: '#1a1a0a', // Subtle warm tint when active
+    backgroundColor: 'rgba(255, 102, 0, 0.1)',
   },
   label: {
-    color: '#666677',
-    fontSize: 10, // Slightly smaller for tighter look
-    fontWeight: '700',
-    letterSpacing: 0.8, // More letter spacing
-    marginTop: 2,
+    color: '#555566',
+    fontSize: 10,
+    fontWeight: '600',
+    letterSpacing: 1,
+    marginTop: 3,
     textTransform: 'uppercase',
   },
   value: {
     color: '#ffffff',
-    fontSize: 16, // Larger for better readability
+    fontSize: 15,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     fontFamily: 'monospace',

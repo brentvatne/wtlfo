@@ -9,6 +9,9 @@ import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
 import { colors } from '@/src/theme';
 
+// Grid height: 2 rows * 52px minHeight + 4px gap = 108px
+const GRID_HEIGHT = 108;
+
 export default function HomeScreen() {
   const {
     currentConfig,
@@ -32,9 +35,11 @@ export default function HomeScreen() {
   const activeDestination = getDestination(activeDestinationId);
   const hasDestination = activeDestination !== null;
 
-  // Calculate visualizer width - now accounts for meter
-  const meterWidth = 60;
-  const visualizerWidth = screenWidth - meterWidth;
+  // Calculate visualizer width - full width now
+  const visualizerWidth = screenWidth;
+
+  // Meter width
+  const meterWidth = 56;
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -58,51 +63,56 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* Visualization Row - Full width, no horizontal padding */}
+      {/* LFO Visualizer - Full width, no output label */}
       <Pressable
-        style={[styles.visualizationRow, isPaused && styles.paused]}
+        style={[styles.visualizerContainer, isPaused && styles.paused]}
         onPress={handleTap}
       >
-        {/* LFO Visualizer - takes remaining space */}
-        <View style={styles.visualizerContainer}>
-          <LFOVisualizer
-            phase={lfoPhase}
-            output={lfoOutput}
-            waveform={currentConfig.waveform as WaveformType}
-            speed={currentConfig.speed}
-            multiplier={currentConfig.multiplier}
-            startPhase={currentConfig.startPhase}
-            mode={currentConfig.mode as TriggerMode}
-            depth={currentConfig.depth}
-            fade={currentConfig.fade}
-            bpm={bpm}
-            cycleTimeMs={timingInfo.cycleTimeMs}
-            noteValue={timingInfo.noteValue}
-            width={visualizerWidth}
-            height={280}
-            theme={ELEKTRON_THEME}
-            showParameters={false}
-            showTiming={true}
-            isEditing={isEditing}
-            strokeWidth={2.5}
-          />
-        </View>
-
-        {/* Destination Meter - fixed width */}
-        <DestinationMeter
-          lfoOutput={lfoOutput}
-          destination={activeDestination}
-          centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+        <LFOVisualizer
+          phase={lfoPhase}
+          output={lfoOutput}
+          waveform={currentConfig.waveform as WaveformType}
+          speed={currentConfig.speed}
+          multiplier={currentConfig.multiplier}
+          startPhase={currentConfig.startPhase}
+          mode={currentConfig.mode as TriggerMode}
           depth={currentConfig.depth}
-          width={meterWidth}
-          height={280}
-          style={!hasDestination ? styles.meterDimmed : undefined}
+          fade={currentConfig.fade}
+          bpm={bpm}
+          cycleTimeMs={timingInfo.cycleTimeMs}
+          noteValue={timingInfo.noteValue}
+          steps={timingInfo.steps}
+          width={visualizerWidth}
+          height={240}
+          theme={ELEKTRON_THEME}
+          showParameters={false}
+          showTiming={true}
+          showOutput={false}
+          isEditing={isEditing}
+          strokeWidth={2.5}
         />
       </Pressable>
 
-      {/* Parameter Grid - with normal padding */}
-      <View style={styles.paramSection}>
-        <ParamGrid />
+      {/* Parameter Grid + Destination Meter Row */}
+      <View style={styles.controlsRow}>
+        {/* Parameter Grid */}
+        <View style={styles.gridContainer}>
+          <ParamGrid />
+        </View>
+
+        {/* Destination Meter - same height as grid */}
+        <View style={styles.meterContainer}>
+          <DestinationMeter
+            lfoOutput={lfoOutput}
+            destination={activeDestination}
+            centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+            depth={currentConfig.depth}
+            width={meterWidth}
+            height={GRID_HEIGHT}
+            showValue={hasDestination}
+            style={!hasDestination ? styles.meterDimmed : undefined}
+          />
+        </View>
       </View>
 
       {/* Destination Info - only shown when destination selected */}
@@ -124,21 +134,26 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  visualizationRow: {
-    flexDirection: 'row',
-    marginBottom: 16,
+  visualizerContainer: {
+    marginBottom: 12,
   },
   paused: {
     opacity: 0.5,
   },
-  visualizerContainer: {
+  controlsRow: {
+    flexDirection: 'row',
+    paddingRight: 12,
+    gap: 0,
+  },
+  gridContainer: {
     flex: 1,
+  },
+  meterContainer: {
+    justifyContent: 'flex-start',
+    paddingLeft: 8,
   },
   meterDimmed: {
     opacity: 0.3,
-  },
-  paramSection: {
-    paddingHorizontal: 20,
   },
   destinationSection: {
     paddingHorizontal: 20,

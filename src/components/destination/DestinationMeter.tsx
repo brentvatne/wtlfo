@@ -1,7 +1,7 @@
-import React from 'react';
-import { View, type ViewStyle } from 'react-native';
-import { Canvas, Rect, RoundedRect, Group } from '@shopify/react-native-skia';
-import { useDerivedValue } from 'react-native-reanimated';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
+import { Canvas, Rect, RoundedRect, Group, Line } from '@shopify/react-native-skia';
+import { useDerivedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 
@@ -13,6 +13,7 @@ interface DestinationMeterProps {
   width?: number;
   height?: number;
   style?: ViewStyle;
+  showValue?: boolean;
 }
 
 export function DestinationMeter({
@@ -21,70 +22,156 @@ export function DestinationMeter({
   centerValue,
   depth,
   width = 60,
-  height = 200,
+  height = 108,
   style,
+  showValue = false,
 }: DestinationMeterProps) {
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
   const max = destination?.max ?? 127;
   const range = max - min;
   const maxModulation = range / 2;
-  const depthScale = depth / 63;
+  const depthScale = Math.abs(depth) / 63;
+
+  // Calculate bounds based on depth
+  const swing = maxModulation * depthScale;
+  const lowerBound = Math.max(min, centerValue - swing);
+  const upperBound = Math.min(max, centerValue + swing);
+
+  // Track current value for display
+  const [currentValue, setCurrentValue] = useState(centerValue);
+
+  // Update current value from animation
+  useAnimatedReaction(
+    () => lfoOutput.value,
+    (output) => {
+      const modulationAmount = output * (depth / 63) * maxModulation;
+      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
+      runOnJS(setCurrentValue)(value);
+    },
+    [centerValue, depth, maxModulation, min, max]
+  );
 
   // Calculate the current modulated value position
   const meterFillHeight = useDerivedValue(() => {
     'worklet';
-    const modulationAmount = lfoOutput.value * depthScale * maxModulation;
-    const currentValue = centerValue + modulationAmount;
-    const clampedValue = Math.max(min, Math.min(max, currentValue));
+    const modulationAmount = lfoOutput.value * (depth / 63) * maxModulation;
+    const currentVal = centerValue + modulationAmount;
+    const clampedValue = Math.max(min, Math.min(max, currentVal));
     const normalized = (clampedValue - min) / range;
-    return normalized * (height - 20); // Leave padding
-  }, [lfoOutput, centerValue, depthScale, maxModulation, min, max, range, height]);
+    return normalized * (height - 16); // Leave padding
+  }, [lfoOutput, centerValue, depth, maxModulation, min, max, range, height]);
 
-  // Center line position
-  const centerLineY = height - 10 - ((centerValue - min) / range) * (height - 20);
+  // Position calculations
+  const meterX = 8;
+  const meterWidth = width - 16;
+  const meterTop = 8;
+  const meterHeight = height - 16;
 
-  // Meter bar (background)
-  const meterX = 10;
-  const meterWidth = width - 20;
+  // Upper and lower bound Y positions
+  const upperBoundY = meterTop + meterHeight - ((upperBound - min) / range) * meterHeight;
+  const lowerBoundY = meterTop + meterHeight - ((lowerBound - min) / range) * meterHeight;
+
+  // Animated current value Y position
+  const currentValueY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - meterFillHeight.value;
+  }, [meterFillHeight, meterTop, meterHeight]);
+
+  // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
+  const gridLines = [];
+  const gridDivisions = 4;
+  for (let i = 0; i <= gridDivisions; i++) {
+    const y = meterTop + (i / gridDivisions) * meterHeight;
+    gridLines.push(
+      <Line
+        key={`grid-${i}`}
+        p1={{ x: meterX, y }}
+        p2={{ x: meterX + meterWidth, y }}
+        color="rgba(255, 255, 255, 0.15)"
+        strokeWidth={1}
+      />
+    );
+  }
 
   return (
-    <View style={style}>
+    <View style={[styles.container, style]}>
       <Canvas style={{ width, height }}>
         {/* Background track */}
         <RoundedRect
           x={meterX}
-          y={10}
+          y={meterTop}
           width={meterWidth}
-          height={height - 20}
+          height={meterHeight}
           r={4}
-          color="#1a1a1a"
+          color="#0a0a0a"
         />
 
-        {/* Animated fill bar */}
+        {/* Grid lines - drawn first so they're behind everything */}
         <Group>
-          <RoundedRect
-            x={meterX}
-            y={useDerivedValue(() => {
-              'worklet';
-              return height - 10 - meterFillHeight.value;
-            }, [meterFillHeight])}
-            width={meterWidth}
-            height={meterFillHeight}
-            r={4}
-            color="#ff6600"
-          />
+          {gridLines}
         </Group>
 
-        {/* Center value indicator line */}
-        <Rect
-          x={meterX - 4}
-          y={centerLineY - 1}
-          width={meterWidth + 8}
-          height={2}
-          color="#ffffff"
-        />
+        {/* Modulation range - orange filled area showing depth bounds */}
+        {depth !== 0 && (
+          <Rect
+            x={meterX}
+            y={upperBoundY}
+            width={meterWidth}
+            height={lowerBoundY - upperBoundY}
+            color="rgba(255, 102, 0, 0.2)"
+          />
+        )}
+
+        {/* Upper bound line - orange */}
+        {depth !== 0 && (
+          <Line
+            p1={{ x: meterX, y: upperBoundY }}
+            p2={{ x: meterX + meterWidth, y: upperBoundY }}
+            color="#ff6600"
+            strokeWidth={1.5}
+          />
+        )}
+
+        {/* Lower bound line - orange */}
+        {depth !== 0 && (
+          <Line
+            p1={{ x: meterX, y: lowerBoundY }}
+            p2={{ x: meterX + meterWidth, y: lowerBoundY }}
+            color="#ff6600"
+            strokeWidth={1.5}
+          />
+        )}
+
+        {/* Animated current value - white line */}
+        <Group>
+          <Line
+            p1={useDerivedValue(() => ({ x: meterX, y: currentValueY.value }), [currentValueY, meterX])}
+            p2={useDerivedValue(() => ({ x: meterX + meterWidth, y: currentValueY.value }), [currentValueY, meterX, meterWidth])}
+            color="#ffffff"
+            strokeWidth={2.5}
+          />
+        </Group>
       </Canvas>
+
+      {/* Current value display */}
+      {showValue && (
+        <Text style={styles.valueText}>{currentValue}</Text>
+      )}
     </View>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    alignItems: 'center',
+  },
+  valueText: {
+    color: '#ff6600',
+    fontSize: 18,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+    fontFamily: 'monospace',
+    marginTop: 4,
+  },
+});

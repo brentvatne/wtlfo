@@ -47,6 +47,7 @@ function getInitialBPM(): number {
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
+  steps: number; // Number of 1/16 steps in one cycle
 }
 
 interface PresetContextValue {
@@ -102,7 +103,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const lfoOutput = useSharedValue(0);
   const lfoRef = useRef<LFO | null>(null);
   const animationRef = useRef<number>(0);
-  const [timingInfo, setTimingInfo] = useState<TimingInfo>({ cycleTimeMs: 0, noteValue: '' });
+  const [timingInfo, setTimingInfo] = useState<TimingInfo>({ cycleTimeMs: 0, noteValue: '', steps: 0 });
 
   // Track whether we paused the animation due to app going to background
   // This is separate from user-initiated pause (isPaused state)
@@ -174,9 +175,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
+    // Calculate steps: one step = 1/16 note = (60000/bpm)/4 ms
+    const msPerStep = 15000 / bpm;
+    const steps = info.cycleTimeMs / msPerStep;
     setTimingInfo({
       cycleTimeMs: info.cycleTimeMs,
       noteValue: info.noteValue,
+      steps,
     });
 
     // Auto-trigger for modes that need it

@@ -28,6 +28,7 @@ export function LFOVisualizer({
   bpm,
   cycleTimeMs,
   noteValue,
+  steps,
   width = DEFAULT_WIDTH,
   height = DEFAULT_HEIGHT,
   theme = 'dark',
@@ -191,6 +192,7 @@ export function LFOVisualizer({
           bpm={bpm}
           cycleTimeMs={cycleTimeMs}
           noteValue={noteValue}
+          steps={steps}
           theme={resolvedTheme}
         />
       )}
