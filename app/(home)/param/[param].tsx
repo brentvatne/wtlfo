@@ -1,5 +1,5 @@
 import React, { useState, useEffect } from 'react';
-import { View, Text, StyleSheet, ScrollView } from 'react-native';
+import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
@@ -149,6 +149,21 @@ const SLEW_INFO: ParamInfo = {
 
 function formatMultiplier(value: number): string {
   return value >= 1024 ? `${value / 1024}k` : String(value);
+}
+
+function NavButton({ direction, label, onPress }: { direction: 'prev' | 'next'; label: string; onPress: () => void }) {
+  const isPrev = direction === 'prev';
+  return (
+    <Pressable
+      onPress={onPress}
+      style={styles.navButton}
+      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
+    >
+      <Text style={styles.navButtonText}>
+        {isPrev ? `‹ ${label}` : `${label} ›`}
+      </Text>
+    </Pressable>
+  );
 }
 
 export default function EditParamScreen() {
@@ -328,24 +343,20 @@ export default function EditParamScreen() {
       <Stack.Screen
         options={{
           title: info.title,
-          unstable_headerLeftItems: () => [
-            {
-              type: 'button',
-              label: `‹ ${prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}`,
-              tintColor: colors.accent,
-              hidesSharedBackground: true,
-              onPress: goToPrev,
-            },
-          ],
-          unstable_headerRightItems: () => [
-            {
-              type: 'button',
-              label: `${nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]} ›`,
-              tintColor: colors.accent,
-              hidesSharedBackground: true,
-              onPress: goToNext,
-            },
-          ],
+          headerLeft: () => (
+            <NavButton
+              direction="prev"
+              label={prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
+              onPress={goToPrev}
+            />
+          ),
+          headerRight: () => (
+            <NavButton
+              direction="next"
+              label={nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]}
+              onPress={goToNext}
+            />
+          ),
         }}
       />
       <Text style={styles.description}>{info.description}</Text>
@@ -378,6 +389,16 @@ export default function EditParamScreen() {
 }
 
 const styles = StyleSheet.create({
+  navButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    minWidth: 70,
+  },
+  navButtonText: {
+    color: colors.accent,
+    fontSize: 15,
+    fontWeight: '600',
+  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
