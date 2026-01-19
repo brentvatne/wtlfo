@@ -103,6 +103,10 @@ export default function HomeScreen() {
         <Pressable
           style={[styles.visualizerContainer, isPaused && styles.paused]}
           onPress={handleTap}
+          accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isPaused }}
+          accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
         >
           <View>
             <LFOVisualizer
@@ -143,6 +147,12 @@ export default function HomeScreen() {
             isPaused && styles.paused,
           ]}
           onPress={handleTap}
+          accessibilityLabel={hasDestination
+            ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
+            : 'Destination meter, no destination selected'}
+          accessibilityRole="button"
+          accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
+          accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
         >
           <DestinationMeter
             lfoOutput={displayOutput}
