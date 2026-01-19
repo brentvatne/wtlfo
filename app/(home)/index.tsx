@@ -1,13 +1,9 @@
-import React, { useMemo, useRef } from 'react';
+import React, { useRef } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
-import { useDerivedValue } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
-  useSlowMotionPhase,
   SlowMotionBadge,
-  getSlowdownInfo,
-  sampleWaveformWithSlew,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -51,30 +47,15 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
-  // Calculate slowdown info for fast LFOs (with hysteresis to prevent flickering)
+  // Slow-motion preview disabled for now - needs investigation at higher speeds
+  // TODO: Re-enable once issues are resolved
+  const slowdownInfo = { factor: 1, isSlowed: false, displayCycleTimeMs: timingInfo.cycleTimeMs };
+  const displayPhase = lfoPhase; // Use real phase directly
+  const displayOutput = lfoOutput; // Use real output directly
+
+  // Keep refs for when slow-motion is re-enabled
   const previousFactorRef = useRef(1);
-  const slowdownInfo = useMemo(() => {
-    const info = getSlowdownInfo(timingInfo.cycleTimeMs, previousFactorRef.current);
-    previousFactorRef.current = info.factor;
-    return info;
-  }, [timingInfo.cycleTimeMs]);
-
-  // Create slowed display phase for visualization (keeps lfoPhase unchanged for actual output)
-  const displayPhase = useSlowMotionPhase(lfoPhase, slowdownInfo.factor);
-
-  // Create slowed output that matches the display phase
-  // This samples the waveform at the display phase and applies depth scaling
-  const waveform = currentConfig.waveform as WaveformType;
-  const depth = currentConfig.depth;
-  const startPhase = currentConfig.startPhase;
-  const displayOutput = useDerivedValue(() => {
-    'worklet';
-    // Sample waveform at display phase (with slew for RND)
-    const slew = waveform === 'RND' ? startPhase : 0;
-    const rawValue = sampleWaveformWithSlew(waveform, displayPhase.value, slew);
-    // Apply depth scaling (depth/63 gives -1 to 1 range)
-    return rawValue * (depth / 63);
-  }, [waveform, depth, startPhase]);
+  void previousFactorRef; // Silence unused warning
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
