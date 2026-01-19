@@ -1,13 +1,10 @@
 import { Stack, Link } from 'expo-router';
-import { Pressable, Text } from 'react-native';
+import { Pressable } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import { usePreset } from '@/src/context/preset-context';
 
 export default function HomeLayout() {
-  const { preset, setActivePreset } = usePreset();
-
-  const handleReset = () => {
-    setActivePreset(0); // Reset to first preset (default)
-  };
+  const { preset } = usePreset();
 
   return (
     <Stack
@@ -27,29 +24,19 @@ export default function HomeLayout() {
         options={{
           title: preset?.name || 'LFO',
           headerLeft: () => (
-            <Pressable
-              onPress={handleReset}
-              style={{
-                paddingHorizontal: 12,
-                paddingVertical: 6,
-              }}
-            >
-              <Text style={{ color: '#ff6600', fontSize: 16, fontWeight: '600' }}>
-                Reset
-              </Text>
-            </Pressable>
-          ),
-          headerRight: () => (
             <Link href="/presets" asChild>
               <Pressable
                 style={{
-                  paddingHorizontal: 12,
+                  paddingHorizontal: 8,
                   paddingVertical: 6,
                 }}
+                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
               >
-                <Text style={{ color: '#ff6600', fontSize: 16, fontWeight: '600' }}>
-                  Load
-                </Text>
+                <SymbolView
+                  name="list.bullet"
+                  size={22}
+                  tintColor="#ff6600"
+                />
               </Pressable>
             </Link>
           ),

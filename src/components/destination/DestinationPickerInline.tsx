@@ -14,10 +14,13 @@ export function DestinationPickerInline() {
 
   const handleSelect = (id: DestinationId) => {
     Haptics.selectionAsync();
-    setActiveDestinationId(id);
+    // Toggle: if already selected, deselect (set to 'none')
+    if (id === activeDestinationId) {
+      setActiveDestinationId('none');
+    } else {
+      setActiveDestinationId(id);
+    }
   };
-
-  const isNoneSelected = activeDestinationId === 'none';
 
   return (
     <View
@@ -25,28 +28,6 @@ export function DestinationPickerInline() {
       accessibilityLabel="Modulation destination selector"
       accessibilityRole="radiogroup"
     >
-      {/* None option at the top */}
-      <Pressable
-        style={[
-          styles.noneItem,
-          isNoneSelected && styles.noneItemSelected,
-        ]}
-        onPress={() => handleSelect('none')}
-        accessibilityLabel="None, no destination"
-        accessibilityRole="radio"
-        accessibilityHint="Clear modulation destination"
-        accessibilityState={{ checked: isNoneSelected }}
-      >
-        <Text
-          style={[
-            styles.noneText,
-            isNoneSelected && styles.noneTextSelected,
-          ]}
-        >
-          — NONE —
-        </Text>
-      </Pressable>
-
       {CATEGORY_ORDER.map(category => {
         const destinations = getDestinationsByCategory(category);
         return (
@@ -105,29 +86,6 @@ export function DestinationPickerInline() {
 const styles = StyleSheet.create({
   container: {
     gap: 20,
-  },
-  noneItem: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    paddingVertical: 14,
-    paddingHorizontal: 20,
-    alignItems: 'center',
-    borderWidth: 1,
-    borderColor: '#333344',
-    borderStyle: 'dashed',
-  },
-  noneItemSelected: {
-    backgroundColor: '#333344',
-    borderColor: '#666677',
-  },
-  noneText: {
-    color: '#666677',
-    fontSize: 13,
-    fontWeight: '600',
-    letterSpacing: 1,
-  },
-  noneTextSelected: {
-    color: '#ffffff',
   },
   categorySection: {
     gap: 10,

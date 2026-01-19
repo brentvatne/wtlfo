@@ -1,4 +1,5 @@
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
+import type { DestinationId } from '@/src/types/destination';
 
 export interface LFOPresetConfig {
   waveform: Waveform;
@@ -14,6 +15,8 @@ export interface LFOPresetConfig {
 export interface LFOPreset {
   name: string;
   config: LFOPresetConfig;
+  destination?: DestinationId;
+  centerValue?: number;
 }
 
 export const PRESETS: LFOPreset[] = [
@@ -26,9 +29,11 @@ export const PRESETS: LFOPreset[] = [
       useFixedBPM: false,
       startPhase: 0,
       mode: 'FRE',
-      depth: 63,
+      depth: 47,
       fade: 0,
     },
+    destination: 'filter_cutoff',
+    centerValue: 64,
   },
   {
     name: 'Wobble Bass',
@@ -42,6 +47,8 @@ export const PRESETS: LFOPreset[] = [
       depth: 48,
       fade: 0,
     },
+    destination: 'filter_cutoff',
+    centerValue: 80,
   },
   {
     name: 'Ambient Drift',
@@ -55,6 +62,8 @@ export const PRESETS: LFOPreset[] = [
       depth: 24,
       fade: 0,
     },
+    destination: 'pan',
+    centerValue: 0,
   },
   {
     name: 'Hi-Hat Humanizer',
@@ -68,6 +77,8 @@ export const PRESETS: LFOPreset[] = [
       depth: 12,
       fade: 0,
     },
+    destination: 'volume',
+    centerValue: 110,
   },
   {
     name: 'Pumping Sidechain',
@@ -81,6 +92,8 @@ export const PRESETS: LFOPreset[] = [
       depth: -63,
       fade: 0,
     },
+    destination: 'volume',
+    centerValue: 100,
   },
   {
     name: 'Fade-In One-Shot',
@@ -94,6 +107,8 @@ export const PRESETS: LFOPreset[] = [
       depth: 63,
       fade: -32,
     },
+    destination: 'filter_cutoff',
+    centerValue: 32,
   },
 ];
 

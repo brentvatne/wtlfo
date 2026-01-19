@@ -9,8 +9,13 @@ import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
 import { colors } from '@/src/theme';
 
-// Grid height: 2 rows * 52px minHeight + 4px gap = 108px
-const GRID_HEIGHT = 108;
+// Visualizer height and timing info height
+const VISUALIZER_HEIGHT = 240;
+const TIMING_HEIGHT = 40;
+const METER_HEIGHT = VISUALIZER_HEIGHT - TIMING_HEIGHT; // Match canvas height
+
+// Meter width - fixed
+const METER_WIDTH = 52;
 
 export default function HomeScreen() {
   const {
@@ -35,11 +40,8 @@ export default function HomeScreen() {
   const activeDestination = getDestination(activeDestinationId);
   const hasDestination = activeDestination !== null;
 
-  // Calculate visualizer width - full width now
-  const visualizerWidth = screenWidth;
-
-  // Meter width
-  const meterWidth = 56;
+  // Calculate visualizer width - screen minus meter
+  const visualizerWidth = screenWidth - METER_WIDTH;
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -63,94 +65,92 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* LFO Visualizer - Full width, no output label */}
-      <Pressable
-        style={[styles.visualizerContainer, isPaused && styles.paused]}
-        onPress={handleTap}
-      >
-        <LFOVisualizer
-          phase={lfoPhase}
-          output={lfoOutput}
-          waveform={currentConfig.waveform as WaveformType}
-          speed={currentConfig.speed}
-          multiplier={currentConfig.multiplier}
-          startPhase={currentConfig.startPhase}
-          mode={currentConfig.mode as TriggerMode}
-          depth={currentConfig.depth}
-          fade={currentConfig.fade}
-          bpm={bpm}
-          cycleTimeMs={timingInfo.cycleTimeMs}
-          noteValue={timingInfo.noteValue}
-          steps={timingInfo.steps}
-          width={visualizerWidth}
-          height={240}
-          theme={ELEKTRON_THEME}
-          showParameters={false}
-          showTiming={true}
-          showOutput={false}
-          isEditing={isEditing}
-          strokeWidth={2.5}
-        />
-      </Pressable>
+      {/* LFO Visualizer + Destination Meter Row */}
+      <View style={styles.visualizerRow}>
+        {/* LFO Visualizer */}
+        <Pressable
+          style={[styles.visualizerContainer, isPaused && styles.paused]}
+          onPress={handleTap}
+        >
+          <LFOVisualizer
+            phase={lfoPhase}
+            output={lfoOutput}
+            waveform={currentConfig.waveform as WaveformType}
+            speed={currentConfig.speed}
+            multiplier={currentConfig.multiplier}
+            startPhase={currentConfig.startPhase}
+            mode={currentConfig.mode as TriggerMode}
+            depth={currentConfig.depth}
+            fade={currentConfig.fade}
+            bpm={bpm}
+            cycleTimeMs={timingInfo.cycleTimeMs}
+            noteValue={timingInfo.noteValue}
+            steps={timingInfo.steps}
+            width={visualizerWidth}
+            height={VISUALIZER_HEIGHT}
+            theme={ELEKTRON_THEME}
+            showParameters={false}
+            showTiming={true}
+            showOutput={false}
+            isEditing={isEditing}
+            strokeWidth={2.5}
+          />
+        </Pressable>
 
-      {/* Parameter Grid + Destination Meter Row */}
-      <View style={styles.controlsRow}>
-        {/* Parameter Grid */}
-        <View style={styles.gridContainer}>
-          <ParamGrid />
-        </View>
-
-        {/* Destination Meter - same height as grid */}
-        <View style={styles.meterContainer}>
+        {/* Destination Meter - same height as canvas (excluding timing info) */}
+        <View style={[styles.meterContainer, !hasDestination && styles.meterDimmed]}>
           <DestinationMeter
             lfoOutput={lfoOutput}
             destination={activeDestination}
             centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
             depth={currentConfig.depth}
-            width={meterWidth}
-            height={GRID_HEIGHT}
+            width={METER_WIDTH}
+            height={METER_HEIGHT}
             showValue={hasDestination}
-            style={!hasDestination ? styles.meterDimmed : undefined}
           />
         </View>
       </View>
 
-      {/* Destination Info - only shown when destination selected */}
-      {hasDestination && (
-        <View style={styles.destinationSection}>
-          <Text style={styles.destinationName}>{activeDestination.name}</Text>
-          <CenterValueSlider
-            value={getCenterValue(activeDestinationId)}
-            onChange={(value) => setCenterValue(activeDestinationId, value)}
-            min={activeDestination.min}
-            max={activeDestination.max}
-            label="Center Value"
-            bipolar={activeDestination.bipolar}
-          />
-        </View>
-      )}
+      {/* Parameter Grid - Full width */}
+      <View style={styles.gridContainer}>
+        <ParamGrid />
+      </View>
+
+      {/* Destination Info - always rendered to prevent layout shift */}
+      <View style={[styles.destinationSection, !hasDestination && styles.destinationHidden]}>
+        <Text style={styles.destinationName}>
+          {hasDestination ? activeDestination.name : 'No Destination'}
+        </Text>
+        <CenterValueSlider
+          value={hasDestination ? getCenterValue(activeDestinationId) : 64}
+          onChange={(value) => hasDestination && setCenterValue(activeDestinationId, value)}
+          min={activeDestination?.min ?? 0}
+          max={activeDestination?.max ?? 127}
+          label="Center Value"
+          bipolar={activeDestination?.bipolar ?? false}
+        />
+      </View>
     </ScrollView>
   );
 }
 
 const styles = StyleSheet.create({
-  visualizerContainer: {
+  visualizerRow: {
+    flexDirection: 'row',
     marginBottom: 12,
+  },
+  visualizerContainer: {
+    flex: 1,
   },
   paused: {
     opacity: 0.5,
   },
-  controlsRow: {
-    flexDirection: 'row',
-    paddingRight: 12,
-    gap: 0,
-  },
   gridContainer: {
-    flex: 1,
+    // Full width
   },
   meterContainer: {
-    justifyContent: 'flex-start',
-    paddingLeft: 8,
+    justifyContent: 'center',
+    backgroundColor: '#000000',
   },
   meterDimmed: {
     opacity: 0.3,
@@ -158,6 +158,10 @@ const styles = StyleSheet.create({
   destinationSection: {
     paddingHorizontal: 20,
     marginTop: 16,
+  },
+  destinationHidden: {
+    opacity: 0,
+    pointerEvents: 'none',
   },
   destinationName: {
     color: '#ff6600',

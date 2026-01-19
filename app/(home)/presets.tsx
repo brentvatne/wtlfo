@@ -1,58 +1,99 @@
 import React from 'react';
-import { View, Text, Pressable, ScrollView } from 'react-native';
+import { View, Text, Pressable, ScrollView, StyleSheet } from 'react-native';
 import { router } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
+import { useModulation } from '@/src/context/modulation-context';
+import { colors } from '@/src/theme';
 
 export default function PresetsScreen() {
   const { presets, activePreset, setActivePreset } = usePreset();
+  const { setActiveDestinationId, setCenterValue } = useModulation();
 
   const handleSelect = (index: number) => {
+    const preset = presets[index];
     setActivePreset(index);
+
+    // Also load destination settings from preset
+    if (preset.destination) {
+      setActiveDestinationId(preset.destination);
+      if (preset.centerValue !== undefined) {
+        setCenterValue(preset.destination, preset.centerValue);
+      }
+    }
+
     router.back();
   };
 
   return (
     <ScrollView
-      style={{ flex: 1, backgroundColor: '#0a0a0a' }}
-      contentContainerStyle={{ padding: 20 }}
+      style={styles.container}
+      contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View style={{ gap: 12 }}>
-        {presets.map((preset, index) => (
-          <Pressable
-            key={preset.name}
-            onPress={() => handleSelect(index)}
-            style={({ pressed }) => ({
-              backgroundColor: activePreset === index ? '#ff6600' : '#1a1a2e',
-              borderRadius: 12,
-              padding: 16,
-              borderWidth: 1,
-              borderColor: activePreset === index ? '#ff6600' : '#333344',
-              opacity: pressed ? 0.8 : 1,
-              borderCurve: 'continuous',
-            })}
-          >
-            <Text
-              style={{
-                color: activePreset === index ? '#ffffff' : '#ffffff',
-                fontSize: 17,
-                fontWeight: '600',
-                marginBottom: 4,
-              }}
+      <View style={styles.list}>
+        {presets.map((preset, index) => {
+          const isActive = activePreset === index;
+          return (
+            <Pressable
+              key={preset.name}
+              onPress={() => handleSelect(index)}
+              style={({ pressed }) => [
+                styles.item,
+                isActive && styles.itemActive,
+                pressed && styles.itemPressed,
+              ]}
             >
-              {preset.name}
-            </Text>
-            <Text
-              style={{
-                color: activePreset === index ? 'rgba(255,255,255,0.8)' : '#888899',
-                fontSize: 13,
-              }}
-            >
-              {preset.config.waveform} | SPD {preset.config.speed} | MULT {preset.config.multiplier} | {preset.config.mode}
-            </Text>
-          </Pressable>
-        ))}
+              <Text style={[styles.name, isActive && styles.nameActive]}>
+                {preset.name}
+              </Text>
+              <Text style={[styles.details, isActive && styles.detailsActive]}>
+                {preset.config.waveform} | SPD {preset.config.speed} | MULT {preset.config.multiplier} | {preset.config.mode}
+              </Text>
+            </Pressable>
+          );
+        })}
       </View>
     </ScrollView>
   );
 }
+
+const styles = StyleSheet.create({
+  container: {
+    flex: 1,
+    backgroundColor: colors.background,
+  },
+  content: {
+    padding: 20,
+  },
+  list: {
+    gap: 10,
+  },
+  item: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    padding: 14,
+  },
+  itemActive: {
+    backgroundColor: colors.accent,
+  },
+  itemPressed: {
+    opacity: 0.8,
+  },
+  name: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 4,
+  },
+  nameActive: {
+    color: '#000000',
+  },
+  details: {
+    color: '#666677',
+    fontSize: 12,
+    fontFamily: 'monospace',
+  },
+  detailsActive: {
+    color: 'rgba(0, 0, 0, 0.6)',
+  },
+});

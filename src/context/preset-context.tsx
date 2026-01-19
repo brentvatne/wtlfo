@@ -109,6 +109,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // This is separate from user-initiated pause (isPaused state)
   const wasRunningBeforeBackgroundRef = useRef<boolean>(false);
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
+  // Ref to track isPaused for AppState handler (avoids stale closure issues)
+  const isPausedRef = useRef(false);
 
   // Debounce config changes for engine restart
   useEffect(() => {
@@ -166,12 +168,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setCurrentConfig({ ...PRESETS[activePreset].config });
   }, [activePreset]);
 
+  // Keep isPausedRef in sync with isPaused state
+  useEffect(() => {
+    isPausedRef.current = isPaused;
+  }, [isPaused]);
+
   // Create/recreate LFO when debounced config changes
   useEffect(() => {
     lfoRef.current = new LFO(debouncedConfig, bpm);
-
-    // Reset pause state when config changes
-    setIsPaused(false);
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
@@ -216,7 +220,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       ) {
         // App is going to background
         // Remember if animation was running (and not user-paused)
-        wasRunningBeforeBackgroundRef.current = !isPaused && (lfoRef.current?.isRunning() ?? false);
+        // Use ref to get current isPaused value (avoids stale closure)
+        wasRunningBeforeBackgroundRef.current = !isPausedRef.current && (lfoRef.current?.isRunning() ?? false);
 
         // Stop the animation loop
         if (animationRef.current) {
@@ -230,7 +235,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         // App is coming back to foreground
         // Only resume if we were running before going to background
         // Don't resume if user had manually paused
-        if (wasRunningBeforeBackgroundRef.current && !isPaused) {
+        if (wasRunningBeforeBackgroundRef.current && !isPausedRef.current) {
           // Restart the animation loop
           const animate = (timestamp: number) => {
             if (lfoRef.current) {
@@ -253,7 +258,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.remove();
     };
-  }, [isPaused, lfoPhase, lfoOutput]);
+  }, [lfoPhase, lfoOutput]);
 
   // LFO control methods
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);

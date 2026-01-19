@@ -31,7 +31,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
 
       {noteValue && (
         <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.accent }]}>{noteValue}</Text>
+          <Text style={[styles.value, { color: theme.text }]}>{noteValue}</Text>
           <Text style={[styles.label, { color: theme.textSecondary }]}>NOTE</Text>
         </View>
       )}

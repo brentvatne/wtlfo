@@ -119,7 +119,7 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
   },
   destination: {
     title: 'Destination',
-    description: 'Select which parameter the LFO will modulate. The center value and range can be adjusted in the Destination tab.',
+    description: 'Select which parameter the LFO will modulate.',
     details: [
       'Filter: Cutoff, Resonance, Env Depth',
       'Pitch: Pitch, Detune, Portamento',
@@ -295,7 +295,11 @@ export default function EditParamScreen() {
   };
 
   return (
-    <ScrollView style={styles.container} contentContainerStyle={styles.content}>
+    <ScrollView
+      style={styles.container}
+      contentContainerStyle={styles.content}
+      contentInsetAdjustmentBehavior="automatic"
+    >
       <Stack.Screen
         options={{
           title: info.title,
@@ -350,6 +354,7 @@ const styles = StyleSheet.create({
   content: {
     padding: 16,
     paddingTop: 12,
+    paddingBottom: 40,
   },
   errorText: {
     color: colors.error,

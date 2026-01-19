@@ -42,25 +42,27 @@ export function DestinationMeter({
   const [currentValue, setCurrentValue] = useState(centerValue);
 
   // Update current value from animation
+  // Note: lfoOutput is already depth-scaled by the LFO engine (range: -depth/63 to +depth/63)
   useAnimatedReaction(
     () => lfoOutput.value,
     (output) => {
-      const modulationAmount = output * (depth / 63) * maxModulation;
+      const modulationAmount = output * maxModulation;
       const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
       runOnJS(setCurrentValue)(value);
     },
-    [centerValue, depth, maxModulation, min, max]
+    [centerValue, maxModulation, min, max]
   );
 
   // Calculate the current modulated value position
+  // lfoOutput is already depth-scaled, so we only multiply by maxModulation
   const meterFillHeight = useDerivedValue(() => {
     'worklet';
-    const modulationAmount = lfoOutput.value * (depth / 63) * maxModulation;
+    const modulationAmount = lfoOutput.value * maxModulation;
     const currentVal = centerValue + modulationAmount;
     const clampedValue = Math.max(min, Math.min(max, currentVal));
     const normalized = (clampedValue - min) / range;
     return normalized * (height - 16); // Leave padding
-  }, [lfoOutput, centerValue, depth, maxModulation, min, max, range, height]);
+  }, [lfoOutput, centerValue, maxModulation, min, max, range, height]);
 
   // Position calculations
   const meterX = 8;
@@ -96,7 +98,7 @@ export function DestinationMeter({
 
   return (
     <View style={[styles.container, style]}>
-      <Canvas style={{ width, height }}>
+      <Canvas style={{ width, height, backgroundColor: '#000000' }}>
         {/* Background track */}
         <RoundedRect
           x={meterX}
@@ -104,7 +106,7 @@ export function DestinationMeter({
           width={meterWidth}
           height={meterHeight}
           r={4}
-          color="#0a0a0a"
+          color="#000000"
         />
 
         {/* Grid lines - drawn first so they're behind everything */}
@@ -154,10 +156,15 @@ export function DestinationMeter({
         </Group>
       </Canvas>
 
-      {/* Current value display */}
-      {showValue && (
-        <Text style={styles.valueText}>{currentValue}</Text>
-      )}
+      {/* Current value display - matches TimingInfo styling */}
+      <View style={styles.valueContainer}>
+        <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
+          {currentValue}
+        </Text>
+        <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
+          VALUE
+        </Text>
+      </View>
     </View>
   );
 }
@@ -165,13 +172,27 @@ export function DestinationMeter({
 const styles = StyleSheet.create({
   container: {
     alignItems: 'center',
+    backgroundColor: '#000000',
+  },
+  valueContainer: {
+    alignItems: 'center',
+    paddingVertical: 8,
+    backgroundColor: '#000000',
   },
   valueText: {
-    color: '#ff6600',
-    fontSize: 18,
+    color: '#ffffff',
+    fontSize: 14,
     fontWeight: '700',
     fontVariant: ['tabular-nums'],
     fontFamily: 'monospace',
-    marginTop: 4,
+  },
+  valueLabel: {
+    color: '#666677',
+    fontSize: 10,
+    fontWeight: '500',
+    marginTop: 2,
+  },
+  valueHidden: {
+    opacity: 0,
   },
 });
