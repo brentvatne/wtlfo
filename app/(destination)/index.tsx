@@ -35,9 +35,9 @@ export default function DestinationScreen() {
   // Update navigation title when destination changes
   useEffect(() => {
     navigation.setOptions({
-      title: destination.displayName,
+      title: `${destination.name} (${destination.displayName})`,
     });
-  }, [navigation, destination.displayName]);
+  }, [navigation, destination.name, destination.displayName]);
 
   // Calculate modulation range
   const range = destination.max - destination.min;
@@ -53,12 +53,6 @@ export default function DestinationScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* Destination Name */}
-      <View style={styles.header}>
-        <Text style={styles.destinationName}>{destination.name}</Text>
-        <Text style={styles.destinationDisplay}>{destination.displayName}</Text>
-      </View>
-
       {/* Dual visualization: LFO + Meter side by side */}
       <View style={styles.visualizationRow}>
         {/* LFO Waveform */}
@@ -147,21 +141,6 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 20,
-  },
-  header: {
-    alignItems: 'center',
-    marginBottom: 24,
-  },
-  destinationName: {
-    fontSize: 20,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 4,
-  },
-  destinationDisplay: {
-    fontSize: 14,
-    color: '#888899',
-    fontFamily: 'monospace',
   },
   visualizationRow: {
     flexDirection: 'row',

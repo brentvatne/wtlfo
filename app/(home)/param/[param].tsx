@@ -5,6 +5,7 @@ import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
 import { WaveformIcon, type WaveformType } from '@/src/components/lfo';
+import { DestinationPickerInline } from '@/src/components/destination';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
 
@@ -102,10 +103,13 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
   },
   destination: {
     title: 'Destination',
-    description: 'Where the LFO output is routed to modulate other parameters.',
+    description: 'Select which parameter the LFO will modulate. The center value and range can be adjusted in the Destination tab.',
     details: [
-      'Coming soon in a future update',
-      'Will allow routing to filter, pitch, amp, and more',
+      'Filter: Cutoff, Resonance, Env Depth',
+      'Pitch: Pitch, Detune, Portamento',
+      'Amp: Level, Pan, Drive',
+      'FX: Delay, Reverb, Chorus, Phaser',
+      'Sample: Start, Length, Bit Reduction',
     ],
   },
 };
@@ -227,11 +231,7 @@ export default function EditParamScreen() {
         );
 
       case 'destination':
-        return (
-          <View style={styles.placeholderContainer}>
-            <Text style={styles.placeholderText}>Coming soon</Text>
-          </View>
-        );
+        return <DestinationPickerInline />;
 
       default:
         return null;
@@ -324,14 +324,6 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 12,
     flex: 1,
-  },
-  placeholderContainer: {
-    alignItems: 'center',
-    paddingVertical: 20,
-  },
-  placeholderText: {
-    color: '#555566',
-    fontSize: 14,
   },
   warningBanner: {
     backgroundColor: '#3a2a00',
