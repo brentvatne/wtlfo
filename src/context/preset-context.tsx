@@ -1,5 +1,8 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import { Storage } from 'expo-sqlite/kv-store';
+import { useSharedValue } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
+import { LFO } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 
 const ENGINE_DEBOUNCE_MS = 100;
@@ -40,6 +43,11 @@ function getInitialBPM(): number {
   return DEFAULT_BPM;
 }
 
+interface TimingInfo {
+  cycleTimeMs: number;
+  noteValue: string;
+}
+
 interface PresetContextValue {
   activePreset: number;
   preset: LFOPreset;
@@ -55,6 +63,22 @@ interface PresetContextValue {
   resetToPreset: () => void;
   bpm: number;
   setBPM: (bpm: number) => void;
+
+  // LFO animation state - shared across tabs
+  lfoPhase: SharedValue<number>;
+  lfoOutput: SharedValue<number>;
+  lfoRef: React.MutableRefObject<LFO | null>;
+  timingInfo: TimingInfo;
+
+  // LFO control methods
+  triggerLFO: () => void;
+  startLFO: () => void;
+  stopLFO: () => void;
+  isLFORunning: () => boolean;
+
+  // Pause state for UI
+  isPaused: boolean;
+  setIsPaused: (paused: boolean) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -69,7 +93,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   );
   const [bpm, setBPMState] = useState(getInitialBPM);
   const [isEditing, setIsEditing] = useState(false);
+  const [isPaused, setIsPaused] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // LFO animation state - persists across tab switches
+  const lfoPhase = useSharedValue(0);
+  const lfoOutput = useSharedValue(0);
+  const lfoRef = useRef<LFO | null>(null);
+  const animationRef = useRef<number>(0);
+  const [timingInfo, setTimingInfo] = useState<TimingInfo>({ cycleTimeMs: 0, noteValue: '' });
 
   // Debounce config changes for engine restart
   useEffect(() => {
@@ -127,6 +159,47 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setCurrentConfig({ ...PRESETS[activePreset].config });
   }, [activePreset]);
 
+  // Create/recreate LFO when debounced config changes
+  useEffect(() => {
+    lfoRef.current = new LFO(debouncedConfig, bpm);
+
+    // Reset pause state when config changes
+    setIsPaused(false);
+
+    // Get timing info
+    const info = lfoRef.current.getTimingInfo();
+    setTimingInfo({
+      cycleTimeMs: info.cycleTimeMs,
+      noteValue: info.noteValue,
+    });
+
+    // Auto-trigger for modes that need it
+    if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
+      lfoRef.current.trigger();
+    }
+  }, [debouncedConfig, bpm]);
+
+  // Animation loop - runs at provider level, independent of tabs
+  useEffect(() => {
+    const animate = (timestamp: number) => {
+      if (lfoRef.current) {
+        const state = lfoRef.current.update(timestamp);
+        lfoPhase.value = state.phase;
+        lfoOutput.value = state.output;
+      }
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    animationRef.current = requestAnimationFrame(animate);
+
+    return () => cancelAnimationFrame(animationRef.current);
+  }, [lfoPhase, lfoOutput]);
+
+  // LFO control methods
+  const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
+  const startLFO = useCallback(() => lfoRef.current?.start(), []);
+  const stopLFO = useCallback(() => lfoRef.current?.stop(), []);
+  const isLFORunning = useCallback(() => lfoRef.current?.isRunning() ?? false, []);
+
   const value: PresetContextValue = {
     activePreset,
     preset: PRESETS[activePreset],
@@ -139,6 +212,18 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     resetToPreset,
     bpm,
     setBPM,
+    // LFO animation state
+    lfoPhase,
+    lfoOutput,
+    lfoRef,
+    timingInfo,
+    // LFO control
+    triggerLFO,
+    startLFO,
+    stopLFO,
+    isLFORunning,
+    isPaused,
+    setIsPaused,
   };
 
   return (

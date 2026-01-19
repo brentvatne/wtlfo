@@ -1,90 +1,44 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React from 'react';
 import { ScrollView, Pressable, useWindowDimensions } from 'react-native';
-import { useSharedValue } from 'react-native-reanimated';
-import { LFO } from 'elektron-lfo';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { QuickEditPanel } from '@/src/components/ParameterEditor';
 import { ParamGrid } from '@/src/components/params';
+import { DestinationPicker } from '@/src/components/destination';
 import { usePreset } from '@/src/context/preset-context';
 
 export default function HomeScreen() {
-  const { currentConfig, debouncedConfig, bpm, isEditing } = usePreset();
+  const {
+    currentConfig,
+    bpm,
+    isEditing,
+    lfoPhase,
+    lfoOutput,
+    timingInfo,
+    triggerLFO,
+    startLFO,
+    stopLFO,
+    isLFORunning,
+    isPaused,
+    setIsPaused,
+  } = usePreset();
   const { width: screenWidth } = useWindowDimensions();
 
   // Calculate visualizer width to match ParamGrid (screen width minus padding)
   const visualizerWidth = screenWidth - 40; // 20px padding on each side
 
-  // Manual pause state for tap-to-pause functionality
-  const [isPaused, setIsPaused] = useState(false);
-
-  // Shared values for animation
-  const phase = useSharedValue(0);
-  const output = useSharedValue(0);
-
-  // LFO instance ref
-  const lfoRef = useRef<LFO | null>(null);
-
-  // Timing info state
-  const [timingInfo, setTimingInfo] = useState({
-    cycleTimeMs: 0,
-    noteValue: '',
-  });
-
-  // Animation frame ref for cleanup
-  const animationRef = useRef<number>(0);
-
-  // Create/recreate LFO when debounced config changes (100ms after last edit)
-  useEffect(() => {
-    lfoRef.current = new LFO(debouncedConfig, bpm);
-
-    // Reset pause state when config changes
-    setIsPaused(false);
-
-    // Get timing info
-    const info = lfoRef.current.getTimingInfo();
-    setTimingInfo({
-      cycleTimeMs: info.cycleTimeMs,
-      noteValue: info.noteValue,
-    });
-
-    // Auto-trigger for modes that need it
-    if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
-      lfoRef.current.trigger();
-    }
-  }, [debouncedConfig, bpm]);
-
-  // Animation loop
-  useEffect(() => {
-    const animate = (timestamp: number) => {
-      if (lfoRef.current) {
-        const state = lfoRef.current.update(timestamp);
-        phase.value = state.phase;
-        output.value = state.output;
-      }
-      animationRef.current = requestAnimationFrame(animate);
-    };
-    animationRef.current = requestAnimationFrame(animate);
-
-    return () => cancelAnimationFrame(animationRef.current);
-  }, [phase, output]);
-
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
-    if (!lfoRef.current) return;
-
-    const isRunning = lfoRef.current.isRunning();
-
     if (isPaused) {
       // Resume from manual pause
-      lfoRef.current.start();
+      startLFO();
       setIsPaused(false);
-    } else if (!isRunning) {
+    } else if (!isLFORunning()) {
       // Stopped (ONE/HLF completed) - restart
-      lfoRef.current.trigger();
+      triggerLFO();
     } else {
       // Currently running - pause it
-      lfoRef.current.stop();
+      stopLFO();
       setIsPaused(true);
     }
   };
@@ -98,11 +52,14 @@ export default function HomeScreen() {
       {/* Parameter Grid - Elektron style */}
       <ParamGrid />
 
+      {/* Destination Picker */}
+      <DestinationPicker />
+
       {/* Main Visualizer - tap to pause/play/restart */}
       <Pressable style={{ marginTop: 8, marginBottom: 24, opacity: isPaused ? 0.5 : 1 }} onPress={handleTap}>
         <LFOVisualizer
-          phase={phase}
-          output={output}
+          phase={lfoPhase}
+          output={lfoOutput}
           waveform={currentConfig.waveform as WaveformType}
           speed={currentConfig.speed}
           multiplier={currentConfig.multiplier}

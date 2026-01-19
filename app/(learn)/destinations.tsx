@@ -86,6 +86,16 @@ export default function DestinationsScreen() {
         LFOs can modulate almost any parameter on Digitakt II. Each LFO has its own DEST (destination) setting.
       </Text>
 
+      <View style={styles.conceptCard}>
+        <Text style={styles.conceptTitle}>How Modulation Works</Text>
+        <Text style={styles.conceptText}>
+          The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when the LFO output is zero. The LFO moves the value above and below this center point.
+        </Text>
+        <Text style={[styles.conceptText, { marginTop: 8 }]}>
+          <Text style={styles.highlight}>Depth</Text> controls how far from center the value can go. At depth +63, the full parameter range can be modulated.
+        </Text>
+      </View>
+
       <Text style={styles.sectionHeader}>Audio Track Destinations</Text>
 
       <ScrollView
@@ -243,5 +253,28 @@ const styles = StyleSheet.create({
   midiItem: {
     color: '#aaaaaa',
     fontSize: 13,
+  },
+  conceptCard: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 10,
+    padding: 16,
+    marginBottom: 20,
+    borderLeftWidth: 3,
+    borderLeftColor: '#ff6600',
+  },
+  conceptTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 10,
+  },
+  conceptText: {
+    color: '#cccccc',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  highlight: {
+    color: '#ff6600',
+    fontWeight: '600',
   },
 });
