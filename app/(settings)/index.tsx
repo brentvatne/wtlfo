@@ -1,12 +1,64 @@
-import React from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
+import React, { useEffect } from 'react';
+import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import * as Updates from 'expo-updates';
+import { useUpdates } from 'expo-updates';
 import { usePreset } from '@/src/context/preset-context';
 import { ParameterSlider } from '@/src/components/controls';
 
+const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
 
 export default function SettingsScreen() {
   const { bpm, setBPM } = usePreset();
+  const {
+    currentlyRunning,
+    isUpdateAvailable,
+    isUpdatePending,
+    isChecking,
+    isDownloading,
+  } = useUpdates();
+
+  const getUpdateId = () => {
+    if (!Updates.isEnabled) return '-';
+    return currentlyRunning?.updateId?.slice(0, 8) ?? 'embedded';
+  };
+
+  const handleCheckUpdate = async () => {
+    if (!Updates.isEnabled) {
+      Alert.alert('Updates Disabled', 'OTA updates are not enabled in this build.');
+      return;
+    }
+
+    try {
+      const result = await Updates.checkForUpdateAsync();
+      if (!result.isAvailable) {
+        Alert.alert('Up to Date', "You're running the latest version.");
+      }
+    } catch (e) {
+      Alert.alert('Error', `Failed to check for updates: ${e}`);
+    }
+  };
+
+  const handleDownloadUpdate = async () => {
+    try {
+      await Updates.fetchUpdateAsync();
+    } catch (e) {
+      Alert.alert('Error', `Failed to download update: ${e}`);
+    }
+  };
+
+  useEffect(() => {
+    if (isUpdatePending) {
+      Alert.alert(
+        'Update Ready',
+        'A new version has been downloaded. Restart to apply?',
+        [
+          { text: 'Later', style: 'cancel' },
+          { text: 'Restart', onPress: () => Updates.reloadAsync() },
+        ]
+      );
+    }
+  }, [isUpdatePending]);
 
   return (
     <ScrollView
@@ -87,6 +139,34 @@ export default function SettingsScreen() {
           MIDI settings and more options will be available in future updates.
         </Text>
       </View>
+
+      {/* Version and Update Info */}
+      <View style={styles.versionContainer}>
+        <Text style={styles.versionText} selectable>
+          v{APP_VERSION}
+        </Text>
+        <Pressable
+          onPress={isUpdateAvailable ? handleDownloadUpdate : handleCheckUpdate}
+          disabled={isChecking || isDownloading}
+        >
+          {isChecking || isDownloading ? (
+            <View style={styles.updateRow}>
+              <ActivityIndicator size="small" color="#666" />
+              <Text style={styles.updateCheckingText}>
+                {isDownloading ? 'Downloading...' : 'Checking...'}
+              </Text>
+            </View>
+          ) : isUpdateAvailable ? (
+            <Text style={styles.updateAvailableText}>
+              Update available - tap to download
+            </Text>
+          ) : (
+            <Text style={styles.updateIdText} selectable>
+              {getUpdateId()}
+            </Text>
+          )}
+        </Pressable>
+      </View>
     </ScrollView>
   );
 }
@@ -115,5 +195,33 @@ const styles = StyleSheet.create({
   },
   segmentTextSelected: {
     color: '#ffffff',
+  },
+  versionContainer: {
+    alignItems: 'center',
+    marginTop: 32,
+    marginBottom: 16,
+    gap: 6,
+  },
+  versionText: {
+    fontSize: 13,
+    color: '#666',
+  },
+  updateRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  updateCheckingText: {
+    fontSize: 12,
+    color: '#666',
+  },
+  updateAvailableText: {
+    fontSize: 12,
+    color: '#34C759',
+    fontWeight: '600',
+  },
+  updateIdText: {
+    fontSize: 12,
+    color: '#666',
   },
 });

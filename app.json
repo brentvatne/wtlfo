@@ -52,6 +52,12 @@
         "projectId": "fd7017b3-0e29-4b90-8a09-cfdb437daca5"
       }
     },
-    "owner": "brents"
+    "owner": "brents",
+    "runtimeVersion": {
+      "policy": "appVersion"
+    },
+    "updates": {
+      "url": "https://u.expo.dev/fd7017b3-0e29-4b90-8a09-cfdb437daca5"
+    }
   }
 }
