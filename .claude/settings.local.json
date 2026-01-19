@@ -20,7 +20,9 @@
       "Bash(grep:*)",
       "WebSearch",
       "mcp__expo-mcp__learn",
-      "Bash(git restore:*)"
+      "Bash(git restore:*)",
+      "Bash(git push:*)",
+      "Bash(eas update:*)"
     ]
   }
 }

@@ -139,6 +139,14 @@ export interface PhaseIndicatorProps {
   startPhase?: number;
   /** Animated opacity value (0-1) */
   opacity?: SharedValue<number>;
+  /** Waveform type for calculating position on fade curve */
+  waveform?: WaveformType;
+  /** Depth value (-64 to +63) */
+  depth?: number;
+  /** Fade value (-64 to +63) */
+  fade?: number;
+  /** Trigger mode - fade doesn't apply in FRE mode */
+  mode?: TriggerMode;
 }
 
 /**

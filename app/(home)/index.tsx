@@ -4,7 +4,6 @@ import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { QuickEditPanel } from '@/src/components/ParameterEditor';
 import { ParamGrid } from '@/src/components/params';
-import { DestinationPicker } from '@/src/components/destination';
 import { usePreset } from '@/src/context/preset-context';
 
 export default function HomeScreen() {
@@ -51,9 +50,6 @@ export default function HomeScreen() {
     >
       {/* Parameter Grid - Elektron style */}
       <ParamGrid />
-
-      {/* Destination Picker */}
-      <DestinationPicker />
 
       {/* Main Visualizer - tap to pause/play/restart */}
       <Pressable style={{ marginTop: 8, marginBottom: 24, opacity: isPaused ? 0.5 : 1 }} onPress={handleTap}>

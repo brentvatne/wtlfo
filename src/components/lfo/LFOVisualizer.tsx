@@ -167,6 +167,10 @@ export function LFOVisualizer({
               dotRadius={6}
               startPhase={startPhase}
               opacity={phaseIndicatorOpacity}
+              waveform={waveform}
+              depth={depth}
+              fade={fade}
+              mode={mode}
             />
           )}
         </Group>

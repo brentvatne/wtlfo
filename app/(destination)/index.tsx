@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { useNavigation } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
@@ -9,6 +10,7 @@ import { DestinationMeter } from '@/src/components/destination/DestinationMeter'
 import { CenterValueSlider } from '@/src/components/destination/CenterValueSlider';
 
 export default function DestinationScreen() {
+  const navigation = useNavigation();
   const { width: screenWidth } = useWindowDimensions();
   const visualizerWidth = screenWidth - 40;
 
@@ -29,6 +31,13 @@ export default function DestinationScreen() {
 
   const destination = getDestination(activeDestinationId);
   const centerValue = getCenterValue(activeDestinationId);
+
+  // Update navigation title when destination changes
+  useEffect(() => {
+    navigation.setOptions({
+      title: destination.displayName,
+    });
+  }, [navigation, destination.displayName]);
 
   // Calculate modulation range
   const range = destination.max - destination.min;

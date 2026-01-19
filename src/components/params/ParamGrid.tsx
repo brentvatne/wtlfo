@@ -3,6 +3,8 @@ import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ParamBox } from './ParamBox';
 import { usePreset } from '@/src/context/preset-context';
+import { useModulation } from '@/src/context/modulation-context';
+import { getDestination } from '@/src/data/destinations';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
 
@@ -45,7 +47,11 @@ const PARAM_LABELS: Record<ParamKey, string> = {
 
 export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   const { currentConfig } = usePreset();
+  const { activeDestinationId } = useModulation();
   const router = useRouter();
+
+  // Get the display name for the active destination
+  const destinationDisplayName = getDestination(activeDestinationId).displayName;
 
   const handlePress = (param: ParamKey) => {
     router.push(`/param/${param}`);
@@ -77,7 +83,7 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
         />
         <ParamBox
           label={PARAM_LABELS.destination}
-          value="N/A"
+          value={destinationDisplayName}
           onPress={() => handlePress('destination')}
           isActive={activeParam === 'destination'}
         />
