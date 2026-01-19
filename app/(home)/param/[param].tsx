@@ -320,6 +320,7 @@ export default function EditParamScreen() {
       style={styles.container}
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
+      bounces={false}
     >
       <Stack.Screen
         options={{
@@ -385,6 +386,7 @@ const styles = StyleSheet.create({
     backgroundColor: colors.background,
   },
   content: {
+    flexGrow: 1,
     padding: 16,
     paddingTop: 12,
     paddingBottom: 40,
