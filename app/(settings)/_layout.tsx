@@ -12,6 +12,9 @@ export default function SettingsLayout() {
           fontWeight: '600',
           color: '#ffffff',
         },
+        contentStyle: {
+          backgroundColor: '#000000',
+        },
       }}
     >
       <Stack.Screen

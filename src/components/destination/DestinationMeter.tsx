@@ -1,7 +1,7 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
-import { useDerivedValue, useAnimatedReaction, useSharedValue, withSpring, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useAnimatedReaction, useSharedValue, withSpring, withTiming, withSequence, Easing, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType } from '@/src/components/lfo/types';
@@ -74,6 +74,39 @@ export function DestinationMeter({
   const animatedCenterValue = useSharedValue(centerValue);
   const animatedLowerBound = useSharedValue(targetLowerBound);
   const animatedUpperBound = useSharedValue(targetUpperBound);
+
+  // Animated opacity for current value line (fades out when editing or waveform changing)
+  const currentValueOpacity = useSharedValue(isEditing ? 0 : 1);
+  const prevWaveformRef = useRef(waveform);
+
+  // Fade out when editing starts, fade in when editing ends
+  useEffect(() => {
+    if (isEditing) {
+      currentValueOpacity.value = withTiming(0, {
+        duration: 100,
+        easing: Easing.inOut(Easing.ease),
+      });
+    } else {
+      currentValueOpacity.value = withTiming(1, {
+        duration: 350,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [isEditing, currentValueOpacity]);
+
+  // Fade out/in when waveform changes (smooth transition)
+  useEffect(() => {
+    if (prevWaveformRef.current !== waveform) {
+      prevWaveformRef.current = waveform;
+      // Skip animation if editing (already hidden)
+      if (!isEditing) {
+        currentValueOpacity.value = withSequence(
+          withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
+          withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
+        );
+      }
+    }
+  }, [waveform, isEditing, currentValueOpacity]);
 
   // Animate when values change with a subtle spring (no overshoot)
   const springConfig = { damping: 40, stiffness: 380, overshootClamping: true };
@@ -233,17 +266,15 @@ export function DestinationMeter({
           />
         )}
 
-        {/* Animated current value - white line (hidden when editing) */}
-        {!isEditing && (
-          <Group>
-            <Line
-              p1={currentValueP1}
-              p2={currentValueP2}
-              color="#ffffff"
-              strokeWidth={2.5}
-            />
-          </Group>
-        )}
+        {/* Animated current value - white line (fades when editing) */}
+        <Group opacity={currentValueOpacity}>
+          <Line
+            p1={currentValueP1}
+            p2={currentValueP2}
+            color="#ffffff"
+            strokeWidth={2.5}
+          />
+        </Group>
       </Canvas>
 
       {/* Current value display - matches TimingInfo styling */}
