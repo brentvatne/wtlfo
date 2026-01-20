@@ -14,6 +14,7 @@ import type { TimingInfoProps } from './types';
 export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
   const [isCyclePulsing, setIsCyclePulsing] = useState(false);
+  const [showNoteValue, setShowNoteValue] = useState(false);
   const bpmOpacity = useSharedValue(1);
   const cycleOpacity = useSharedValue(1);
 
@@ -22,6 +23,11 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
     if (Number.isInteger(s)) return String(s);
     return s.toFixed(1);
   };
+
+  // Handle steps/note tap to toggle display mode
+  const handleStepsPress = useCallback(() => {
+    setShowNoteValue(prev => !prev);
+  }, []);
 
   // Handle BPM tap to toggle pulsing
   const handleBpmPress = useCallback(() => {
@@ -113,18 +119,15 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
         </Pressable>
       )}
 
-      {noteValue && (
-        <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.text }]}>{noteValue}</Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>NOTE</Text>
-        </View>
-      )}
-
       {steps !== undefined && steps > 0 && (
-        <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.text }]}>{formatSteps(steps)}</Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>STEPS</Text>
-        </View>
+        <Pressable onPress={handleStepsPress} style={styles.item}>
+          <Text style={[styles.value, { color: theme.text }]}>
+            {showNoteValue && noteValue ? noteValue : formatSteps(steps)}
+          </Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>
+            {showNoteValue && noteValue ? 'NOTE' : 'STEPS'}
+          </Text>
+        </Pressable>
       )}
     </View>
   );
