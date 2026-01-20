@@ -249,7 +249,6 @@ export function LFOVisualizer({
 
 const styles = StyleSheet.create({
   container: {
-    borderRadius: 8,
     overflow: 'hidden',
   },
 });

@@ -242,6 +242,8 @@ const styles = StyleSheet.create({
   },
   timingContainer: {
     backgroundColor: '#000000',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
   },
   paused: {
     opacity: 0.5,
