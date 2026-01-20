@@ -183,8 +183,8 @@ export function LFOVisualizer({
               color={resolvedTheme.fadeCurve}
               depth={depth}
               fade={fade}
-              strokeWidth={strokeWidth}
-              opacity={0.35}
+              strokeWidth={1.5}
+              opacity={0.25}
             />
           )}
 
