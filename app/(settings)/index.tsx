@@ -69,24 +69,8 @@ export default function SettingsScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View
-        style={{
-          backgroundColor: '#1a1a1a',
-          borderRadius: 12,
-          padding: 16,
-          marginBottom: 16,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: '#ffffff',
-            marginBottom: 16,
-          }}
-        >
-          Tempo
-        </Text>
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Tempo</Text>
         <ParameterSlider
           label="BPM"
           min={30}
@@ -274,12 +258,19 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 13,
+    fontSize: 12,
     fontWeight: '700',
-    color: '#ff6600',
-    marginBottom: 16,
+    color: '#ffffff',
     textTransform: 'uppercase',
     letterSpacing: 1,
+    backgroundColor: '#252525',
+    paddingHorizontal: 12,
+    paddingVertical: 8,
+    borderRadius: 6,
+    marginHorizontal: -16,
+    marginTop: -16,
+    marginBottom: 16,
+    overflow: 'hidden',
   },
   sectionHeader: {
     flexDirection: 'row',
