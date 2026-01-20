@@ -24,6 +24,8 @@ interface DestinationMeterProps {
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: SharedValue<number>;
   waveform?: WaveformType;
+  /** Start phase offset (0-127) for waveform sampling */
+  startPhase?: number;
   width?: number;
   height?: number;
   style?: ViewStyle;
@@ -49,6 +51,7 @@ export function DestinationMeter({
   mode = 'FRE',
   fadeMultiplier,
   waveform = 'SIN',
+  startPhase = 0,
   width = 60,
   height = 108,
   style,
@@ -215,24 +218,27 @@ export function DestinationMeter({
     const fadeDuration = (64 - absFade) / 64;
     // Clamp depth scale to [-1, 1] to handle asymmetric range
     const localDepthScale = Math.max(-1, Math.min(1, depth / 63));
+    // Normalize startPhase (0-127) to 0-1
+    const startPhaseNormalized = startPhase / 128;
 
     let maxOutput = -Infinity;
     let minOutput = Infinity;
 
     for (let i = 0; i <= samples; i++) {
-      const phase = i / samples;
+      const xNormalized = i / samples;
 
-      // Sample waveform
-      const rawOutput = sampleWaveformWorklet(waveform, phase);
+      // Sample waveform at shifted phase (same as FadeEnvelope)
+      const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
+      const rawOutput = sampleWaveformWorklet(waveform, waveformPhase);
 
-      // Calculate fade envelope at this phase
+      // Calculate fade envelope at visual position (not waveform phase)
       let fadeEnvelope: number;
       if (fade < 0) {
         // Fade-in: 0 → 1 over fadeDuration
-        fadeEnvelope = fadeDuration > 0 ? Math.min(1, phase / fadeDuration) : 1;
+        fadeEnvelope = fadeDuration > 0 ? Math.min(1, xNormalized / fadeDuration) : 1;
       } else {
         // Fade-out: 1 → 0 over fadeDuration
-        fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - phase / fadeDuration) : 0;
+        fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - xNormalized / fadeDuration) : 0;
       }
 
       // Calculate output: waveform × depth × fade
@@ -247,7 +253,7 @@ export function DestinationMeter({
     const actualMin = Math.max(min, centerValue + minOutput * maxModulation);
 
     return { fadeActualMax: actualMax, fadeActualMin: actualMin };
-  }, [hasFade, depth, fade, waveform, centerValue, maxModulation, min, max, targetUpperBound, targetLowerBound]);
+  }, [hasFade, depth, fade, waveform, startPhase, centerValue, maxModulation, min, max, targetUpperBound, targetLowerBound]);
 
   // Fade bounds Y positions - FIXED at the actual max/min the output will reach
   const fadeMaxBoundY = useDerivedValue(() => {

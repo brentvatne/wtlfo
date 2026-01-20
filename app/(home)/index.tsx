@@ -251,6 +251,7 @@ export default function HomeScreen() {
             mode={currentConfig.mode as TriggerMode}
             fadeMultiplier={displayFadeMultiplier}
             waveform={currentConfig.waveform as WaveformType}
+            startPhase={currentConfig.startPhase}
             width={METER_WIDTH}
             height={METER_HEIGHT}
             showValue={hasDestination}
