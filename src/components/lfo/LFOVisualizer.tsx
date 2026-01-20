@@ -40,6 +40,8 @@ export function LFOVisualizer({
   strokeWidth = 2,
   isEditing = false,
   hideValuesWhileEditing = true,
+  editFadeOutDuration = 100,
+  editFadeInDuration = 350,
   fadeMultiplier,
   randomSamples,
 }: LFOVisualizerProps) {
@@ -96,7 +98,7 @@ export function LFOVisualizer({
     if (shouldHideValue) {
       // Editing with hide enabled: fade out quickly
       phaseIndicatorOpacity.value = withTiming(0, {
-        duration: 100,
+        duration: editFadeOutDuration,
         easing: Easing.inOut(Easing.ease),
       });
     } else if (waveformChanged && !reducedMotion) {
@@ -108,11 +110,11 @@ export function LFOVisualizer({
     } else {
       // Not editing (includes editing just ended): fade back in
       phaseIndicatorOpacity.value = withTiming(1, {
-        duration: 350,
+        duration: editFadeInDuration,
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [shouldHideValue, waveform, reducedMotion, phaseIndicatorOpacity]);
+  }, [shouldHideValue, waveform, reducedMotion, phaseIndicatorOpacity, editFadeOutDuration, editFadeInDuration]);
 
   // Calculate canvas dimensions (excluding padding for info displays)
   const parameterHeight = showParameters ? 40 : 0;

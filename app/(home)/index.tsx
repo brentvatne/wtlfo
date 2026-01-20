@@ -34,6 +34,9 @@ export default function HomeScreen() {
     isEditing,
     hideValuesWhileEditing,
     fadeInOnOpen,
+    fadeInDuration,
+    editFadeOutDuration,
+    editFadeInDuration,
     lfoPhase,
     lfoOutput,
     timingInfo,
@@ -70,14 +73,14 @@ export default function HomeScreen() {
         // Reset to transparent and fade in
         visualizerOpacity.value = 0;
         visualizerOpacity.value = withTiming(1, {
-          duration: 400,
+          duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
         });
       } else {
         visualizerOpacity.value = 1;
       }
       hasInitializedRef.current = true;
-    }, [fadeInOnOpen, visualizerOpacity])
+    }, [fadeInOnOpen, fadeInDuration, visualizerOpacity])
   );
 
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
@@ -171,6 +174,8 @@ export default function HomeScreen() {
                 showOutput={false}
                 isEditing={isEditing}
                 hideValuesWhileEditing={hideValuesWhileEditing}
+                editFadeOutDuration={editFadeOutDuration}
+                editFadeInDuration={editFadeInDuration}
                 strokeWidth={2.5}
               />
               <SlowMotionBadge
@@ -217,6 +222,8 @@ export default function HomeScreen() {
             showValue={hasDestination}
             isEditing={isEditing}
             hideValuesWhileEditing={hideValuesWhileEditing}
+            editFadeOutDuration={editFadeOutDuration}
+            editFadeInDuration={editFadeInDuration}
           />
         </Pressable>
       </Animated.View>

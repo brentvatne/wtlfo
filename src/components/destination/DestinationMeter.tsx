@@ -23,6 +23,10 @@ interface DestinationMeterProps {
   isEditing?: boolean;
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
+  /** Duration in ms for fade-out when editing starts (default 100) */
+  editFadeOutDuration?: number;
+  /** Duration in ms for fade-in when editing ends (default 350) */
+  editFadeInDuration?: number;
 }
 
 export function DestinationMeter({
@@ -37,6 +41,8 @@ export function DestinationMeter({
   showValue = false,
   isEditing = false,
   hideValuesWhileEditing = true,
+  editFadeOutDuration = 100,
+  editFadeInDuration = 350,
 }: DestinationMeterProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
@@ -96,7 +102,7 @@ export function DestinationMeter({
     if (shouldHideValue) {
       // Editing with hide enabled: fade out quickly
       currentValueOpacity.value = withTiming(0, {
-        duration: 100,
+        duration: editFadeOutDuration,
         easing: Easing.inOut(Easing.ease),
       });
     } else if (waveformChanged) {
@@ -108,11 +114,11 @@ export function DestinationMeter({
     } else {
       // Not editing (includes editing just ended): fade back in
       currentValueOpacity.value = withTiming(1, {
-        duration: 350,
+        duration: editFadeInDuration,
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [shouldHideValue, waveform, currentValueOpacity]);
+  }, [shouldHideValue, waveform, currentValueOpacity, editFadeOutDuration, editFadeInDuration]);
 
   // Update values directly (no spring) to avoid ghosting during slider drag
   useEffect(() => {

@@ -9,7 +9,15 @@ const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
 
 export default function SettingsScreen() {
-  const { bpm, setBPM, hideValuesWhileEditing, setHideValuesWhileEditing, fadeInOnOpen, setFadeInOnOpen, resetLFOOnChange, setResetLFOOnChange } = usePreset();
+  const {
+    bpm, setBPM,
+    hideValuesWhileEditing, setHideValuesWhileEditing,
+    fadeInOnOpen, setFadeInOnOpen,
+    resetLFOOnChange, setResetLFOOnChange,
+    fadeInDuration, setFadeInDuration,
+    editFadeOutDuration, setEditFadeOutDuration,
+    editFadeInDuration, setEditFadeInDuration,
+  } = usePreset();
   const {
     currentlyRunning,
     isUpdatePending,
@@ -159,6 +167,55 @@ export default function SettingsScreen() {
       </View>
 
       <View style={styles.section}>
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionTitle}>Animation Timing</Text>
+          <Pressable
+            onPress={() => {
+              setFadeInDuration(800);
+              setEditFadeOutDuration(100);
+              setEditFadeInDuration(350);
+            }}
+            style={styles.resetButton}
+          >
+            <Text style={styles.resetButtonText}>Reset</Text>
+          </Pressable>
+        </View>
+        <View style={styles.sliderContainer}>
+          <Text style={styles.sliderLabel}>Open fade-in duration</Text>
+          <ParameterSlider
+            label=""
+            min={100}
+            max={2000}
+            value={fadeInDuration}
+            onChange={setFadeInDuration}
+            formatValue={(v) => `${Math.round(v)}ms`}
+          />
+        </View>
+        <View style={styles.sliderContainer}>
+          <Text style={styles.sliderLabel}>Edit start fade-out</Text>
+          <ParameterSlider
+            label=""
+            min={50}
+            max={500}
+            value={editFadeOutDuration}
+            onChange={setEditFadeOutDuration}
+            formatValue={(v) => `${Math.round(v)}ms`}
+          />
+        </View>
+        <View style={styles.sliderContainer}>
+          <Text style={styles.sliderLabel}>Edit end fade-in</Text>
+          <ParameterSlider
+            label=""
+            min={100}
+            max={1000}
+            value={editFadeInDuration}
+            onChange={setEditFadeInDuration}
+            formatValue={(v) => `${Math.round(v)}ms`}
+          />
+        </View>
+      </View>
+
+      <View style={styles.section}>
         <Text style={styles.sectionTitle}>Coming Soon</Text>
         <Text style={{ color: '#888899', fontSize: 15 }}>
           MIDI settings and more options will be available in future updates.
@@ -205,6 +262,23 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     marginBottom: 12,
   },
+  sectionHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 16,
+  },
+  resetButton: {
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    backgroundColor: '#2a2a2a',
+    borderRadius: 6,
+  },
+  resetButtonText: {
+    color: '#888899',
+    fontSize: 12,
+    fontWeight: '500',
+  },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -223,6 +297,15 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 13,
     marginTop: 2,
+  },
+  sliderContainer: {
+    marginBottom: 16,
+  },
+  sliderLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '500',
+    marginBottom: 4,
   },
   segmentedControl: {
     flexDirection: 'row',

@@ -13,7 +13,13 @@ const BPM_STORAGE_KEY = 'bpm';
 const HIDE_VALUES_KEY = 'hideValuesWhileEditing';
 const FADE_IN_KEY = 'fadeInOnOpen';
 const RESET_LFO_KEY = 'resetLFOOnChange';
+const FADE_IN_DURATION_KEY = 'fadeInDuration';
+const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
+const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const DEFAULT_BPM = 120;
+const DEFAULT_FADE_IN_DURATION = 800; // ms
+const DEFAULT_EDIT_FADE_OUT = 100; // ms
+const DEFAULT_EDIT_FADE_IN = 350; // ms
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -86,6 +92,54 @@ function getInitialResetLFO(): boolean {
   return true; // Default to resetting LFO on parameter changes
 }
 
+// Load initial fade-in duration synchronously
+function getInitialFadeInDuration(): number {
+  try {
+    const saved = Storage.getItemSync(FADE_IN_DURATION_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 100 && value <= 2000) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load fade-in duration setting');
+  }
+  return DEFAULT_FADE_IN_DURATION;
+}
+
+// Load initial edit fade-out duration synchronously
+function getInitialEditFadeOut(): number {
+  try {
+    const saved = Storage.getItemSync(EDIT_FADE_OUT_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 50 && value <= 500) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load edit fade-out setting');
+  }
+  return DEFAULT_EDIT_FADE_OUT;
+}
+
+// Load initial edit fade-in duration synchronously
+function getInitialEditFadeIn(): number {
+  try {
+    const saved = Storage.getItemSync(EDIT_FADE_IN_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 100 && value <= 1000) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load edit fade-in setting');
+  }
+  return DEFAULT_EDIT_FADE_IN;
+}
+
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -133,6 +187,14 @@ interface PresetContextValue {
   setFadeInOnOpen: (fade: boolean) => void;
   resetLFOOnChange: boolean;
   setResetLFOOnChange: (reset: boolean) => void;
+
+  // Animation timing settings
+  fadeInDuration: number;
+  setFadeInDuration: (duration: number) => void;
+  editFadeOutDuration: number;
+  setEditFadeOutDuration: (duration: number) => void;
+  editFadeInDuration: number;
+  setEditFadeInDuration: (duration: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -145,6 +207,9 @@ const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
 const INITIAL_HIDE_VALUES = getInitialHideValues();
 const INITIAL_FADE_IN = getInitialFadeIn();
 const INITIAL_RESET_LFO = getInitialResetLFO();
+const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
+const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
+const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
@@ -156,6 +221,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
   const [resetLFOOnChange, setResetLFOOnChangeState] = useState(INITIAL_RESET_LFO);
+  const [fadeInDuration, setFadeInDurationState] = useState(INITIAL_FADE_IN_DURATION);
+  const [editFadeOutDuration, setEditFadeOutDurationState] = useState(INITIAL_EDIT_FADE_OUT);
+  const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -267,6 +335,33 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(RESET_LFO_KEY, String(reset));
     } catch {
       console.warn('Failed to save reset LFO setting');
+    }
+  }, []);
+
+  const setFadeInDuration = useCallback((duration: number) => {
+    setFadeInDurationState(duration);
+    try {
+      Storage.setItemSync(FADE_IN_DURATION_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save fade-in duration setting');
+    }
+  }, []);
+
+  const setEditFadeOutDuration = useCallback((duration: number) => {
+    setEditFadeOutDurationState(duration);
+    try {
+      Storage.setItemSync(EDIT_FADE_OUT_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save edit fade-out setting');
+    }
+  }, []);
+
+  const setEditFadeInDuration = useCallback((duration: number) => {
+    setEditFadeInDurationState(duration);
+    try {
+      Storage.setItemSync(EDIT_FADE_IN_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save edit fade-in setting');
     }
   }, []);
 
@@ -465,6 +560,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setFadeInOnOpen,
     resetLFOOnChange,
     setResetLFOOnChange,
+    // Animation timing settings
+    fadeInDuration,
+    setFadeInDuration,
+    editFadeOutDuration,
+    setEditFadeOutDuration,
+    editFadeInDuration,
+    setEditFadeInDuration,
   };
 
   return (

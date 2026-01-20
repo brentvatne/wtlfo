@@ -89,6 +89,12 @@ export interface LFOVisualizerProps {
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
 
+  /** Duration in ms for fade-out when editing starts (default 100) */
+  editFadeOutDuration?: number;
+
+  /** Duration in ms for fade-in when editing ends (default 350) */
+  editFadeInDuration?: number;
+
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: number;
 
