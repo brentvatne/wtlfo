@@ -9,6 +9,7 @@ import {
   useSlowMotionPhase,
   getSlowdownInfo,
   sampleWaveformWorklet,
+  TimingInfo,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -120,48 +121,60 @@ export default function HomeScreen() {
     >
       {/* LFO Visualizer + Destination Meter Row */}
       <Animated.View style={[styles.visualizerRow, { opacity: visualizerOpacity }]}>
-        {/* LFO Visualizer with slow-motion support */}
-        <Pressable
-          style={[styles.visualizerContainer, isPaused && styles.paused]}
-          onPress={handleTap}
-          accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
-          accessibilityRole="button"
-          accessibilityState={{ selected: isPaused }}
-          accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
-        >
-          <View>
-            <LFOVisualizer
-              phase={displayPhase}
-              output={lfoOutput}
-              waveform={currentConfig.waveform as WaveformType}
-              speed={currentConfig.speed}
-              multiplier={currentConfig.multiplier}
-              startPhase={currentConfig.startPhase}
-              mode={currentConfig.mode as TriggerMode}
-              depth={currentConfig.depth}
-              fade={currentConfig.fade}
+        {/* LFO Visualizer column - canvas is tappable, timing info is not */}
+        <View style={styles.visualizerColumn}>
+          <Pressable
+            style={[styles.visualizerContainer, isPaused && styles.paused]}
+            onPress={handleTap}
+            accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+            accessibilityRole="button"
+            accessibilityState={{ selected: isPaused }}
+            accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
+          >
+            <View>
+              <LFOVisualizer
+                phase={displayPhase}
+                output={lfoOutput}
+                waveform={currentConfig.waveform as WaveformType}
+                speed={currentConfig.speed}
+                multiplier={currentConfig.multiplier}
+                startPhase={currentConfig.startPhase}
+                mode={currentConfig.mode as TriggerMode}
+                depth={currentConfig.depth}
+                fade={currentConfig.fade}
+                bpm={bpm}
+                cycleTimeMs={timingInfo.cycleTimeMs}
+                noteValue={timingInfo.noteValue}
+                steps={timingInfo.steps}
+                width={visualizerWidth}
+                height={METER_HEIGHT}
+                theme={ELEKTRON_THEME}
+                showParameters={false}
+                showTiming={false}
+                showOutput={false}
+                isEditing={isEditing}
+                hideValuesWhileEditing={hideValuesWhileEditing}
+                strokeWidth={2.5}
+              />
+              <SlowMotionBadge
+                factor={slowdownInfo.factor}
+                visible={slowdownInfo.isSlowed}
+              />
+            </View>
+          </Pressable>
+          {/* Timing info outside pressable - tapping here won't pause */}
+          <View style={[styles.timingContainer, { width: visualizerWidth }]}>
+            <TimingInfo
               bpm={bpm}
               cycleTimeMs={timingInfo.cycleTimeMs}
               noteValue={timingInfo.noteValue}
               steps={timingInfo.steps}
-              width={visualizerWidth}
-              height={VISUALIZER_HEIGHT}
               theme={ELEKTRON_THEME}
-              showParameters={false}
-              showTiming={true}
-              showOutput={false}
-              isEditing={isEditing}
-              hideValuesWhileEditing={hideValuesWhileEditing}
-              strokeWidth={2.5}
-            />
-            <SlowMotionBadge
-              factor={slowdownInfo.factor}
-              visible={slowdownInfo.isSlowed}
             />
           </View>
-        </Pressable>
+        </View>
 
-        {/* Destination Meter - same height as canvas (excluding timing info) */}
+        {/* Destination Meter - same height as canvas */}
         <Pressable
           style={[
             styles.meterContainer,
@@ -221,8 +234,14 @@ const styles = StyleSheet.create({
     marginTop: 8,
     marginBottom: 8,
   },
-  visualizerContainer: {
+  visualizerColumn: {
     flex: 1,
+  },
+  visualizerContainer: {
+    // Canvas area only
+  },
+  timingContainer: {
+    backgroundColor: '#000000',
   },
   paused: {
     opacity: 0.5,
