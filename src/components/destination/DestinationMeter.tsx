@@ -1,6 +1,8 @@
-import React, { useState, useEffect, useRef } from 'react';
-import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
+
+type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
 import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
@@ -130,6 +132,18 @@ export function DestinationMeter({
   // Track current value for display - updated via interval to avoid blocking UI thread
   const [currentValue, setCurrentValue] = useState(centerValue);
 
+  // Display mode: VALUE (current modulated), MIN (lower bound), MAX (upper bound)
+  const [displayMode, setDisplayMode] = useState<DisplayMode>('VALUE');
+
+  // Cycle through display modes on tap
+  const handleDisplayModePress = useCallback(() => {
+    setDisplayMode(prev => {
+      if (prev === 'VALUE') return 'MIN';
+      if (prev === 'MIN') return 'MAX';
+      return 'VALUE';
+    });
+  }, []);
+
   // Sample lfoOutput from JS thread periodically (decoupled from UI thread animation)
   // Uses centerValue prop directly (not spring-animated) so text responds immediately to slider
   useEffect(() => {
@@ -256,47 +270,50 @@ export function DestinationMeter({
           />
         )}
 
-        {/* Upper bound line - orange */}
+        {/* Upper bound line - white when MAX selected, orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={upperBoundP1}
             p2={upperBoundP2}
-            color="#ff6600"
-            strokeWidth={1.5}
+            color={displayMode === 'MAX' ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MAX' ? 2.5 : 1.5}
           />
         )}
 
-        {/* Lower bound line - orange */}
+        {/* Lower bound line - white when MIN selected, orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={lowerBoundP1}
             p2={lowerBoundP2}
-            color="#ff6600"
-            strokeWidth={1.5}
+            color={displayMode === 'MIN' ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
           />
         )}
 
-        {/* Animated current value - white line (fades when editing) */}
+        {/* Animated current value - white when VALUE selected, orange otherwise (fades when editing) */}
         <Group opacity={currentValueOpacity}>
           <Line
             p1={currentValueP1}
             p2={currentValueP2}
-            color="#ffffff"
-            strokeWidth={2.5}
+            color={displayMode === 'VALUE' ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'VALUE' ? 2.5 : 1.5}
           />
         </Group>
       </Canvas>
 
-      {/* Current value display - matches TimingInfo styling */}
-      {/* Shows center value when editing, current modulated value otherwise */}
-      <View style={styles.valueContainer}>
+      {/* Value display - tappable to cycle through VALUE/MIN/MAX */}
+      <Pressable style={styles.valueContainer} onPress={handleDisplayModePress}>
         <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
-          {shouldHideValue ? Math.round(centerValue) : currentValue}
+          {displayMode === 'VALUE'
+            ? (shouldHideValue ? Math.round(centerValue) : currentValue)
+            : displayMode === 'MIN'
+              ? Math.round(targetLowerBound)
+              : Math.round(targetUpperBound)}
         </Text>
         <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
-          VALUE
+          {displayMode}
         </Text>
-      </View>
+      </Pressable>
     </View>
   );
 }
