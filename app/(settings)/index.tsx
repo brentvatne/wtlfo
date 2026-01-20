@@ -274,10 +274,12 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 18,
-    fontWeight: '600',
-    color: '#ffffff',
-    marginBottom: 12,
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ff6600',
+    marginBottom: 16,
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   sectionHeader: {
     flexDirection: 'row',
