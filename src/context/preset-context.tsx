@@ -10,6 +10,9 @@ const ENGINE_DEBOUNCE_MS = 100;
 
 const STORAGE_KEY = 'activePreset';
 const BPM_STORAGE_KEY = 'bpm';
+const HIDE_VALUES_KEY = 'hideValuesWhileEditing';
+const FADE_IN_KEY = 'fadeInOnOpen';
+const RESET_LFO_KEY = 'resetLFOOnChange';
 const DEFAULT_BPM = 120;
 
 // Load initial preset synchronously
@@ -42,6 +45,45 @@ function getInitialBPM(): number {
     console.warn('Failed to load saved BPM');
   }
   return DEFAULT_BPM;
+}
+
+// Load initial hide values setting synchronously
+function getInitialHideValues(): boolean {
+  try {
+    const saved = Storage.getItemSync(HIDE_VALUES_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load hide values setting');
+  }
+  return true; // Default to hiding values while editing
+}
+
+// Load initial fade-in setting synchronously
+function getInitialFadeIn(): boolean {
+  try {
+    const saved = Storage.getItemSync(FADE_IN_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load fade-in setting');
+  }
+  return true; // Default to fading in on open
+}
+
+// Load initial reset LFO setting synchronously
+function getInitialResetLFO(): boolean {
+  try {
+    const saved = Storage.getItemSync(RESET_LFO_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load reset LFO setting');
+  }
+  return true; // Default to resetting LFO on parameter changes
 }
 
 interface TimingInfo {
@@ -83,6 +125,14 @@ interface PresetContextValue {
   // Pause state for UI
   isPaused: boolean;
   setIsPaused: (paused: boolean) => void;
+
+  // Settings
+  hideValuesWhileEditing: boolean;
+  setHideValuesWhileEditing: (hide: boolean) => void;
+  fadeInOnOpen: boolean;
+  setFadeInOnOpen: (fade: boolean) => void;
+  resetLFOOnChange: boolean;
+  setResetLFOOnChange: (reset: boolean) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -92,6 +142,9 @@ const INITIAL_PRESET_INDEX = getInitialPreset();
 const INITIAL_CONFIG = { ...PRESETS[INITIAL_PRESET_INDEX].config };
 const INITIAL_BPM = getInitialBPM();
 const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
+const INITIAL_HIDE_VALUES = getInitialHideValues();
+const INITIAL_FADE_IN = getInitialFadeIn();
+const INITIAL_RESET_LFO = getInitialResetLFO();
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
@@ -100,6 +153,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [bpm, setBPMState] = useState(INITIAL_BPM);
   const [isEditing, setIsEditing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
+  const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
+  const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
+  const [resetLFOOnChange, setResetLFOOnChangeState] = useState(INITIAL_RESET_LFO);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -187,6 +243,33 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setHideValuesWhileEditing = useCallback((hide: boolean) => {
+    setHideValuesWhileEditingState(hide);
+    try {
+      Storage.setItemSync(HIDE_VALUES_KEY, String(hide));
+    } catch {
+      console.warn('Failed to save hide values setting');
+    }
+  }, []);
+
+  const setFadeInOnOpen = useCallback((fade: boolean) => {
+    setFadeInOnOpenState(fade);
+    try {
+      Storage.setItemSync(FADE_IN_KEY, String(fade));
+    } catch {
+      console.warn('Failed to save fade-in setting');
+    }
+  }, []);
+
+  const setResetLFOOnChange = useCallback((reset: boolean) => {
+    setResetLFOOnChangeState(reset);
+    try {
+      Storage.setItemSync(RESET_LFO_KEY, String(reset));
+    } catch {
+      console.warn('Failed to save reset LFO setting');
+    }
+  }, []);
+
   // Sync currentConfig when activePreset changes
   // Skip on first render - config is already initialized to match activePreset
   const isFirstPresetSync = useRef(true);
@@ -261,18 +344,21 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       steps,
     });
 
-    // Reset phase to start phase for clean state on preset/config change
-    const startPhaseNormalized = debouncedConfig.startPhase / 128;
-    lfoPhase.value = startPhaseNormalized;
-    lfoOutput.value = 0;
-    // Clear pause state when config changes
-    setIsPaused(false);
+    // Only reset phase/output and trigger if resetLFOOnChange is enabled
+    if (resetLFOOnChange) {
+      // Reset phase to start phase for clean state on preset/config change
+      const startPhaseNormalized = debouncedConfig.startPhase / 128;
+      lfoPhase.value = startPhaseNormalized;
+      lfoOutput.value = 0;
+      // Clear pause state when config changes
+      setIsPaused(false);
 
-    // Auto-trigger for modes that need it (resets phase and starts running)
-    if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
-      lfoRef.current.trigger();
+      // Auto-trigger for modes that need it (resets phase and starts running)
+      if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
+        lfoRef.current.trigger();
+      }
     }
-  }, [debouncedConfig, bpm, lfoPhase, lfoOutput]);
+  }, [debouncedConfig, bpm, lfoPhase, lfoOutput, resetLFOOnChange]);
 
   // Animation loop - runs at provider level, independent of tabs
   useEffect(() => {
@@ -372,6 +458,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     isLFORunning,
     isPaused,
     setIsPaused,
+    // Settings
+    hideValuesWhileEditing,
+    setHideValuesWhileEditing,
+    fadeInOnOpen,
+    setFadeInOnOpen,
+    resetLFOOnChange,
+    setResetLFOOnChange,
   };
 
   return (

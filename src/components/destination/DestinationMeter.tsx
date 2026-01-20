@@ -1,7 +1,7 @@
 import React, { useState, useEffect, useRef } from 'react';
 import { View, Text, StyleSheet, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
-import { useDerivedValue, useAnimatedReaction, useSharedValue, withSpring, withTiming, withSequence, Easing, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType } from '@/src/components/lfo/types';
@@ -21,6 +21,8 @@ interface DestinationMeterProps {
   showValue?: boolean;
   /** When true, hides the current value line and shows center value instead */
   isEditing?: boolean;
+  /** When false, disables hiding values while editing */
+  hideValuesWhileEditing?: boolean;
 }
 
 export function DestinationMeter({
@@ -34,7 +36,10 @@ export function DestinationMeter({
   style,
   showValue = false,
   isEditing = false,
+  hideValuesWhileEditing = true,
 }: DestinationMeterProps) {
+  // Only apply editing fade if setting is enabled
+  const shouldHideValue = isEditing && hideValuesWhileEditing;
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
   const max = destination?.max ?? 127;
@@ -76,7 +81,7 @@ export function DestinationMeter({
   const animatedUpperBound = useSharedValue(targetUpperBound);
 
   // Animated opacity for current value line (fades out when editing or waveform changing)
-  const currentValueOpacity = useSharedValue(isEditing ? 0 : 1);
+  const currentValueOpacity = useSharedValue(shouldHideValue ? 0 : 1);
   const prevWaveformRef = useRef(waveform);
 
   // Single consolidated effect for current value opacity
@@ -88,8 +93,8 @@ export function DestinationMeter({
       prevWaveformRef.current = waveform;
     }
 
-    if (isEditing) {
-      // Editing: fade out quickly
+    if (shouldHideValue) {
+      // Editing with hide enabled: fade out quickly
       currentValueOpacity.value = withTiming(0, {
         duration: 100,
         easing: Easing.inOut(Easing.ease),
@@ -107,30 +112,28 @@ export function DestinationMeter({
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [isEditing, waveform, currentValueOpacity]);
+  }, [shouldHideValue, waveform, currentValueOpacity]);
 
-  // Animate when values change with a subtle spring (no overshoot)
-  const springConfig = { damping: 40, stiffness: 380, overshootClamping: true };
+  // Update values directly (no spring) to avoid ghosting during slider drag
   useEffect(() => {
-    animatedCenterValue.value = withSpring(centerValue, springConfig);
-    animatedLowerBound.value = withSpring(targetLowerBound, springConfig);
-    animatedUpperBound.value = withSpring(targetUpperBound, springConfig);
+    animatedCenterValue.value = centerValue;
+    animatedLowerBound.value = targetLowerBound;
+    animatedUpperBound.value = targetUpperBound;
   }, [centerValue, targetLowerBound, targetUpperBound]);
 
-  // Track current value for display
+  // Track current value for display - updated via interval to avoid blocking UI thread
   const [currentValue, setCurrentValue] = useState(centerValue);
 
-  // Update current value from animation
-  // Note: lfoOutput is already depth-scaled by the LFO engine (range: -depth/63 to +depth/63)
-  useAnimatedReaction(
-    () => ({ output: lfoOutput.value, center: animatedCenterValue.value }),
-    ({ output, center }) => {
-      const modulationAmount = output * maxModulation;
-      const value = Math.round(Math.max(min, Math.min(max, center + modulationAmount)));
-      runOnJS(setCurrentValue)(value);
-    },
-    [maxModulation, min, max]
-  );
+  // Sample lfoOutput from JS thread periodically (decoupled from UI thread animation)
+  // Uses centerValue prop directly (not spring-animated) so text responds immediately to slider
+  useEffect(() => {
+    const interval = setInterval(() => {
+      const modulationAmount = lfoOutput.value * maxModulation;
+      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
+      setCurrentValue(value);
+    }, 33); // 30fps for text
+    return () => clearInterval(interval);
+  }, [lfoOutput, centerValue, maxModulation, min, max]);
 
   // Position calculations
   const meterX = 8;
@@ -282,7 +285,7 @@ export function DestinationMeter({
       {/* Shows center value when editing, current modulated value otherwise */}
       <View style={styles.valueContainer}>
         <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
-          {isEditing ? Math.round(centerValue) : currentValue}
+          {shouldHideValue ? Math.round(centerValue) : currentValue}
         </Text>
         <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
           VALUE

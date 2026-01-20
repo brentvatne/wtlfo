@@ -86,6 +86,9 @@ export interface LFOVisualizerProps {
   /** When true, shows placeholder values instead of live data (during parameter editing) */
   isEditing?: boolean;
 
+  /** When false, disables hiding values while editing */
+  hideValuesWhileEditing?: boolean;
+
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: number;
 

@@ -1,6 +1,7 @@
-import React, { useRef } from 'react';
+import React, { useRef, useCallback } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
-import { useDerivedValue } from 'react-native-reanimated';
+import { useFocusEffect } from 'expo-router';
+import Animated, { useDerivedValue, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -30,6 +31,8 @@ export default function HomeScreen() {
     currentConfig,
     bpm,
     isEditing,
+    hideValuesWhileEditing,
+    fadeInOnOpen,
     lfoPhase,
     lfoOutput,
     timingInfo,
@@ -40,6 +43,24 @@ export default function HomeScreen() {
     isPaused,
     setIsPaused,
   } = usePreset();
+
+  // Fade-in animation when tab is focused
+  const visualizerOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
+
+  useFocusEffect(
+    useCallback(() => {
+      if (fadeInOnOpen) {
+        // Reset to transparent and fade in
+        visualizerOpacity.value = 0;
+        visualizerOpacity.value = withTiming(1, {
+          duration: 400,
+          easing: Easing.out(Easing.ease),
+        });
+      } else {
+        visualizerOpacity.value = 1;
+      }
+    }, [fadeInOnOpen, visualizerOpacity])
+  );
 
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
   const { width: screenWidth } = useWindowDimensions();
@@ -98,7 +119,7 @@ export default function HomeScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       {/* LFO Visualizer + Destination Meter Row */}
-      <View style={styles.visualizerRow}>
+      <Animated.View style={[styles.visualizerRow, { opacity: visualizerOpacity }]}>
         {/* LFO Visualizer with slow-motion support */}
         <Pressable
           style={[styles.visualizerContainer, isPaused && styles.paused]}
@@ -130,6 +151,7 @@ export default function HomeScreen() {
               showTiming={true}
               showOutput={false}
               isEditing={isEditing}
+              hideValuesWhileEditing={hideValuesWhileEditing}
               strokeWidth={2.5}
             />
             <SlowMotionBadge
@@ -164,9 +186,10 @@ export default function HomeScreen() {
             height={METER_HEIGHT}
             showValue={hasDestination}
             isEditing={isEditing}
+            hideValuesWhileEditing={hideValuesWhileEditing}
           />
         </Pressable>
-      </View>
+      </Animated.View>
 
       {/* Parameter Grid - Full width */}
       <View style={styles.gridContainer}>

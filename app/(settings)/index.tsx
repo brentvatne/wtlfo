@@ -1,5 +1,5 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, ScrollView, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
 import { usePreset } from '@/src/context/preset-context';
@@ -9,7 +9,7 @@ const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
 
 export default function SettingsScreen() {
-  const { bpm, setBPM } = usePreset();
+  const { bpm, setBPM, hideValuesWhileEditing, setHideValuesWhileEditing, fadeInOnOpen, setFadeInOnOpen, resetLFOOnChange, setResetLFOOnChange } = usePreset();
   const {
     currentlyRunning,
     isUpdatePending,
@@ -112,23 +112,54 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <View
-        style={{
-          backgroundColor: '#1a1a1a',
-          borderRadius: 12,
-          padding: 16,
-        }}
-      >
-        <Text
-          style={{
-            fontSize: 18,
-            fontWeight: '600',
-            color: '#ffffff',
-            marginBottom: 8,
-          }}
-        >
-          Coming Soon
-        </Text>
+      <View style={styles.section}>
+        <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Visualization</Text>
+        <View style={styles.settingRow}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Fade in on open</Text>
+            <Text style={styles.settingDescription}>
+              Fade in visualization when opening app or switching tabs
+            </Text>
+          </View>
+          <Switch
+            value={fadeInOnOpen}
+            onValueChange={setFadeInOnOpen}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Hide values while editing</Text>
+            <Text style={styles.settingDescription}>
+              Fade out current value indicators when adjusting parameters
+            </Text>
+          </View>
+          <Switch
+            value={hideValuesWhileEditing}
+            onValueChange={setHideValuesWhileEditing}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Reset LFO on change</Text>
+            <Text style={styles.settingDescription}>
+              Restart LFO from beginning when parameters change
+            </Text>
+          </View>
+          <Switch
+            value={resetLFOOnChange}
+            onValueChange={setResetLFOOnChange}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+      </View>
+
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Coming Soon</Text>
         <Text style={{ color: '#888899', fontSize: 15 }}>
           MIDI settings and more options will be available in future updates.
         </Text>
@@ -162,6 +193,37 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  section: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 16,
+  },
+  sectionTitle: {
+    fontSize: 18,
+    fontWeight: '600',
+    color: '#ffffff',
+    marginBottom: 12,
+  },
+  settingRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+  },
+  settingTextContainer: {
+    flex: 1,
+    marginRight: 12,
+  },
+  settingLabel: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  settingDescription: {
+    color: '#888899',
+    fontSize: 13,
+    marginTop: 2,
+  },
   segmentedControl: {
     flexDirection: 'row',
     backgroundColor: '#2a2a2a',

@@ -38,9 +38,12 @@ export function LFOVisualizer({
   showPhaseIndicator = true,
   strokeWidth = 2,
   isEditing = false,
+  hideValuesWhileEditing = true,
   fadeMultiplier,
   randomSamples,
 }: LFOVisualizerProps) {
+  // Only apply editing fade if setting is enabled
+  const shouldHideValue = isEditing && hideValuesWhileEditing;
   // Check if user prefers reduced motion (accessibility setting)
   const reducedMotion = useReducedMotion();
 
@@ -89,8 +92,8 @@ export function LFOVisualizer({
       prevWaveformRef.current = waveform;
     }
 
-    if (isEditing) {
-      // Editing: fade out quickly
+    if (shouldHideValue) {
+      // Editing with hide enabled: fade out quickly
       phaseIndicatorOpacity.value = withTiming(0, {
         duration: 100,
         easing: Easing.inOut(Easing.ease),
@@ -101,14 +104,14 @@ export function LFOVisualizer({
         withTiming(0, { duration: 80, easing: Easing.out(Easing.ease) }),
         withTiming(1, { duration: 150, easing: Easing.in(Easing.ease) })
       );
-    } else if (!isEditing) {
+    } else {
       // Not editing (includes editing just ended): fade back in
       phaseIndicatorOpacity.value = withTiming(1, {
         duration: 350,
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [isEditing, waveform, reducedMotion, phaseIndicatorOpacity]);
+  }, [shouldHideValue, waveform, reducedMotion, phaseIndicatorOpacity]);
 
   // Calculate canvas dimensions (excluding padding for info displays)
   const parameterHeight = showParameters ? 40 : 0;
@@ -210,7 +213,7 @@ export function LFOVisualizer({
         <OutputValueDisplay
           output={outputValue}
           theme={resolvedTheme}
-          isEditing={isEditing}
+          isEditing={shouldHideValue}
         />
       )}
 

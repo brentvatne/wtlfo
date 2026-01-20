@@ -9,6 +9,8 @@ interface CenterValueSliderProps {
   max: number;
   label: string;
   bipolar?: boolean;
+  onSlidingStart?: () => void;
+  onSlidingEnd?: () => void;
 }
 
 export function CenterValueSlider({
@@ -18,6 +20,8 @@ export function CenterValueSlider({
   max,
   label,
   bipolar = false,
+  onSlidingStart,
+  onSlidingEnd,
 }: CenterValueSliderProps) {
   // Local state for smooth visual updates during dragging
   const [localValue, setLocalValue] = useState(value);
@@ -55,7 +59,8 @@ export function CenterValueSlider({
       lastCommittedValue.current = rounded;
       onChange(rounded);
     }
-  }, [onChange]);
+    onSlidingEnd?.();
+  }, [onChange, onSlidingEnd]);
 
   return (
     <View style={styles.container}>
@@ -69,6 +74,7 @@ export function CenterValueSlider({
         maximumValue={max}
         value={localValue}
         onValueChange={handleValueChange}
+        onSlidingStart={onSlidingStart}
         onSlidingComplete={handleSlidingComplete}
         step={1}
         minimumTrackTintColor="#ff6600"
