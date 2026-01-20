@@ -179,48 +179,30 @@ export default function SettingsScreen() {
             <Text style={styles.resetButtonText}>Reset</Text>
           </Pressable>
         </View>
-        <View style={styles.timingSliderContainer}>
-          <View style={styles.timingLabelRow}>
-            <Text style={styles.timingLabel}>Open fade-in duration</Text>
-            <Text style={styles.timingValue}>{Math.round(fadeInDuration)}ms</Text>
-          </View>
-          <ParameterSlider
-            label=""
-            min={100}
-            max={2000}
-            value={fadeInDuration}
-            onChange={setFadeInDuration}
-            formatValue={() => ''}
-          />
-        </View>
-        <View style={styles.timingSliderContainer}>
-          <View style={styles.timingLabelRow}>
-            <Text style={styles.timingLabel}>Edit start fade-out</Text>
-            <Text style={styles.timingValue}>{Math.round(editFadeOutDuration)}ms</Text>
-          </View>
-          <ParameterSlider
-            label=""
-            min={50}
-            max={500}
-            value={editFadeOutDuration}
-            onChange={setEditFadeOutDuration}
-            formatValue={() => ''}
-          />
-        </View>
-        <View style={[styles.timingSliderContainer, { marginBottom: 0 }]}>
-          <View style={styles.timingLabelRow}>
-            <Text style={styles.timingLabel}>Edit end fade-in</Text>
-            <Text style={styles.timingValue}>{Math.round(editFadeInDuration)}ms</Text>
-          </View>
-          <ParameterSlider
-            label=""
-            min={100}
-            max={1000}
-            value={editFadeInDuration}
-            onChange={setEditFadeInDuration}
-            formatValue={() => ''}
-          />
-        </View>
+        <ParameterSlider
+          label="Open fade-in duration"
+          min={100}
+          max={2000}
+          value={fadeInDuration}
+          onChange={setFadeInDuration}
+          formatValue={(v) => `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
+          label="Edit start fade-out"
+          min={50}
+          max={500}
+          value={editFadeOutDuration}
+          onChange={setEditFadeOutDuration}
+          formatValue={(v) => `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
+          label="Edit end fade-in"
+          min={100}
+          max={1000}
+          value={editFadeInDuration}
+          onChange={setEditFadeInDuration}
+          formatValue={(v) => `${Math.round(v)}ms`}
+        />
       </View>
 
       {/* Version and Update Info */}
@@ -301,26 +283,6 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 12,
     fontWeight: '500',
-  },
-  timingSliderContainer: {
-    marginBottom: 20,
-  },
-  timingLabelRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  timingLabel: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  timingValue: {
-    color: '#ff6600',
-    fontSize: 15,
-    fontWeight: '600',
-    fontVariant: ['tabular-nums'],
   },
   settingRow: {
     flexDirection: 'row',
