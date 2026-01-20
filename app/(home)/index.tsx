@@ -1,6 +1,6 @@
-import React, { useRef, useCallback } from 'react';
+import React, { useRef, useCallback, useEffect } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
-import { useFocusEffect } from 'expo-router';
+import { useFocusEffect, usePathname } from 'expo-router';
 import Animated, { useDerivedValue, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
@@ -45,11 +45,27 @@ export default function HomeScreen() {
     setIsPaused,
   } = usePreset();
 
-  // Fade-in animation when tab is focused
+  // Fade-in animation when tab is focused (but not when returning from modal)
   const visualizerOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
+  const wasInModalRef = useRef(false);
+  const hasInitializedRef = useRef(false);
+  const pathname = usePathname();
+
+  // Track when we're in a modal (pathname changes to param/* or presets)
+  useEffect(() => {
+    if (pathname.includes('/param/') || pathname.includes('/presets')) {
+      wasInModalRef.current = true;
+    }
+  }, [pathname]);
 
   useFocusEffect(
     useCallback(() => {
+      // Skip fade-in if returning from a modal within the same stack
+      if (wasInModalRef.current) {
+        wasInModalRef.current = false;
+        return;
+      }
+
       if (fadeInOnOpen) {
         // Reset to transparent and fade in
         visualizerOpacity.value = 0;
@@ -60,6 +76,7 @@ export default function HomeScreen() {
       } else {
         visualizerOpacity.value = 1;
       }
+      hasInitializedRef.current = true;
     }, [fadeInOnOpen, visualizerOpacity])
   );
 
