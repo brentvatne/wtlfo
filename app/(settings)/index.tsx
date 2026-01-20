@@ -171,8 +171,8 @@ export default function SettingsScreen() {
           <Pressable
             onPress={() => {
               setFadeInDuration(800);
-              setEditFadeOutDuration(100);
-              setEditFadeInDuration(350);
+              setEditFadeOutDuration(50);
+              setEditFadeInDuration(100);
             }}
             style={styles.resetButton}
           >
@@ -240,6 +240,7 @@ const styles = StyleSheet.create({
     paddingTop: 16,
     paddingBottom: 8,
     marginBottom: 16,
+    overflow: 'hidden',
   },
   sectionTitle: {
     fontSize: 13,

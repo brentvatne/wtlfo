@@ -19,8 +19,8 @@ const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
-const DEFAULT_EDIT_FADE_OUT = 100; // ms
-const DEFAULT_EDIT_FADE_IN = 350; // ms
+const DEFAULT_EDIT_FADE_OUT = 50; // ms
+const DEFAULT_EDIT_FADE_IN = 100; // ms
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -425,6 +425,78 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     isPausedRef.current = isPaused;
   }, [isPaused]);
 
+  // Ref to track isEditing for coordination (avoids stale closure issues)
+  const isEditingRef = useRef(false);
+  // Ref for fade-out timeout
+  const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Coordinate LFO stop/start with editing fade animations
+  // Flow: fade out → stop LFO → (editing happens) → reset LFO → start LFO → fade in
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+
+    if (isEditing && hideValuesWhileEditing) {
+      // Editing started: wait for fade-out to complete, then stop LFO
+      fadeOutTimeoutRef.current = setTimeout(() => {
+        // Stop the animation loop after fade-out completes
+        if (animationRef.current) {
+          cancelAnimationFrame(animationRef.current);
+          animationRef.current = 0;
+        }
+      }, editFadeOutDuration);
+    } else if (!isEditing && hideValuesWhileEditing) {
+      // Editing ended: flush debounce, recreate LFO synchronously, restart animation
+      if (fadeOutTimeoutRef.current) {
+        clearTimeout(fadeOutTimeoutRef.current);
+        fadeOutTimeoutRef.current = null;
+      }
+
+      // Clear any pending debounce - we're going to apply the config immediately
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+
+      // CRITICAL: Recreate the LFO synchronously with currentConfig BEFORE restarting
+      // the animation loop. This ensures the LFO engine uses the same config as the
+      // visualizers. If we use setDebouncedConfig (async), there's a timing gap where
+      // the animation runs with the old LFO before React re-renders.
+      lfoRef.current = new LFO(currentConfig, bpm);
+
+      // Reset and get the correct initial state
+      if (resetLFOOnChange) {
+        // Trigger resets to startPhase
+        lfoRef.current.trigger();
+        // Get the actual initial state from the new LFO
+        const initialState = lfoRef.current.update(performance.now());
+        lfoPhase.value = initialState.phase;
+        lfoOutput.value = initialState.output;
+      }
+
+      // Sync debouncedConfig to prevent the recreation effect from running again
+      setDebouncedConfig({ ...currentConfig });
+
+      // Restart animation loop if it was stopped
+      if (animationRef.current === 0 && hasMainLoopStarted.current && !isPausedRef.current) {
+        const animate = (timestamp: number) => {
+          if (lfoRef.current) {
+            const state = lfoRef.current.update(timestamp);
+            lfoPhase.value = state.phase;
+            lfoOutput.value = state.output;
+          }
+          animationRef.current = requestAnimationFrame(animate);
+        };
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    }
+
+    return () => {
+      if (fadeOutTimeoutRef.current) {
+        clearTimeout(fadeOutTimeoutRef.current);
+      }
+    };
+  }, [isEditing, hideValuesWhileEditing, editFadeOutDuration, resetLFOOnChange, currentConfig.startPhase, currentConfig.mode, lfoPhase, lfoOutput]);
+
   // Restart animation loop when user unpauses after returning from background
   // This handles the case where:
   // 1. User pauses visualization
@@ -470,17 +542,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Only reset phase/output and trigger if resetLFOOnChange is enabled
     if (resetLFOOnChange) {
-      // Reset phase to start phase for clean state on preset/config change
-      const startPhaseNormalized = debouncedConfig.startPhase / 128;
-      lfoPhase.value = startPhaseNormalized;
-      lfoOutput.value = 0;
+      // Trigger resets to startPhase
+      lfoRef.current.trigger();
+      // Get the actual initial state (don't assume output is 0 - it depends on waveform)
+      const initialState = lfoRef.current.update(performance.now());
+      lfoPhase.value = initialState.phase;
+      lfoOutput.value = initialState.output;
       // Clear pause state when config changes
       setIsPaused(false);
-
-      // Auto-trigger for modes that need it (resets phase and starts running)
-      if (debouncedConfig.mode === 'TRG' || debouncedConfig.mode === 'ONE' || debouncedConfig.mode === 'HLF') {
-        lfoRef.current.trigger();
-      }
     }
   }, [debouncedConfig, bpm, lfoPhase, lfoOutput, resetLFOOnChange]);
 

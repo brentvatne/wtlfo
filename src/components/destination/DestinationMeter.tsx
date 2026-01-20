@@ -242,7 +242,7 @@ export function DestinationMeter({
         p2={{ x: meterX + meterWidth, y }}
         color="#ffffff"
         strokeWidth={1}
-        opacity={isCenter ? 0.35 : 0.15}
+        opacity={isCenter ? 0.35 : 0.25}
       />
     );
   }

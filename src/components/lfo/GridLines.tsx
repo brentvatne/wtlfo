@@ -49,7 +49,7 @@ export function GridLines({
 
   return (
     <Group>
-      <Group opacity={0.15}>
+      <Group opacity={0.25}>
         {verticalLines}
         {horizontalLines}
       </Group>
