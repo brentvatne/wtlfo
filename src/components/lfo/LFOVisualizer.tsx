@@ -201,6 +201,7 @@ export function LFOVisualizer({
               strokeWidth={strokeWidth}
               resolution={128}
               startPhase={startPhase}
+              opacity={0.6}
             />
           )}
 

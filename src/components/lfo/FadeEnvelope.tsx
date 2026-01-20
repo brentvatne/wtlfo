@@ -14,6 +14,8 @@ interface FadeEnvelopeProps {
   strokeWidth?: number;
   /** Start phase offset (0-127) to shift waveform display */
   startPhase?: number;
+  /** Opacity of the curve (0-1) */
+  opacity?: number;
 }
 
 /**
@@ -33,6 +35,7 @@ export function FadeEnvelope({
   fade,
   strokeWidth = 2,
   startPhase,
+  opacity = 1,
 }: FadeEnvelopeProps) {
   const padding = 8;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
@@ -101,6 +104,7 @@ export function FadeEnvelope({
       strokeWidth={strokeWidth}
       strokeCap="round"
       strokeJoin="round"
+      opacity={opacity}
     />
   );
 }
