@@ -7,6 +7,7 @@ import type { SharedValue } from 'react-native-reanimated';
 import { WaveformDisplay } from './WaveformDisplay';
 import { RandomWaveform } from './RandomWaveform';
 import { FadeEnvelope } from './FadeEnvelope';
+import { FadeEnvelopeShape } from './FadeEnvelopeShape';
 import { PhaseIndicator } from './PhaseIndicator';
 import { OutputValueDisplay } from './OutputValueDisplay';
 import { TimingInfo } from './TimingInfo';
@@ -171,7 +172,21 @@ export function LFOVisualizer({
             />
           )}
 
-          {/* Fade trajectory curve - shows path with fade envelope applied */}
+          {/* Fade envelope shape - dashed line showing the fade envelope independent of LFO */}
+          {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
+          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
+            <FadeEnvelopeShape
+              width={width}
+              height={canvasHeight}
+              color={resolvedTheme.fadeCurve}
+              depth={depth}
+              fade={fade}
+              strokeWidth={strokeWidth}
+              opacity={0.35}
+            />
+          )}
+
+          {/* Fade trajectory curve - shows path with fade envelope applied to LFO */}
           {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
           {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
             <FadeEnvelope
@@ -203,6 +218,7 @@ export function LFOVisualizer({
               depth={depth}
               fade={fade}
               mode={mode}
+              fadeMultiplier={fadeMultiplier}
             />
           )}
         </Group>

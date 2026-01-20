@@ -18,6 +18,7 @@ export function PhaseIndicator({
   depth,
   fade,
   mode,
+  fadeMultiplier,
 }: PhaseIndicatorProps) {
   // Default opacity to 1 if not provided
   const defaultOpacity = useSharedValue(1);
@@ -72,18 +73,25 @@ export function PhaseIndicator({
       // Apply depth scaling
       value = value * depthScale;
 
-      // Apply fade envelope (same formula as FadeEnvelope component)
+      // Apply fade envelope
+      // When fadeMultiplier is provided from the engine, use it for accurate tracking
+      // Otherwise fall back to local calculation matching FadeEnvelope component
       if (fadeApplies) {
-        const absFade = Math.abs(fadeValue);
-        const fadeDuration = (64 - absFade) / 64;
-
         let fadeEnvelope: number;
-        if (fadeValue < 0) {
-          // Fade-in: envelope goes from 0 to 1 over fadeDuration
-          fadeEnvelope = fadeDuration > 0 ? Math.min(1, displayPhase / fadeDuration) : 1;
+        if (fadeMultiplier !== undefined) {
+          // Use engine's fade multiplier for accurate tracking
+          fadeEnvelope = fadeMultiplier;
         } else {
-          // Fade-out: envelope goes from 1 to 0 over fadeDuration
-          fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - displayPhase / fadeDuration) : 0;
+          // Local calculation (fallback)
+          const absFade = Math.abs(fadeValue);
+          const fadeDuration = (64 - absFade) / 64;
+          if (fadeValue < 0) {
+            // Fade-in: envelope goes from 0 to 1 over fadeDuration
+            fadeEnvelope = fadeDuration > 0 ? Math.min(1, displayPhase / fadeDuration) : 1;
+          } else {
+            // Fade-out: envelope goes from 1 to 0 over fadeDuration
+            fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - displayPhase / fadeDuration) : 0;
+          }
         }
         value = value * fadeEnvelope;
       }
@@ -93,7 +101,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, fadeApplies, fadeValue, startPhaseNormalized]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {

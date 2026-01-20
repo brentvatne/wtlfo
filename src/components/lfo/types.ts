@@ -153,6 +153,8 @@ export interface PhaseIndicatorProps {
   fade?: number;
   /** Trigger mode - fade doesn't apply in FRE mode */
   mode?: TriggerMode;
+  /** Current fade envelope multiplier (0.0 to 1.0) from LFO state - when provided, used instead of local calculation */
+  fadeMultiplier?: number;
 }
 
 /**
