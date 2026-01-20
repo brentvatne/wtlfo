@@ -30,59 +30,26 @@ describe('getSlowdownFactor', () => {
 });
 
 describe('getSlowdownInfo', () => {
-  it('returns correct cycle time calculations', () => {
+  // NOTE: Slowdown feature is currently disabled (ENABLE_SLOWDOWN = false)
+  // These tests verify the passthrough behavior when disabled
+
+  it('returns passthrough values when feature is disabled', () => {
     const info = getSlowdownInfo(100); // 100ms actual
     expect(info.actualCycleTimeMs).toBe(100);
-    expect(info.factor).toBe(5); // 500 / 100
-    expect(info.displayCycleTimeMs).toBe(500); // 100 * 5
+    expect(info.factor).toBe(1); // Always 1 when disabled
+    expect(info.displayCycleTimeMs).toBe(100); // Same as actual when disabled
+    expect(info.isSlowed).toBe(false);
   });
 
-  it('returns isSlowed: true when factor > 1', () => {
-    expect(getSlowdownInfo(100).isSlowed).toBe(true);  // 5x
-    expect(getSlowdownInfo(250).isSlowed).toBe(true);  // 2x
-  });
-
-  it('returns isSlowed: false when factor = 1', () => {
-    expect(getSlowdownInfo(600).isSlowed).toBe(false);
-    expect(getSlowdownInfo(1000).isSlowed).toBe(false);
-    expect(getSlowdownInfo(2000).isSlowed).toBe(false);
+  it('returns factor=1 for all cycle times when disabled', () => {
+    expect(getSlowdownInfo(50).factor).toBe(1);
+    expect(getSlowdownInfo(100).factor).toBe(1);
+    expect(getSlowdownInfo(500).factor).toBe(1);
+    expect(getSlowdownInfo(2000).factor).toBe(1);
   });
 
   it('handles zero and negative values gracefully', () => {
     expect(getSlowdownInfo(0).factor).toBe(1);
-  });
-
-  describe('hysteresis', () => {
-    const margin = DEFAULT_SLOWDOWN_CONFIG.hysteresisMargin; // 0.15
-    const target = DEFAULT_SLOWDOWN_CONFIG.targetCycleTimeMs; // 500ms
-    // Hysteresis thresholds: 425ms (500 * 0.85) and 575ms (500 * 1.15)
-
-    it('maintains factor=1 when near threshold but not past hysteresis (getting faster)', () => {
-      // At 480ms with previous factor=1, should stay at 1 (within hysteresis margin)
-      const info = getSlowdownInfo(480, 1);
-      expect(info.factor).toBe(1);
-    });
-
-    it('changes factor when well past threshold (getting faster)', () => {
-      // At 400ms with previous factor=1, should change to slowdown
-      // 400ms < 425ms (threshold with margin), so it should apply slowdown
-      const info = getSlowdownInfo(400, 1);
-      expect(info.factor).toBe(1.25); // 500 / 400
-      expect(info.isSlowed).toBe(true);
-    });
-
-    it('maintains slowdown when near threshold (getting slower)', () => {
-      // At 520ms with previous factor > 1, should stay slowed (within hysteresis margin)
-      const info = getSlowdownInfo(520, 1.5);
-      expect(info.factor).toBeGreaterThan(1); // Still slowed
-    });
-
-    it('removes slowdown when well past threshold (getting slower)', () => {
-      // At 600ms with previous factor > 1, should remove slowdown
-      // 600ms > 575ms (threshold with margin)
-      const info = getSlowdownInfo(600, 1.5);
-      expect(info.factor).toBe(1);
-      expect(info.isSlowed).toBe(false);
-    });
+    expect(getSlowdownInfo(-10).factor).toBe(1);
   });
 });

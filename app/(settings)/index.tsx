@@ -1,8 +1,10 @@
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
 import { usePreset } from '@/src/context/preset-context';
+import { useMidi } from '@/src/context/midi-context';
 import { ParameterSlider } from '@/src/components/controls';
 
 const APP_VERSION = '1.0.0';
@@ -25,6 +27,7 @@ export default function SettingsScreen() {
     isChecking,
     isDownloading,
   } = useUpdates();
+  const { connected, connectedDeviceName, externalBpm } = useMidi();
 
   const getUpdateId = () => {
     if (!Updates.isEnabled) return '-';
@@ -205,6 +208,24 @@ export default function SettingsScreen() {
         />
       </View>
 
+      <View style={styles.section}>
+        <Text style={styles.sectionTitle}>Experimental</Text>
+        <Pressable
+          style={styles.linkRow}
+          onPress={() => router.push('./midi')}
+        >
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>MIDI Sync</Text>
+            <Text style={styles.settingDescription}>
+              {connected
+                ? `${connectedDeviceName}${externalBpm > 0 ? ` • ${Math.round(externalBpm)} BPM` : ''}`
+                : 'Connect to external MIDI device'}
+            </Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+      </View>
+
       {/* Version and Update Info */}
       <View style={styles.versionContainer}>
         <Text style={styles.versionText} selectable>
@@ -289,6 +310,17 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     justifyContent: 'space-between',
+  },
+  linkRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    paddingVertical: 4,
+  },
+  chevron: {
+    color: '#888899',
+    fontSize: 24,
+    fontWeight: '300',
   },
   settingTextContainer: {
     flex: 1,

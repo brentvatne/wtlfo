@@ -377,44 +377,45 @@ export function DestinationMeter({
           />
         )}
 
-        {/* Upper bound line - white when MAX selected, orange otherwise */}
+        {/* Upper bound line - white when MAX selected (only if no fade), orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={upperBoundP1}
             p2={upperBoundP2}
-            color={displayMode === 'MAX' ? '#ffffff' : '#ff6600'}
-            strokeWidth={displayMode === 'MAX' ? 2.5 : 1.5}
+            color={displayMode === 'MAX' && !hasFade ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MAX' && !hasFade ? 2.5 : 1.5}
           />
         )}
 
-        {/* Lower bound line - white when MIN selected, orange otherwise */}
+        {/* Lower bound line - white when MIN selected (only if no fade), orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={lowerBoundP1}
             p2={lowerBoundP2}
-            color={displayMode === 'MIN' ? '#ffffff' : '#ff6600'}
-            strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
+            color={displayMode === 'MIN' && !hasFade ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MIN' && !hasFade ? 2.5 : 1.5}
           />
         )}
 
         {/* Fade curve bounds - cyan lines showing fixed min/max of fade-adjusted curve */}
+        {/* When MIN/MAX is selected, highlight the corresponding fade line instead of the orange one */}
         {depth !== 0 && hasFade && (
           <>
             {/* Fade MAX - fixed at the peak value along the fade curve */}
             <Line
               p1={fadeMaxP1}
               p2={fadeMaxP2}
-              color="#00cccc"
-              strokeWidth={1.5}
-              opacity={0.6}
+              color={displayMode === 'MAX' ? '#ffffff' : '#00cccc'}
+              strokeWidth={displayMode === 'MAX' ? 2.5 : 1.5}
+              opacity={displayMode === 'MAX' ? 1 : 0.6}
             />
             {/* Fade MIN - fixed at the minimum value along the fade curve */}
             <Line
               p1={fadeMinP1}
               p2={fadeMinP2}
-              color="#00cccc"
-              strokeWidth={1.5}
-              opacity={0.6}
+              color={displayMode === 'MIN' ? '#ffffff' : '#00cccc'}
+              strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
+              opacity={displayMode === 'MIN' ? 1 : 0.6}
             />
           </>
         )}
@@ -436,8 +437,8 @@ export function DestinationMeter({
           {displayMode === 'VALUE'
             ? (shouldHideValue ? Math.round(centerValue) : currentValue)
             : displayMode === 'MIN'
-              ? Math.round(targetLowerBound)
-              : Math.round(targetUpperBound)}
+              ? Math.round(hasFade ? fadeActualMin : targetLowerBound)
+              : Math.round(hasFade ? fadeActualMax : targetUpperBound)}
         </Text>
         <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
           {displayMode}

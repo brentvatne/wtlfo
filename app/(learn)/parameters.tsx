@@ -33,7 +33,7 @@ const PARAMETERS: Parameter[] = [
     name: 'MULT',
     label: 'Multiplier',
     description: 'Tempo-synced speed multiplier',
-    details: 'Values: 1 to 2048. Multiplies the speed relative to project tempo. Higher values = faster LFO.',
+    details: 'Powers of 2: 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1k, 2k. Multiplies the speed relative to project tempo. Higher values = faster LFO.',
     learnMore: { title: 'Speed & Timing', route: '/speed' },
   },
   {

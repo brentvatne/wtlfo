@@ -30,8 +30,8 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number): nu
     case 'SQR': // Square - Bipolar
       return phase < 0.5 ? 1 : -1;
 
-    case 'SAW': // Sawtooth - Bipolar (rising)
-      return phase * 2 - 1;
+    case 'SAW': // Sawtooth - Bipolar (falling)
+      return 1 - phase * 2;
 
     case 'EXP': {
       // Exponential - Unipolar (0 to 1)
@@ -39,8 +39,8 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number): nu
       return (Math.exp(phase * k) - 1) / (Math.exp(k) - 1);
     }
 
-    case 'RMP': // Ramp - Unipolar (1 to 0, falling)
-      return 1 - phase;
+    case 'RMP': // Ramp - Unipolar (0 to 1, rising)
+      return phase;
 
     case 'RND': {
       // Random - show as sample-and-hold pattern for static display

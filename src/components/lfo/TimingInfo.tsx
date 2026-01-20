@@ -13,13 +13,31 @@ import type { TimingInfoProps } from './types';
 
 export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, startPhase = 0 }: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
-  const [isCyclePulsing, setIsCyclePulsing] = useState(false);
+  const [showElapsedTime, setShowElapsedTime] = useState(false);
   const [showCurrentStep, setShowCurrentStep] = useState(false);
   const bpmOpacity = useSharedValue(1);
-  const cycleOpacity = useSharedValue(1);
 
   // Track current step for display (updated periodically from phase)
   const [currentStep, setCurrentStep] = useState(1);
+
+  // Track elapsed time within cycle (updated periodically from phase)
+  const [elapsedTimeMs, setElapsedTimeMs] = useState(0);
+
+  // Update elapsed time from phase when showing elapsed time
+  useEffect(() => {
+    if (!showElapsedTime || !phase || !cycleTimeMs) return;
+
+    // Convert startPhase (0-127) to normalized (0-1)
+    const startPhaseNormalized = startPhase / 128;
+    const interval = setInterval(() => {
+      // Subtract startPhase offset so elapsed time starts at the LFO's start position
+      const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+      // Calculate elapsed time within cycle
+      setElapsedTimeMs(adjustedPhase * cycleTimeMs);
+    }, 66); // ~15fps (every 2 frames at 30fps base) - prioritize visualization performance
+
+    return () => clearInterval(interval);
+  }, [showElapsedTime, phase, cycleTimeMs, startPhase]);
 
   // Update current step from phase when in "STEP" mode
   useEffect(() => {
@@ -36,7 +54,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       const rawStep = Math.floor(adjustedPhase * steps);
       const step = (rawStep % totalSteps) + 1;
       setCurrentStep(step);
-    }, 33); // ~30fps
+    }, 66); // ~15fps (every 2 frames at 30fps base) - prioritize visualization performance
 
     return () => clearInterval(interval);
   }, [showCurrentStep, phase, steps, startPhase]);
@@ -71,10 +89,19 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
     setIsBpmPulsing(prev => !prev);
   }, []);
 
-  // Handle cycle tap to toggle pulsing
+  // Handle cycle tap to toggle elapsed time display
   const handleCyclePress = useCallback(() => {
-    setIsCyclePulsing(prev => !prev);
-  }, []);
+    setShowElapsedTime(prev => {
+      const newValue = !prev;
+      // Immediately calculate elapsed time when toggling on
+      if (newValue && phase && cycleTimeMs) {
+        const startPhaseNormalized = startPhase / 128;
+        const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+        setElapsedTimeMs(adjustedPhase * cycleTimeMs);
+      }
+      return newValue;
+    });
+  }, [phase, cycleTimeMs, startPhase]);
 
   // Start/stop BPM pulsing animation
   useEffect(() => {
@@ -99,36 +126,19 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
     }
   }, [isBpmPulsing, bpm, bpmOpacity]);
 
-  // Start/stop cycle pulsing animation
-  useEffect(() => {
-    if (isCyclePulsing && cycleTimeMs) {
-      // Fade out and back in over the full cycle duration
-      const halfCycle = cycleTimeMs / 2;
-
-      cycleOpacity.value = withRepeat(
-        withSequence(
-          withTiming(0.5, { duration: halfCycle, easing: Easing.inOut(Easing.ease) }),
-          withTiming(1, { duration: halfCycle, easing: Easing.inOut(Easing.ease) })
-        ),
-        -1, // Repeat forever
-        false // Don't reverse
-      );
-    } else {
-      // Stop pulsing and reset to full opacity
-      cancelAnimation(cycleOpacity);
-      cycleOpacity.value = withTiming(1, { duration: 150 });
-    }
-  }, [isCyclePulsing, cycleTimeMs, cycleOpacity]);
 
   // Animated style for BPM text
   const bpmAnimatedStyle = useAnimatedStyle(() => ({
     opacity: bpmOpacity.value,
   }));
 
-  // Animated style for cycle text
-  const cycleAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: cycleOpacity.value,
-  }));
+  // Format time value for display
+  const formatTime = (ms: number): string => {
+    if (ms >= 1000) {
+      return `${(ms / 1000).toFixed(2)}s`;
+    }
+    return `${ms.toFixed(0)}ms`;
+  };
 
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
@@ -145,14 +155,12 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
 
       {cycleTimeMs !== undefined && (
         <Pressable onPress={handleCyclePress} style={styles.item}>
-          <Animated.Text style={[styles.value, { color: theme.text }, cycleAnimatedStyle]}>
-            {cycleTimeMs >= 1000
-              ? `${(cycleTimeMs / 1000).toFixed(2)}s`
-              : `${cycleTimeMs.toFixed(0)}ms`}
-          </Animated.Text>
-          <Animated.Text style={[styles.label, { color: theme.textSecondary }, cycleAnimatedStyle]}>
-            CYCLE
-          </Animated.Text>
+          <Text style={[styles.value, styles.cycleValue, { color: theme.text }]}>
+            {showElapsedTime ? formatTime(elapsedTimeMs) : formatTime(cycleTimeMs)}
+          </Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>
+            {showElapsedTime ? 'TIME' : 'CYCLE'}
+          </Text>
         </Pressable>
       )}
 
@@ -195,6 +203,11 @@ const styles = StyleSheet.create({
   },
   stepsValue: {
     minWidth: 32,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
+  },
+  cycleValue: {
+    minWidth: 48,
     textAlign: 'center',
     fontVariant: ['tabular-nums'],
   },

@@ -91,24 +91,24 @@ describe('worklets', () => {
     });
 
     describe('SAW (Sawtooth) waveform', () => {
-      it('should return -1 at phase 0', () => {
-        expect(sampleWaveformWorklet('SAW', 0)).toBe(-1);
+      it('should return +1 at phase 0 (starts at max)', () => {
+        expect(sampleWaveformWorklet('SAW', 0)).toBe(1);
       });
 
       it('should return 0 at phase 0.5', () => {
         expect(sampleWaveformWorklet('SAW', 0.5)).toBe(0);
       });
 
-      it('should return 1 at phase 1', () => {
-        expect(sampleWaveformWorklet('SAW', 1)).toBe(1);
+      it('should return -1 at phase 1 (ends at min)', () => {
+        expect(sampleWaveformWorklet('SAW', 1)).toBe(-1);
       });
 
-      it('should be linear (rising)', () => {
+      it('should be linear (falling)', () => {
         const phase1 = 0.25;
         const phase2 = 0.75;
         const value1 = sampleWaveformWorklet('SAW', phase1);
         const value2 = sampleWaveformWorklet('SAW', phase2);
-        expect(value2).toBeGreaterThan(value1);
+        expect(value2).toBeLessThan(value1);
       });
 
       it('should be bipolar (range -1 to 1)', () => {
@@ -155,16 +155,16 @@ describe('worklets', () => {
     });
 
     describe('RMP (Ramp) waveform', () => {
-      it('should return 1 at phase 0', () => {
-        expect(sampleWaveformWorklet('RMP', 0)).toBe(1);
+      it('should return 0 at phase 0 (starts at min)', () => {
+        expect(sampleWaveformWorklet('RMP', 0)).toBe(0);
       });
 
       it('should return 0.5 at phase 0.5', () => {
         expect(sampleWaveformWorklet('RMP', 0.5)).toBe(0.5);
       });
 
-      it('should return 0 at phase 1', () => {
-        expect(sampleWaveformWorklet('RMP', 1)).toBe(0);
+      it('should return 1 at phase 1 (ends at max)', () => {
+        expect(sampleWaveformWorklet('RMP', 1)).toBe(1);
       });
 
       it('should be unipolar (range 0 to 1)', () => {
@@ -176,12 +176,12 @@ describe('worklets', () => {
         });
       });
 
-      it('should be falling (decreasing)', () => {
+      it('should be rising (increasing)', () => {
         const phase1 = 0.25;
         const phase2 = 0.75;
         const value1 = sampleWaveformWorklet('RMP', phase1);
         const value2 = sampleWaveformWorklet('RMP', phase2);
-        expect(value1).toBeGreaterThan(value2);
+        expect(value2).toBeGreaterThan(value1);
       });
     });
 
@@ -194,8 +194,9 @@ describe('worklets', () => {
 
       it('should step in discrete intervals', () => {
         // Phases within the same step should return the same value
-        const value1 = sampleWaveformWorklet('RND', 0.05);
-        const value2 = sampleWaveformWorklet('RND', 0.10);
+        // With 16 steps per cycle, step 0 covers [0, 0.0625)
+        const value1 = sampleWaveformWorklet('RND', 0.01);
+        const value2 = sampleWaveformWorklet('RND', 0.05);
         expect(value1).toBe(value2); // Same step (step 0)
       });
 

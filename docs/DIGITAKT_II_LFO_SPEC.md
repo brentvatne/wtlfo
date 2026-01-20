@@ -32,9 +32,9 @@ This hierarchical structure allows for complex modulation chains where LFOs can 
 | **TRI** (Triangle) | Bipolar | Symmetrical rising and falling linear ramps. Starts at zero, rises to max, falls through zero to min, returns to zero. |
 | **SIN** (Sine) | Bipolar | Smooth, rounded waveform. Natural-sounding modulation with no abrupt changes. |
 | **SQR** (Square) | Bipolar | Alternates instantly between maximum and minimum values. Creates rhythmic on/off modulation. |
-| **SAW** (Sawtooth) | Bipolar | Rises linearly from min to max, then instantly resets. Creates "rising" modulation character. |
+| **SAW** (Sawtooth) | Bipolar | Falls linearly from max to min, then instantly resets. Creates "falling" modulation character with positive depth. |
 | **EXP** (Exponential) | Unipolar | Non-linear curve that accelerates. Stays at minimum, then rapidly rises to maximum. Good for percussive/attack-like modulation. |
-| **RMP** (Ramp) | Unipolar | Falls linearly from max to min (opposite of sawtooth). Creates "falling" modulation character. |
+| **RMP** (Ramp) | Unipolar | Rises linearly from min to max, then instantly resets. Creates "rising" modulation character. Opposite direction of SAW. |
 | **RND** (Random) | Bipolar | Sample-and-hold style. Generates random values at each cycle point. Changes approximately 16x more frequently than standard waveforms at equivalent speed settings (source: Elektronauts forum research). |
 
 **Polarity Explanation:**
@@ -65,11 +65,11 @@ SQUARE (SQR):
 ─┘      └──   Instant transitions
 
 SAWTOOTH (SAW):
-      /|      Rises linearly from -1 to +1
-     / |      Then instantly resets to -1
-    /  |
-   /   |
-  /    |
+|\          Falls linearly from +1 to -1
+| \         Then instantly resets to +1
+|  \
+|   \
+|    \
 
 EXPONENTIAL (EXP):
         ┌     Unipolar (0 to +1)
@@ -78,11 +78,11 @@ EXPONENTIAL (EXP):
 ____/         where k controls curve steepness
 
 RAMP (RMP):
-|\            Unipolar (0 to +1)
-| \           Falls linearly from +1 to 0
-|  \          Then instantly resets to +1
-|   \
-|    \_
+    /|        Unipolar (0 to +1)
+   / |        Rises linearly from 0 to +1
+  /  |        Then instantly resets to 0
+ /   |
+/    |
 
 RANDOM (RND):
  ┌─┐ ┌───┐    Random values held until next step
@@ -203,7 +203,7 @@ Where `lfo_value` is the raw LFO output (-1 to +1 for bipolar, 0 to +1 for unipo
 | **TRI** | -1→+1→-1 (normal) | 0 | +1→-1→+1 (inverted) |
 | **SIN** | Standard sine (±1) | 0 | Inverted sine (±1) |
 | **SQR** | +1 / -1 pulse | 0 | -1 / +1 pulse |
-| **SAW** | -1→+1 rising | 0 | +1→-1 falling |
+| **SAW** | +1→-1 falling | 0 | -1→+1 rising |
 | **RND** | ±1 random steps | 0 | ±1 inverted random |
 
 **Unipolar Waveforms (EXP, RMP):**
@@ -213,13 +213,13 @@ These waveforms output 0 to +1 in their raw form. With negative depth, they exte
 | Waveform | depth=+63 | depth=0 | depth=-63 |
 |----------|-----------|---------|-----------|
 | **EXP** | 0→+1 curve | 0 | 0→-1 inverted curve |
-| **RMP** | +1→0 linear | 0 | -1→0 inverted linear |
+| **RMP** | 0→+1 linear | 0 | 0→-1 inverted linear |
 
 **Practical Example - SAW waveform:**
-- Raw SAW outputs -1 to +1 (rising)
-- With depth=+63: Output is -1 to +1 (rising sawtooth)
-- With depth=-63: Output is +1 to -1 (falling sawtooth)
-- The Elektron manual diagram showing a "falling" SAW is displaying SAW with negative depth
+- Raw SAW outputs +1 to -1 (falling)
+- With depth=+63: Output is +1 to -1 (falling sawtooth)
+- With depth=-63: Output is -1 to +1 (rising sawtooth)
+- The Elektron manual diagram shows SAW falling with positive depth, which is the standard behavior
 
 **Note on Asymmetry:** The depth range is -64 to +63 (not -63 to +63). This means negative depth can reach slightly higher magnitude than positive. With depth=-64, the scaling factor is -64/63 ≈ -1.016, which produces output slightly greater than 1.0 in magnitude.
 
@@ -374,8 +374,8 @@ function generateSquare(phase: number): number {
 }
 
 function generateSawtooth(phase: number): number {
-  // Bipolar output: -1 to +1 (rising)
-  return phase * 2 - 1;
+  // Bipolar output: +1 to -1 (falling)
+  return 1 - phase * 2;
 }
 
 function generateExponential(phase: number): number {
@@ -385,8 +385,8 @@ function generateExponential(phase: number): number {
 }
 
 function generateRamp(phase: number): number {
-  // Unipolar output: +1 to 0 (falling)
-  return 1 - phase;
+  // Unipolar output: 0 to +1 (rising)
+  return phase;
 }
 
 function generateRandom(phase: number, prevValue: number, prevPhase: number): number {

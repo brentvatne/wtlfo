@@ -1,6 +1,7 @@
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
 import { PresetProvider } from '@/src/context/preset-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
+import { MidiProvider } from '@/src/context/midi-context';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { Platform } from 'react-native';
 
@@ -12,7 +13,8 @@ export default function RootLayout() {
     <ErrorBoundary>
       <PresetProvider>
         <ModulationProvider>
-          <NativeTabs
+          <MidiProvider>
+            <NativeTabs
             tintColor="#ff6600"
             {...(isLegacyIOS && {
               backgroundColor: '#000000',
@@ -31,7 +33,8 @@ export default function RootLayout() {
               <Icon sf={{ default: 'gear', selected: 'gear' }} />
               <Label>Settings</Label>
             </NativeTabs.Trigger>
-          </NativeTabs>
+            </NativeTabs>
+          </MidiProvider>
         </ModulationProvider>
       </PresetProvider>
     </ErrorBoundary>

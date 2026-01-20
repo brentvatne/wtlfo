@@ -23,6 +23,13 @@ export default function SettingsLayout() {
           title: 'Settings',
         }}
       />
+      <Stack.Screen
+        name="midi"
+        options={{
+          title: 'MIDI Sync',
+          presentation: 'modal',
+        }}
+      />
     </Stack>
   );
 }

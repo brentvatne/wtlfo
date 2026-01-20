@@ -59,6 +59,8 @@ export function useWaveformPath(
     const startX = padding;
     const endX = padding + drawWidth;
 
+    let prevValue: number | null = null;
+
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
       // Shift phase so startPhaseNormalized appears at x=0 (not used for RND)
@@ -76,8 +78,20 @@ export function useWaveformPath(
       if (i === 0) {
         path.moveTo(x, y);
       } else {
-        path.lineTo(x, y);
+        // For discontinuous waveforms (SQR, RND), draw vertical transitions
+        // if the value changed significantly between samples
+        const threshold = 0.5; // Large value change indicates a step
+        if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
+          // Draw vertical line at the current x position from previous y to new y
+          const prevY = centerY + prevValue * scaleY;
+          path.lineTo(x, prevY); // Horizontal to current x at old value
+          path.lineTo(x, y); // Vertical jump to new value
+        } else {
+          path.lineTo(x, y);
+        }
       }
+
+      prevValue = value;
     }
 
     // Close path to baseline for fill rendering

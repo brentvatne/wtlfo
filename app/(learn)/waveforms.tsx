@@ -39,8 +39,8 @@ const WAVEFORMS: WaveformInfo[] = [
     type: 'SAW',
     name: 'Sawtooth',
     polarity: 'Bipolar',
-    character: 'Rising ramp, instant reset',
-    bestFor: ['Building effects', 'Risers'],
+    character: 'Falling ramp, instant reset',
+    bestFor: ['Decay effects', 'Filter sweeps'],
   },
   {
     type: 'EXP',
@@ -53,8 +53,8 @@ const WAVEFORMS: WaveformInfo[] = [
     type: 'RMP',
     name: 'Ramp',
     polarity: 'Unipolar',
-    character: 'Falling ramp',
-    bestFor: ['Decay effects', 'Falling character'],
+    character: 'Rising ramp, instant reset',
+    bestFor: ['Build-up effects', 'Fade-ins', 'Rising sweeps'],
   },
   {
     type: 'RND',

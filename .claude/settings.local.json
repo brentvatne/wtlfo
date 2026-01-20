@@ -51,7 +51,29 @@
       "WebFetch(domain:www.qualityology.com)",
       "WebFetch(domain:reactnavigation.org)",
       "Bash(git revert:*)",
-      "Bash(git checkout:*)"
+      "Bash(git checkout:*)",
+      "Bash(npx eas-cli update --branch production --message \"Simplify animation timing sliders\")",
+      "Bash(npx eas-cli:*)",
+      "Bash(npx eslint:*)",
+      "Bash(bun test)",
+      "Bash(bun test:*)",
+      "Bash(npm whoami:*)",
+      "Bash(npm install:*)",
+      "Bash(bun install:*)",
+      "Bash(bun pm cache:*)",
+      "Bash(bunx create-expo-module@latest:*)",
+      "Bash(bunx tsc:*)",
+      "Bash(bunx expo-doctor:*)",
+      "Bash(bunx expo lint:*)",
+      "Bash(timeout 10 bunx expo start:*)",
+      "Bash(bunx expo export:*)",
+      "Bash(bun run test:*)",
+      "Bash(bunx jest)",
+      "Bash(npm --version:*)",
+      "Bash(bunx jest:*)",
+      "Bash(npx expo-modules-autolinking:*)",
+      "Bash(npx create-expo-module@latest:*)",
+      "Bash(pod install)"
     ]
   }
 }

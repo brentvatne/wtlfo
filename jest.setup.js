@@ -1,5 +1,4 @@
 // Jest setup file
-import '@testing-library/jest-native/extend-expect';
 
 // Mock expo-sqlite/kv-store for storage operations
 jest.mock('expo-sqlite/kv-store', () => ({

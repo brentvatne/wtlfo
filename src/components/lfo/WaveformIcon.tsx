@@ -54,6 +54,8 @@ function getCachedPath(
     const centerY = size / 2;
     const scaleY = -drawHeight / 2.5; // Slightly smaller to fit nicely
 
+    let prevValue: number | null = null;
+
     for (let i = 0; i <= resolution; i++) {
       const phase = i / resolution;
       const value = sampleWaveformWorklet(waveform, phase);
@@ -64,8 +66,18 @@ function getCachedPath(
       if (i === 0) {
         path.moveTo(x, y);
       } else {
-        path.lineTo(x, y);
+        // For discontinuous waveforms (SQR, RND), draw vertical transitions
+        const threshold = 0.5;
+        if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
+          const prevY = centerY + prevValue * scaleY;
+          path.lineTo(x, prevY);
+          path.lineTo(x, y);
+        } else {
+          path.lineTo(x, y);
+        }
       }
+
+      prevValue = value;
     }
 
     pathCache.set(key, path);

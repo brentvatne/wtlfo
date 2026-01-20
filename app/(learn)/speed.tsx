@@ -87,7 +87,7 @@ export default function SpeedScreen() {
         <View style={styles.infoBox}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Values</Text>
-            <Text style={styles.infoValue}>1, 2, 4, 8... up to 2048</Text>
+            <Text style={styles.infoValue}>1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1k, 2k</Text>
           </View>
         </View>
         <Text style={styles.paragraph}>
