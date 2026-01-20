@@ -201,7 +201,6 @@ export default function HomeScreen() {
           style={[
             styles.meterContainer,
             !hasDestination && styles.meterDimmed,
-            isPaused && styles.paused,
           ]}
           onPress={handleTap}
           accessibilityLabel={hasDestination
@@ -224,6 +223,7 @@ export default function HomeScreen() {
             hideValuesWhileEditing={hideValuesWhileEditing}
             editFadeOutDuration={editFadeOutDuration}
             editFadeInDuration={editFadeInDuration}
+            isPaused={isPaused}
           />
         </Pressable>
       </Animated.View>

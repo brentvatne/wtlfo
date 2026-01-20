@@ -29,6 +29,8 @@ interface DestinationMeterProps {
   editFadeOutDuration?: number;
   /** Duration in ms for fade-in when editing ends (default 350) */
   editFadeInDuration?: number;
+  /** When true, dims the visualization canvas (but not the value text) */
+  isPaused?: boolean;
 }
 
 export function DestinationMeter({
@@ -45,6 +47,7 @@ export function DestinationMeter({
   hideValuesWhileEditing = true,
   editFadeOutDuration = 100,
   editFadeInDuration = 350,
+  isPaused = false,
 }: DestinationMeterProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
@@ -243,7 +246,7 @@ export function DestinationMeter({
 
   return (
     <View style={[styles.container, style]}>
-      <Canvas style={{ width, height, backgroundColor: '#000000' }}>
+      <Canvas style={{ width, height, backgroundColor: '#000000', opacity: isPaused ? 0.5 : 1 }}>
         {/* Background track */}
         <RoundedRect
           x={meterX}
