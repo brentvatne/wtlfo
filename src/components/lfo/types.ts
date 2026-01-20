@@ -100,6 +100,9 @@ export interface LFOVisualizerProps {
 
   /** Random sample history for RND waveform visualization */
   randomSamples?: Array<{ phase: number; value: number }>;
+
+  /** Whether to show the fade envelope curves (default true) */
+  showFadeEnvelope?: boolean;
 }
 
 export interface LFOTheme {

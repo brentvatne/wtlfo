@@ -17,6 +17,7 @@ export default function SettingsScreen() {
     fadeInDuration, setFadeInDuration,
     editFadeOutDuration, setEditFadeOutDuration,
     editFadeInDuration, setEditFadeInDuration,
+    showFadeEnvelope, setShowFadeEnvelope,
   } = usePreset();
   const {
     currentlyRunning,
@@ -160,6 +161,20 @@ export default function SettingsScreen() {
           <Switch
             value={resetLFOOnChange}
             onValueChange={setResetLFOOnChange}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Show fade envelope</Text>
+            <Text style={styles.settingDescription}>
+              Display fade envelope curves on the waveform visualization
+            </Text>
+          </View>
+          <Switch
+            value={showFadeEnvelope}
+            onValueChange={setShowFadeEnvelope}
             trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
             thumbColor="#ffffff"
           />

@@ -48,16 +48,19 @@ export function GridLines({
   const centerY = height / 2;
 
   return (
-    <Group opacity={0.3}>
-      {verticalLines}
-      {horizontalLines}
-      {/* Emphasized zero line */}
+    <Group>
+      <Group opacity={0.15}>
+        {verticalLines}
+        {horizontalLines}
+      </Group>
+      {/* Emphasized zero line - more visible than other grid lines */}
       <Line
         p1={{ x: padding, y: centerY }}
         p2={{ x: width - padding, y: centerY }}
-        color={color}
+        color="#ffffff"
         style="stroke"
-        strokeWidth={1.5}
+        strokeWidth={1}
+        opacity={0.35}
       />
     </Group>
   );

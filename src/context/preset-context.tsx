@@ -16,6 +16,7 @@ const RESET_LFO_KEY = 'resetLFOOnChange';
 const FADE_IN_DURATION_KEY = 'fadeInDuration';
 const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
 const EDIT_FADE_IN_KEY = 'editFadeInDuration';
+const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
 const DEFAULT_EDIT_FADE_OUT = 100; // ms
@@ -140,6 +141,19 @@ function getInitialEditFadeIn(): number {
   return DEFAULT_EDIT_FADE_IN;
 }
 
+// Load initial show fade envelope setting synchronously
+function getInitialShowFadeEnvelope(): boolean {
+  try {
+    const saved = Storage.getItemSync(SHOW_FADE_ENVELOPE_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load show fade envelope setting');
+  }
+  return true; // Default to showing fade envelope
+}
+
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -195,6 +209,10 @@ interface PresetContextValue {
   setEditFadeOutDuration: (duration: number) => void;
   editFadeInDuration: number;
   setEditFadeInDuration: (duration: number) => void;
+
+  // Visualization settings
+  showFadeEnvelope: boolean;
+  setShowFadeEnvelope: (show: boolean) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -210,6 +228,7 @@ const INITIAL_RESET_LFO = getInitialResetLFO();
 const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
 const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
+const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
@@ -224,6 +243,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [fadeInDuration, setFadeInDurationState] = useState(INITIAL_FADE_IN_DURATION);
   const [editFadeOutDuration, setEditFadeOutDurationState] = useState(INITIAL_EDIT_FADE_OUT);
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
+  const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -362,6 +382,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(EDIT_FADE_IN_KEY, String(duration));
     } catch {
       console.warn('Failed to save edit fade-in setting');
+    }
+  }, []);
+
+  const setShowFadeEnvelope = useCallback((show: boolean) => {
+    setShowFadeEnvelopeState(show);
+    try {
+      Storage.setItemSync(SHOW_FADE_ENVELOPE_KEY, String(show));
+    } catch {
+      console.warn('Failed to save show fade envelope setting');
     }
   }, []);
 
@@ -567,6 +596,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setEditFadeOutDuration,
     editFadeInDuration,
     setEditFadeInDuration,
+    // Visualization settings
+    showFadeEnvelope,
+    setShowFadeEnvelope,
   };
 
   return (

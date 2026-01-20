@@ -44,6 +44,7 @@ export function LFOVisualizer({
   editFadeInDuration = 350,
   fadeMultiplier,
   randomSamples,
+  showFadeEnvelope = true,
 }: LFOVisualizerProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
@@ -176,7 +177,7 @@ export function LFOVisualizer({
 
           {/* Fade envelope shape - dashed line showing the fade envelope independent of LFO */}
           {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
-          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
+          {showFadeEnvelope && fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
             <FadeEnvelopeShape
               width={width}
               height={canvasHeight}
@@ -190,7 +191,7 @@ export function LFOVisualizer({
 
           {/* Fade trajectory curve - shows path with fade envelope applied to LFO */}
           {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
-          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
+          {showFadeEnvelope && fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
             <FadeEnvelope
               waveform={waveform}
               width={width}

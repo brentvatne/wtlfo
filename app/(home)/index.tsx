@@ -37,6 +37,7 @@ export default function HomeScreen() {
     fadeInDuration,
     editFadeOutDuration,
     editFadeInDuration,
+    showFadeEnvelope,
     lfoPhase,
     lfoOutput,
     timingInfo,
@@ -177,6 +178,7 @@ export default function HomeScreen() {
                 editFadeOutDuration={editFadeOutDuration}
                 editFadeInDuration={editFadeInDuration}
                 strokeWidth={2.5}
+                showFadeEnvelope={showFadeEnvelope}
               />
               <SlowMotionBadge
                 factor={slowdownInfo.factor}

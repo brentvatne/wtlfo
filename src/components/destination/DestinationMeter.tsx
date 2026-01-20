@@ -229,17 +229,20 @@ export function DestinationMeter({
   }, []);
 
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
+  // Center line (i=2) is slightly more visible to match LFO visualizer
   const gridLines = [];
   const gridDivisions = 4;
   for (let i = 0; i <= gridDivisions; i++) {
     const y = meterTop + (i / gridDivisions) * meterHeight;
+    const isCenter = i === gridDivisions / 2;
     gridLines.push(
       <Line
         key={`grid-${i}`}
         p1={{ x: meterX, y }}
         p2={{ x: meterX + meterWidth, y }}
-        color="rgba(255, 255, 255, 0.15)"
+        color="#ffffff"
         strokeWidth={1}
+        opacity={isCenter ? 0.35 : 0.15}
       />
     );
   }

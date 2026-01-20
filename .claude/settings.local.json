@@ -48,7 +48,10 @@
       "Bash(git reset:*)",
       "Bash(npx eas:*)",
       "Bash(npx testflight:*)",
-      "WebFetch(domain:www.qualityology.com)"
+      "WebFetch(domain:www.qualityology.com)",
+      "WebFetch(domain:reactnavigation.org)",
+      "Bash(git revert:*)",
+      "Bash(git checkout:*)"
     ]
   }
 }
