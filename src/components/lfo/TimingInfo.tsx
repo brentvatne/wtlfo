@@ -11,11 +11,54 @@ import Animated, {
 } from 'react-native-reanimated';
 import type { TimingInfoProps } from './types';
 
-export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: TimingInfoProps) {
+export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, startPhase = 0 }: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
   const [isCyclePulsing, setIsCyclePulsing] = useState(false);
+  const [showCurrentStep, setShowCurrentStep] = useState(false);
   const bpmOpacity = useSharedValue(1);
   const cycleOpacity = useSharedValue(1);
+
+  // Track current step for display (updated periodically from phase)
+  const [currentStep, setCurrentStep] = useState(1);
+
+  // Update current step from phase when in "STEP" mode
+  useEffect(() => {
+    if (!showCurrentStep || !phase || !steps || steps <= 0) return;
+
+    const totalSteps = Math.ceil(steps);
+    // Convert startPhase (0-127) to normalized (0-1)
+    const startPhaseNormalized = startPhase / 128;
+    const interval = setInterval(() => {
+      // Subtract startPhase offset so step 1 starts at the LFO's start position
+      // Ensure result is in 0-1 range with correct modulo handling
+      const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+      // Calculate current step (1-indexed), wrapping correctly
+      const rawStep = Math.floor(adjustedPhase * steps);
+      const step = (rawStep % totalSteps) + 1;
+      setCurrentStep(step);
+    }, 33); // ~30fps
+
+    return () => clearInterval(interval);
+  }, [showCurrentStep, phase, steps, startPhase]);
+
+  // Toggle between STEPS and STEP display
+  const handleStepsPress = useCallback(() => {
+    setShowCurrentStep(prev => {
+      const newValue = !prev;
+      // Immediately calculate current step when toggling on
+      if (newValue && phase && steps && steps > 0) {
+        const totalSteps = Math.ceil(steps);
+        // Convert startPhase (0-127) to normalized (0-1)
+        const startPhaseNormalized = startPhase / 128;
+        // Subtract startPhase offset so step 1 starts at the LFO's start position
+        const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+        const rawStep = Math.floor(adjustedPhase * steps);
+        const step = (rawStep % totalSteps) + 1;
+        setCurrentStep(step);
+      }
+      return newValue;
+    });
+  }, [phase, steps, startPhase]);
 
   // Format steps - show decimal only if not a whole number
   const formatSteps = (s: number): string => {
@@ -121,10 +164,14 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
       )}
 
       {steps !== undefined && steps > 0 && (
-        <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.text }]}>{formatSteps(steps)}</Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>STEPS</Text>
-        </View>
+        <Pressable onPress={handleStepsPress} style={styles.item}>
+          <Text style={[styles.value, styles.stepsValue, { color: theme.text }]}>
+            {showCurrentStep ? currentStep : formatSteps(steps)}
+          </Text>
+          <Text style={[styles.label, { color: theme.textSecondary }]}>
+            {showCurrentStep ? 'STEP' : 'STEPS'}
+          </Text>
+        </Pressable>
       )}
     </View>
   );
@@ -145,6 +192,11 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '700',
     fontFamily: 'monospace',
+  },
+  stepsValue: {
+    minWidth: 32,
+    textAlign: 'center',
+    fontVariant: ['tabular-nums'],
   },
   label: {
     fontSize: 10,

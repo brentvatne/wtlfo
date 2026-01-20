@@ -181,6 +181,7 @@ interface PresetContextValue {
   // LFO animation state - shared across tabs
   lfoPhase: SharedValue<number>;
   lfoOutput: SharedValue<number>;
+  lfoFadeMultiplier: SharedValue<number>;
   lfoRef: React.MutableRefObject<LFO | null>;
   timingInfo: TimingInfo;
 
@@ -250,6 +251,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Initialize phase to match the preset's startPhase to avoid first-frame jump
   const lfoPhase = useSharedValue(INITIAL_START_PHASE);
   const lfoOutput = useSharedValue(0);
+  const lfoFadeMultiplier = useSharedValue(1);
   // Create LFO engine immediately (not after debounce) to avoid jitter on app start
   const lfoRef = useRef<LFO | null>(null);
   // Synchronously initialize LFO on first render
@@ -471,6 +473,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         const initialState = lfoRef.current.update(performance.now());
         lfoPhase.value = initialState.phase;
         lfoOutput.value = initialState.output;
+        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
       }
 
       // Sync debouncedConfig to prevent the recreation effect from running again
@@ -483,6 +486,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
             const state = lfoRef.current.update(timestamp);
             lfoPhase.value = state.phase;
             lfoOutput.value = state.output;
+            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
           }
           animationRef.current = requestAnimationFrame(animate);
         };
@@ -511,12 +515,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
           const state = lfoRef.current.update(timestamp);
           lfoPhase.value = state.phase;
           lfoOutput.value = state.output;
+          lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
         }
         animationRef.current = requestAnimationFrame(animate);
       };
       animationRef.current = requestAnimationFrame(animate);
     }
-  }, [isPaused, lfoPhase, lfoOutput]);
+  }, [isPaused, lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
   // Recreate LFO when debounced config changes (after initial creation)
   // Skip on first render - LFO is already created synchronously above
@@ -548,10 +553,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       const initialState = lfoRef.current.update(performance.now());
       lfoPhase.value = initialState.phase;
       lfoOutput.value = initialState.output;
+      lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
       // Clear pause state when config changes
       setIsPaused(false);
     }
-  }, [debouncedConfig, bpm, lfoPhase, lfoOutput, resetLFOOnChange]);
+  }, [debouncedConfig, bpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange]);
 
   // Animation loop - runs at provider level, independent of tabs
   useEffect(() => {
@@ -561,13 +567,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         const state = lfoRef.current.update(timestamp);
         lfoPhase.value = state.phase;
         lfoOutput.value = state.output;
+        lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
       }
       animationRef.current = requestAnimationFrame(animate);
     };
     animationRef.current = requestAnimationFrame(animate);
 
     return () => cancelAnimationFrame(animationRef.current);
-  }, [lfoPhase, lfoOutput]);
+  }, [lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
   // Pause animation loop when app goes to background to save battery
   useEffect(() => {
@@ -602,6 +609,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
               const state = lfoRef.current.update(timestamp);
               lfoPhase.value = state.phase;
               lfoOutput.value = state.output;
+              lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
             }
             animationRef.current = requestAnimationFrame(animate);
           };
@@ -642,6 +650,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // LFO animation state
     lfoPhase,
     lfoOutput,
+    lfoFadeMultiplier,
     lfoRef,
     timingInfo,
     // LFO control

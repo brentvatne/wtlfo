@@ -202,6 +202,10 @@ export interface TimingInfoProps {
   noteValue?: string;
   steps?: number;
   theme: LFOTheme;
+  /** Current phase for live step display (0.0 to 1.0) */
+  phase?: SharedValue<number>;
+  /** Start phase offset (0-127) for correct step calculation */
+  startPhase?: number;
 }
 
 /**

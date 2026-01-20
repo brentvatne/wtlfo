@@ -110,6 +110,34 @@ export default function HomeScreen() {
   const waveformForWorklet = currentConfig.waveform as WaveformType;
   // Pre-compute clamped depth scale (handles asymmetric range -64 to +63)
   const depthScaleForWorklet = Math.max(-1, Math.min(1, currentConfig.depth / 63));
+  // Pre-compute fade parameters for worklet
+  const fadeValue = currentConfig.fade;
+  const modeValue = currentConfig.mode as TriggerMode;
+  const startPhaseNormalized = currentConfig.startPhase / 128;
+  const fadeApplies = fadeValue !== 0 && modeValue !== 'FRE';
+
+  // Compute display fade multiplier based on slowed display phase
+  // This ensures the meter's fade bounds match the slowed visualization
+  const displayFadeMultiplier = useDerivedValue(() => {
+    'worklet';
+    if (!fadeApplies) return 1;
+
+    // Calculate display phase (shifted for visualization)
+    const displayPhaseNormalized = ((displayPhase.value - startPhaseNormalized) % 1 + 1) % 1;
+
+    // Calculate fade envelope using same formula as PhaseIndicator
+    const absFade = Math.abs(fadeValue);
+    const fadeDuration = (64 - absFade) / 64;
+
+    if (fadeValue < 0) {
+      // Fade-in: envelope goes from 0 to 1 over fadeDuration
+      return fadeDuration > 0 ? Math.min(1, displayPhaseNormalized / fadeDuration) : 1;
+    } else {
+      // Fade-out: envelope goes from 1 to 0 over fadeDuration
+      return fadeDuration > 0 ? Math.max(0, 1 - displayPhaseNormalized / fadeDuration) : 0;
+    }
+  }, [fadeApplies, fadeValue, startPhaseNormalized]);
+
   const displayOutput = useDerivedValue(() => {
     'worklet';
     // Sample the waveform at the slowed display phase
@@ -194,6 +222,8 @@ export default function HomeScreen() {
               noteValue={timingInfo.noteValue}
               steps={timingInfo.steps}
               theme={ELEKTRON_THEME}
+              phase={lfoPhase}
+              startPhase={currentConfig.startPhase}
             />
           </View>
         </View>
@@ -217,6 +247,9 @@ export default function HomeScreen() {
             destination={activeDestination}
             centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
             depth={currentConfig.depth}
+            fade={currentConfig.fade}
+            mode={currentConfig.mode as TriggerMode}
+            fadeMultiplier={displayFadeMultiplier}
             waveform={currentConfig.waveform as WaveformType}
             width={METER_WIDTH}
             height={METER_HEIGHT}

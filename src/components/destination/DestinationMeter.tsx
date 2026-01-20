@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
 
@@ -6,7 +6,8 @@ type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
 import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
-import type { WaveformType } from '@/src/components/lfo/types';
+import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
+import { sampleWaveformWorklet } from '@/src/components/lfo/worklets';
 
 // Unipolar waveforms only output 0 to 1 (not -1 to +1)
 const UNIPOLAR_WAVEFORMS: WaveformType[] = ['EXP', 'RMP'];
@@ -16,6 +17,12 @@ interface DestinationMeterProps {
   destination: DestinationDefinition | null;
   centerValue: number;
   depth: number;
+  /** Fade value (-64 to +63) - affects envelope bounds */
+  fade?: number;
+  /** Trigger mode - fade only applies when not FRE */
+  mode?: TriggerMode;
+  /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
+  fadeMultiplier?: SharedValue<number>;
   waveform?: WaveformType;
   width?: number;
   height?: number;
@@ -38,6 +45,9 @@ export function DestinationMeter({
   destination,
   centerValue,
   depth,
+  fade = 0,
+  mode = 'FRE',
+  fadeMultiplier,
   waveform = 'SIN',
   width = 60,
   height = 108,
@@ -149,14 +159,16 @@ export function DestinationMeter({
 
   // Sample lfoOutput from JS thread periodically (decoupled from UI thread animation)
   // Uses centerValue prop directly (not spring-animated) so text responds immediately to slider
+  // Apply fadeMultiplier to account for fade envelope
   useEffect(() => {
     const interval = setInterval(() => {
-      const modulationAmount = lfoOutput.value * maxModulation;
+      const fadeMult = fadeMultiplier?.value ?? 1;
+      const modulationAmount = lfoOutput.value * maxModulation * fadeMult;
       const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
       setCurrentValue(value);
     }, 33); // 30fps for text
     return () => clearInterval(interval);
-  }, [lfoOutput, centerValue, maxModulation, min, max]);
+  }, [lfoOutput, fadeMultiplier, centerValue, maxModulation, min, max]);
 
   // Position calculations
   const meterX = 8;
@@ -164,18 +176,23 @@ export function DestinationMeter({
   const meterTop = 8;
   const meterHeight = height - 16;
 
+  // Determine if fade should be applied (only for non-FRE modes with non-zero fade)
+  const hasFade = fade !== 0 && mode !== 'FRE';
+
   // Calculate the current modulated value position (animated)
   // lfoOutput is already depth-scaled, so we only multiply by maxModulation
+  // Apply fadeMultiplier to account for fade envelope
   const meterFillHeight = useDerivedValue(() => {
     'worklet';
-    const modulationAmount = lfoOutput.value * maxModulation;
+    const fadeMult = fadeMultiplier?.value ?? 1;
+    const modulationAmount = lfoOutput.value * maxModulation * fadeMult;
     const currentVal = animatedCenterValue.value + modulationAmount;
     const clampedValue = Math.max(min, Math.min(max, currentVal));
     const normalized = (clampedValue - min) / range;
     return normalized * (height - 16); // Leave padding
   }, [maxModulation, min, max, range, height]);
 
-  // Animated upper and lower bound Y positions
+  // Animated upper and lower bound Y positions (these are the "full" depth bounds)
   const upperBoundY = useDerivedValue(() => {
     'worklet';
     return meterTop + meterHeight - ((animatedUpperBound.value - min) / range) * meterHeight;
@@ -185,6 +202,63 @@ export function DestinationMeter({
     'worklet';
     return meterTop + meterHeight - ((animatedLowerBound.value - min) / range) * meterHeight;
   }, [meterTop, meterHeight, min, range]);
+
+  // Calculate the actual max/min values by sampling the output curve (waveform × fade)
+  // This gives accurate bounds regardless of waveform type or fade timing
+  const { fadeActualMax, fadeActualMin } = useMemo(() => {
+    if (!hasFade || depth === 0) {
+      return { fadeActualMax: targetUpperBound, fadeActualMin: targetLowerBound };
+    }
+
+    const samples = 128;
+    const absFade = Math.abs(fade);
+    const fadeDuration = (64 - absFade) / 64;
+    // Clamp depth scale to [-1, 1] to handle asymmetric range
+    const localDepthScale = Math.max(-1, Math.min(1, depth / 63));
+
+    let maxOutput = -Infinity;
+    let minOutput = Infinity;
+
+    for (let i = 0; i <= samples; i++) {
+      const phase = i / samples;
+
+      // Sample waveform
+      const rawOutput = sampleWaveformWorklet(waveform, phase);
+
+      // Calculate fade envelope at this phase
+      let fadeEnvelope: number;
+      if (fade < 0) {
+        // Fade-in: 0 → 1 over fadeDuration
+        fadeEnvelope = fadeDuration > 0 ? Math.min(1, phase / fadeDuration) : 1;
+      } else {
+        // Fade-out: 1 → 0 over fadeDuration
+        fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - phase / fadeDuration) : 0;
+      }
+
+      // Calculate output: waveform × depth × fade
+      const output = rawOutput * localDepthScale * fadeEnvelope;
+
+      if (output > maxOutput) maxOutput = output;
+      if (output < minOutput) minOutput = output;
+    }
+
+    // Convert to actual parameter values
+    const actualMax = Math.min(max, centerValue + maxOutput * maxModulation);
+    const actualMin = Math.max(min, centerValue + minOutput * maxModulation);
+
+    return { fadeActualMax: actualMax, fadeActualMin: actualMin };
+  }, [hasFade, depth, fade, waveform, centerValue, maxModulation, min, max, targetUpperBound, targetLowerBound]);
+
+  // Fade bounds Y positions - FIXED at the actual max/min the output will reach
+  const fadeMaxBoundY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - ((fadeActualMax - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range, fadeActualMax]);
+
+  const fadeMinBoundY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - ((fadeActualMin - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range, fadeActualMin]);
 
   // Animated current value Y position
   const currentValueY = useDerivedValue(() => {
@@ -226,6 +300,27 @@ export function DestinationMeter({
   const currentValueP2 = useDerivedValue(() => {
     'worklet';
     return vec(meterX + meterWidth, currentValueY.value);
+  }, []);
+
+  // Fade bound line points (fixed at depth bounds)
+  const fadeMaxP1 = useDerivedValue(() => {
+    'worklet';
+    return vec(meterX, fadeMaxBoundY.value);
+  }, []);
+
+  const fadeMaxP2 = useDerivedValue(() => {
+    'worklet';
+    return vec(meterX + meterWidth, fadeMaxBoundY.value);
+  }, []);
+
+  const fadeMinP1 = useDerivedValue(() => {
+    'worklet';
+    return vec(meterX, fadeMinBoundY.value);
+  }, []);
+
+  const fadeMinP2 = useDerivedValue(() => {
+    'worklet';
+    return vec(meterX + meterWidth, fadeMinBoundY.value);
   }, []);
 
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
@@ -294,6 +389,28 @@ export function DestinationMeter({
             color={displayMode === 'MIN' ? '#ffffff' : '#ff6600'}
             strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
           />
+        )}
+
+        {/* Fade curve bounds - cyan lines showing fixed min/max of fade-adjusted curve */}
+        {depth !== 0 && hasFade && (
+          <>
+            {/* Fade MAX - fixed at the peak value along the fade curve */}
+            <Line
+              p1={fadeMaxP1}
+              p2={fadeMaxP2}
+              color="#00cccc"
+              strokeWidth={1.5}
+              opacity={0.6}
+            />
+            {/* Fade MIN - fixed at the minimum value along the fade curve */}
+            <Line
+              p1={fadeMinP1}
+              p2={fadeMinP2}
+              color="#00cccc"
+              strokeWidth={1.5}
+              opacity={0.6}
+            />
+          </>
         )}
 
         {/* Animated current value - white when VALUE selected, orange otherwise (fades when editing) */}
