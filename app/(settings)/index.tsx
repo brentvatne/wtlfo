@@ -149,7 +149,7 @@ export default function SettingsScreen() {
             thumbColor="#ffffff"
           />
         </View>
-        <View style={[styles.settingRow, { marginTop: 16 }]}>
+        <View style={[styles.settingRow, { marginTop: 16, marginBottom: 8 }]}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Show fade envelope</Text>
             <Text style={styles.settingDescription}>
@@ -282,7 +282,7 @@ const styles = StyleSheet.create({
     paddingVertical: 10,
     marginHorizontal: -16,
     marginTop: -16,
-    marginBottom: 12,
+    marginBottom: 16,
   },
   sectionHeaderTitle: {
     fontSize: 13,
