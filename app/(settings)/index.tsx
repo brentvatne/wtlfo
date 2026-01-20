@@ -207,7 +207,7 @@ export default function SettingsScreen() {
             formatValue={() => ''}
           />
         </View>
-        <View style={styles.timingSliderContainer}>
+        <View style={[styles.timingSliderContainer, { marginBottom: 0 }]}>
           <View style={styles.timingLabelRow}>
             <Text style={styles.timingLabel}>Edit end fade-in</Text>
             <Text style={styles.timingValue}>{Math.round(editFadeInDuration)}ms</Text>
@@ -254,7 +254,9 @@ const styles = StyleSheet.create({
   section: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
-    padding: 16,
+    paddingHorizontal: 16,
+    paddingTop: 16,
+    paddingBottom: 8,
     marginBottom: 16,
   },
   sectionTitle: {
@@ -265,11 +267,10 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     backgroundColor: '#252525',
     paddingHorizontal: 16,
-    paddingTop: 14,
-    paddingBottom: 12,
+    paddingVertical: 12,
     marginHorizontal: -16,
     marginTop: -16,
-    marginBottom: 16,
+    marginBottom: 12,
     overflow: 'hidden',
   },
   sectionHeader: {
@@ -278,11 +279,10 @@ const styles = StyleSheet.create({
     alignItems: 'center',
     backgroundColor: '#252525',
     paddingHorizontal: 16,
-    paddingTop: 12,
-    paddingBottom: 10,
+    paddingVertical: 10,
     marginHorizontal: -16,
     marginTop: -16,
-    marginBottom: 16,
+    marginBottom: 12,
   },
   sectionHeaderTitle: {
     fontSize: 13,
