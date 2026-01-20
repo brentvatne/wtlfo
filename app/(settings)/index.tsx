@@ -239,13 +239,6 @@ export default function SettingsScreen() {
         </View>
       </View>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Coming Soon</Text>
-        <Text style={{ color: '#888899', fontSize: 15 }}>
-          MIDI settings and more options will be available in future updates.
-        </Text>
-      </View>
-
       {/* Version and Update Info */}
       <View style={styles.versionContainer}>
         <Text style={styles.versionText} selectable>
