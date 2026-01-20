@@ -180,37 +180,46 @@ export default function SettingsScreen() {
             <Text style={styles.resetButtonText}>Reset</Text>
           </Pressable>
         </View>
-        <View style={styles.sliderContainer}>
-          <Text style={styles.sliderLabel}>Open fade-in duration</Text>
+        <View style={styles.timingSliderContainer}>
+          <View style={styles.timingLabelRow}>
+            <Text style={styles.timingLabel}>Open fade-in duration</Text>
+            <Text style={styles.timingValue}>{Math.round(fadeInDuration)}ms</Text>
+          </View>
           <ParameterSlider
             label=""
             min={100}
             max={2000}
             value={fadeInDuration}
             onChange={setFadeInDuration}
-            formatValue={(v) => `${Math.round(v)}ms`}
+            formatValue={() => ''}
           />
         </View>
-        <View style={styles.sliderContainer}>
-          <Text style={styles.sliderLabel}>Edit start fade-out</Text>
+        <View style={styles.timingSliderContainer}>
+          <View style={styles.timingLabelRow}>
+            <Text style={styles.timingLabel}>Edit start fade-out</Text>
+            <Text style={styles.timingValue}>{Math.round(editFadeOutDuration)}ms</Text>
+          </View>
           <ParameterSlider
             label=""
             min={50}
             max={500}
             value={editFadeOutDuration}
             onChange={setEditFadeOutDuration}
-            formatValue={(v) => `${Math.round(v)}ms`}
+            formatValue={() => ''}
           />
         </View>
-        <View style={styles.sliderContainer}>
-          <Text style={styles.sliderLabel}>Edit end fade-in</Text>
+        <View style={styles.timingSliderContainer}>
+          <View style={styles.timingLabelRow}>
+            <Text style={styles.timingLabel}>Edit end fade-in</Text>
+            <Text style={styles.timingValue}>{Math.round(editFadeInDuration)}ms</Text>
+          </View>
           <ParameterSlider
             label=""
             min={100}
             max={1000}
             value={editFadeInDuration}
             onChange={setEditFadeInDuration}
-            formatValue={(v) => `${Math.round(v)}ms`}
+            formatValue={() => ''}
           />
         </View>
       </View>
@@ -266,7 +275,7 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 16,
+    marginBottom: 20,
   },
   resetButton: {
     paddingHorizontal: 12,
@@ -278,6 +287,26 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 12,
     fontWeight: '500',
+  },
+  timingSliderContainer: {
+    marginBottom: 20,
+  },
+  timingLabelRow: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    marginBottom: 8,
+  },
+  timingLabel: {
+    color: '#ffffff',
+    fontSize: 15,
+    fontWeight: '500',
+  },
+  timingValue: {
+    color: '#ff6600',
+    fontSize: 15,
+    fontWeight: '600',
+    fontVariant: ['tabular-nums'],
   },
   settingRow: {
     flexDirection: 'row',
