@@ -167,7 +167,7 @@ export default function SettingsScreen() {
 
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionTitle}>Animation Timing</Text>
+          <Text style={styles.sectionHeaderTitle}>Animation Timing</Text>
           <Pressable
             onPress={() => {
               setFadeInDuration(800);
@@ -258,15 +258,14 @@ const styles = StyleSheet.create({
     marginBottom: 16,
   },
   sectionTitle: {
-    fontSize: 12,
+    fontSize: 13,
     fontWeight: '700',
     color: '#ffffff',
     textTransform: 'uppercase',
     letterSpacing: 1,
     backgroundColor: '#252525',
     paddingHorizontal: 12,
-    paddingVertical: 8,
-    borderRadius: 6,
+    paddingVertical: 10,
     marginHorizontal: -16,
     marginTop: -16,
     marginBottom: 16,
@@ -276,7 +275,19 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     justifyContent: 'space-between',
     alignItems: 'center',
-    marginBottom: 20,
+    backgroundColor: '#252525',
+    paddingHorizontal: 12,
+    paddingVertical: 10,
+    marginHorizontal: -16,
+    marginTop: -16,
+    marginBottom: 16,
+  },
+  sectionHeaderTitle: {
+    fontSize: 13,
+    fontWeight: '700',
+    color: '#ffffff',
+    textTransform: 'uppercase',
+    letterSpacing: 1,
   },
   resetButton: {
     paddingHorizontal: 12,
