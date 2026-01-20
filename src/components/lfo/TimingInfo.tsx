@@ -12,8 +12,10 @@ import Animated, {
 import type { TimingInfoProps } from './types';
 
 export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: TimingInfoProps) {
-  const [isPulsing, setIsPulsing] = useState(false);
+  const [isBpmPulsing, setIsBpmPulsing] = useState(false);
+  const [isCyclePulsing, setIsCyclePulsing] = useState(false);
   const bpmOpacity = useSharedValue(1);
+  const cycleOpacity = useSharedValue(1);
 
   // Format steps - show decimal only if not a whole number
   const formatSteps = (s: number): string => {
@@ -23,12 +25,17 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
 
   // Handle BPM tap to toggle pulsing
   const handleBpmPress = useCallback(() => {
-    setIsPulsing(prev => !prev);
+    setIsBpmPulsing(prev => !prev);
   }, []);
 
-  // Start/stop pulsing animation based on state and BPM
+  // Handle cycle tap to toggle pulsing
+  const handleCyclePress = useCallback(() => {
+    setIsCyclePulsing(prev => !prev);
+  }, []);
+
+  // Start/stop BPM pulsing animation
   useEffect(() => {
-    if (isPulsing && bpm) {
+    if (isBpmPulsing && bpm) {
       // Calculate timing for one beat (ms per beat)
       const beatDuration = 60000 / bpm;
       // Fade down takes half a beat, fade up takes half a beat
@@ -47,11 +54,37 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
       cancelAnimation(bpmOpacity);
       bpmOpacity.value = withTiming(1, { duration: 150 });
     }
-  }, [isPulsing, bpm, bpmOpacity]);
+  }, [isBpmPulsing, bpm, bpmOpacity]);
+
+  // Start/stop cycle pulsing animation
+  useEffect(() => {
+    if (isCyclePulsing && cycleTimeMs) {
+      // Fade out and back in over the full cycle duration
+      const halfCycle = cycleTimeMs / 2;
+
+      cycleOpacity.value = withRepeat(
+        withSequence(
+          withTiming(0.5, { duration: halfCycle, easing: Easing.inOut(Easing.ease) }),
+          withTiming(1, { duration: halfCycle, easing: Easing.inOut(Easing.ease) })
+        ),
+        -1, // Repeat forever
+        false // Don't reverse
+      );
+    } else {
+      // Stop pulsing and reset to full opacity
+      cancelAnimation(cycleOpacity);
+      cycleOpacity.value = withTiming(1, { duration: 150 });
+    }
+  }, [isCyclePulsing, cycleTimeMs, cycleOpacity]);
 
   // Animated style for BPM text
   const bpmAnimatedStyle = useAnimatedStyle(() => ({
     opacity: bpmOpacity.value,
+  }));
+
+  // Animated style for cycle text
+  const cycleAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: cycleOpacity.value,
   }));
 
   return (
@@ -68,14 +101,16 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme }: Timing
       )}
 
       {cycleTimeMs !== undefined && (
-        <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.text }]}>
+        <Pressable onPress={handleCyclePress} style={styles.item}>
+          <Animated.Text style={[styles.value, { color: theme.text }, cycleAnimatedStyle]}>
             {cycleTimeMs >= 1000
               ? `${(cycleTimeMs / 1000).toFixed(2)}s`
               : `${cycleTimeMs.toFixed(0)}ms`}
-          </Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>CYCLE</Text>
-        </View>
+          </Animated.Text>
+          <Animated.Text style={[styles.label, { color: theme.textSecondary }, cycleAnimatedStyle]}>
+            CYCLE
+          </Animated.Text>
+        </Pressable>
       )}
 
       {noteValue && (
