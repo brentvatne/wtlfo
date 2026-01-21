@@ -30,6 +30,13 @@ export default function SettingsLayout() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="developer"
+        options={{
+          title: 'Developer',
+          presentation: 'modal',
+        }}
+      />
     </Stack>
   );
 }
