@@ -17,7 +17,7 @@ export type MidiControllerModuleEvents = {
   onDevicesChanged: () => void;
   onConnect: () => void;
   onDisconnect: () => void;
-  onCcChange: (event: { channel: number; cc: number; value: number }) => void;
+  onCcChange: (event: { channel: number; cc: number; value: number; timestamp: number }) => void;
 };
 
 declare class MidiControllerModuleClass extends NativeModule<MidiControllerModuleEvents> {
@@ -29,6 +29,7 @@ declare class MidiControllerModuleClass extends NativeModule<MidiControllerModul
   sendCC(channel: number, cc: number, value: number): void;
   sendNoteOn(channel: number, note: number, velocity: number): void;
   sendNoteOff(channel: number, note: number): void;
+  getCurrentTimestamp(): number;
 }
 
 export default requireNativeModule<MidiControllerModuleClass>('MidiController');

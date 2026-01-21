@@ -23,7 +23,7 @@ class MidiManager {
     var onBpmUpdate: ((Double) -> Void)?
     var onDevicesChanged: (() -> Void)?
     var onDisconnect: (() -> Void)?
-    var onCcReceived: ((UInt8, UInt8, UInt8) -> Void)?  // (channel, cc, value)
+    var onCcReceived: ((UInt8, UInt8, UInt8, Double) -> Void)?  // (channel, cc, value, timestampMs)
 
     // BPM calculation state
     private var lastClockTime: CFTimeInterval = 0
@@ -139,7 +139,7 @@ class MidiManager {
     private func handleMidiEvents(_ eventList: UnsafePointer<MIDIEventList>) {
         var transportChanged: Bool? = nil
         var bpmChanged: Double? = nil
-        var ccEvents: [(UInt8, UInt8, UInt8)] = []  // (channel, cc, value)
+        var ccEvents: [(UInt8, UInt8, UInt8, Double)] = []  // (channel, cc, value, timestampMs)
 
         let list = eventList.pointee
         withUnsafePointer(to: list.packet) { firstPacket in
@@ -193,7 +193,8 @@ class MidiManager {
                             let channel = status & 0x0F
                             let ccNumber = data1
                             let ccValue = data2
-                            ccEvents.append((channel, ccNumber, ccValue))
+                            let timestamp = CACurrentMediaTime() * 1000.0  // Convert to milliseconds
+                            ccEvents.append((channel, ccNumber, ccValue, timestamp))
                         }
                     }
                 }
@@ -213,9 +214,9 @@ class MidiManager {
                 self?.onBpmUpdate?(newBpm)
             }
         }
-        for (channel, cc, value) in ccEvents {
+        for (channel, cc, value, timestamp) in ccEvents {
             DispatchQueue.main.async { [weak self] in
-                self?.onCcReceived?(channel, cc, value)
+                self?.onCcReceived?(channel, cc, value, timestamp)
             }
         }
     }

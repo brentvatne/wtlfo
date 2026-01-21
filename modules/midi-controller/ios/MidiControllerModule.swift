@@ -32,11 +32,12 @@ public class MidiControllerModule: Module {
             self.midiManager.onDisconnect = { [weak self] in
                 self?.sendEvent("onDisconnect", [:])
             }
-            self.midiManager.onCcReceived = { [weak self] channel, cc, value in
+            self.midiManager.onCcReceived = { [weak self] channel, cc, value, timestamp in
                 self?.sendEvent("onCcChange", [
                     "channel": channel,
                     "cc": cc,
-                    "value": value
+                    "value": value,
+                    "timestamp": timestamp
                 ])
             }
         }
@@ -99,6 +100,10 @@ public class MidiControllerModule: Module {
                 channel: UInt8(channel & 0x0F),
                 note: UInt8(note & 0x7F)
             )
+        }
+
+        Function("getCurrentTimestamp") { () -> Double in
+            return CACurrentMediaTime() * 1000.0  // Milliseconds since boot
         }
     }
 }
