@@ -10,8 +10,10 @@ import { useMidi } from '@/src/context/midi-context';
 const ENGINE_DEBOUNCE_MS = 100;
 
 const STORAGE_KEY = 'activePreset';
+const CONFIG_STORAGE_KEY = 'currentConfig';
 const BPM_STORAGE_KEY = 'bpm';
 const HIDE_VALUES_KEY = 'hideValuesWhileEditing';
+const SHOW_FILLS_KEY = 'showFillsWhenEditing';
 const FADE_IN_KEY = 'fadeInOnOpen';
 const RESET_LFO_KEY = 'resetLFOOnChange';
 const FADE_IN_DURATION_KEY = 'fadeInDuration';
@@ -37,6 +39,28 @@ function getInitialPreset(): number {
     console.warn('Failed to load saved preset');
   }
   return 0;
+}
+
+// Load saved config or fall back to preset defaults
+function getInitialConfig(presetIndex: number): LFOPresetConfig {
+  try {
+    const saved = Storage.getItemSync(CONFIG_STORAGE_KEY);
+    if (saved !== null) {
+      const parsed = JSON.parse(saved) as LFOPresetConfig;
+      // Validate the parsed config has all required fields
+      if (
+        typeof parsed.waveform === 'string' &&
+        typeof parsed.speed === 'number' &&
+        typeof parsed.depth === 'number' &&
+        typeof parsed.fade === 'number'
+      ) {
+        return parsed;
+      }
+    }
+  } catch {
+    console.warn('Failed to load saved config');
+  }
+  return { ...PRESETS[presetIndex].config };
 }
 
 // Load initial BPM synchronously
@@ -66,6 +90,19 @@ function getInitialHideValues(): boolean {
     console.warn('Failed to load hide values setting');
   }
   return true; // Default to hiding values while editing
+}
+
+// Load initial show fills setting synchronously
+function getInitialShowFills(): boolean {
+  try {
+    const saved = Storage.getItemSync(SHOW_FILLS_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load show fills setting');
+  }
+  return true; // Default to showing fills when editing
 }
 
 // Load initial fade-in setting synchronously
@@ -205,6 +242,8 @@ interface PresetContextValue {
   // Settings
   hideValuesWhileEditing: boolean;
   setHideValuesWhileEditing: (hide: boolean) => void;
+  showFillsWhenEditing: boolean;
+  setShowFillsWhenEditing: (show: boolean) => void;
   fadeInOnOpen: boolean;
   setFadeInOnOpen: (fade: boolean) => void;
   resetLFOOnChange: boolean;
@@ -227,16 +266,30 @@ const PresetContext = createContext<PresetContextValue | null>(null);
 
 // Compute initial values ONCE, outside the component, to ensure consistency
 const INITIAL_PRESET_INDEX = getInitialPreset();
-const INITIAL_CONFIG = { ...PRESETS[INITIAL_PRESET_INDEX].config };
+const INITIAL_CONFIG = getInitialConfig(INITIAL_PRESET_INDEX);
 const INITIAL_BPM = getInitialBPM();
 const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
 const INITIAL_HIDE_VALUES = getInitialHideValues();
+const INITIAL_SHOW_FILLS = getInitialShowFills();
 const INITIAL_FADE_IN = getInitialFadeIn();
 const INITIAL_RESET_LFO = getInitialResetLFO();
 const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
 const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
+
+// Check if auto-connect is enabled - if so, start LFO paused
+// (waiting for MIDI transport start or user tap)
+const AUTO_CONNECT_KEY = 'midi_auto_connect';
+function getInitialPaused(): boolean {
+  try {
+    const autoConnect = Storage.getItemSync(AUTO_CONNECT_KEY);
+    return autoConnect === 'true';
+  } catch {
+    return false;
+  }
+}
+const INITIAL_PAUSED = getInitialPaused();
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   // MIDI sync state
@@ -256,8 +309,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Effective BPM: use external MIDI clock when enabled and available
   const effectiveBpm = receiveClock && externalBpm > 0 ? Math.round(externalBpm) : bpm;
   const [isEditing, setIsEditing] = useState(false);
-  const [isPaused, setIsPaused] = useState(false);
+  const [isPaused, setIsPaused] = useState(INITIAL_PAUSED);
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
+  const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
   const [resetLFOOnChange, setResetLFOOnChangeState] = useState(INITIAL_RESET_LFO);
   const [fadeInDuration, setFadeInDurationState] = useState(INITIAL_FADE_IN_DURATION);
@@ -276,9 +330,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Synchronously initialize LFO on first render
   if (lfoRef.current === null) {
     lfoRef.current = new LFO(INITIAL_CONFIG, INITIAL_BPM);
-    // Auto-trigger for modes that need it
-    if (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF') {
+    // Auto-trigger for modes that need it, but only if not starting paused (auto-connect enabled)
+    if (!INITIAL_PAUSED && (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF')) {
       lfoRef.current.trigger();
+    }
+    // If starting paused (auto-connect enabled), stop the LFO engine
+    if (INITIAL_PAUSED) {
+      lfoRef.current.stop();
     }
   }
   const animationRef = useRef<number>(0);
@@ -332,11 +390,54 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [currentConfig]);
 
+  // Persist config to storage during idle time
+  // Uses requestIdleCallback to avoid blocking UI during animations/interactions
+  const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  const persistIdleRef = useRef<number | null>(null);
+  const isFirstPersist = useRef(true);
+  useEffect(() => {
+    // Skip on first render - config is already loaded from storage
+    if (isFirstPersist.current) {
+      isFirstPersist.current = false;
+      return;
+    }
+
+    // Clear any pending persist operations
+    if (persistTimeoutRef.current) {
+      clearTimeout(persistTimeoutRef.current);
+    }
+    if (persistIdleRef.current !== null) {
+      cancelIdleCallback(persistIdleRef.current);
+    }
+
+    // Debounce persistence (500ms) then schedule for idle time
+    persistTimeoutRef.current = setTimeout(() => {
+      persistIdleRef.current = requestIdleCallback(() => {
+        try {
+          Storage.setItemSync(CONFIG_STORAGE_KEY, JSON.stringify(currentConfig));
+        } catch {
+          console.warn('Failed to persist config');
+        }
+      });
+    }, 500);
+
+    return () => {
+      if (persistTimeoutRef.current) {
+        clearTimeout(persistTimeoutRef.current);
+      }
+      if (persistIdleRef.current !== null) {
+        cancelIdleCallback(persistIdleRef.current);
+      }
+    };
+  }, [currentConfig]);
+
   const setActivePreset = useCallback((index: number) => {
     setActivePresetState(index);
     // Persist to storage synchronously
     try {
       Storage.setItemSync(STORAGE_KEY, String(index));
+      // Clear saved config so preset defaults are used on next load
+      Storage.removeItem(CONFIG_STORAGE_KEY);
     } catch {
       console.warn('Failed to save preset');
     }
@@ -358,6 +459,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(HIDE_VALUES_KEY, String(hide));
     } catch {
       console.warn('Failed to save hide values setting');
+    }
+  }, []);
+
+  const setShowFillsWhenEditing = useCallback((show: boolean) => {
+    setShowFillsWhenEditingState(show);
+    try {
+      Storage.setItemSync(SHOW_FILLS_KEY, String(show));
+    } catch {
+      console.warn('Failed to save show fills setting');
     }
   }, []);
 
@@ -579,8 +689,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, [debouncedConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange]);
 
   // Animation loop - runs at provider level, independent of tabs
+  // Only starts if not initially paused (auto-connect enabled = start paused)
   useEffect(() => {
     hasMainLoopStarted.current = true;
+
+    // Don't start animation loop if we're starting paused (waiting for MIDI transport or user tap)
+    if (INITIAL_PAUSED) {
+      return;
+    }
+
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
         const state = lfoRef.current.update(timestamp);
@@ -605,9 +722,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         (nextAppState === 'inactive' || nextAppState === 'background')
       ) {
         // App is going to background
-        // Remember if animation was running (and not user-paused)
-        // Use ref to get current isPaused value (avoids stale closure)
-        wasRunningBeforeBackgroundRef.current = !isPausedRef.current && (lfoRef.current?.isRunning() ?? false);
+        // Remember if animation was ACTIVELY running (not paused)
+        // Check both: isPaused state AND whether animation loop is actually running
+        // This ensures we only auto-resume if LFO was truly active
+        const animationWasRunning = animationRef.current !== 0;
+        const lfoWasRunning = lfoRef.current?.isRunning() ?? false;
+        wasRunningBeforeBackgroundRef.current = !isPausedRef.current && animationWasRunning && lfoWasRunning;
 
         // Stop the animation loop
         if (animationRef.current) {
@@ -619,8 +739,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         nextAppState === 'active'
       ) {
         // App is coming back to foreground
-        // Only resume if we were running before going to background
-        // Don't resume if user had manually paused
+        // Only resume if:
+        // 1. We were actively running before going to background
+        // 2. We're still not in a paused state (in case state changed while backgrounded)
         if (wasRunningBeforeBackgroundRef.current && !isPausedRef.current) {
           // Restart the animation loop
           const animate = (timestamp: number) => {
@@ -645,19 +766,34 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.remove();
     };
-  }, [lfoPhase, lfoOutput]);
+  }, [lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
   // MIDI Transport sync - react to external transport start/stop
   const prevTransportRunningRef = useRef<boolean | null>(null);
+  const prevMidiConnectedRef = useRef<boolean>(false);
   useEffect(() => {
     // Skip if transport receive is disabled or not connected
     if (!receiveTransport || !midiConnected) {
       prevTransportRunningRef.current = null;
+      prevMidiConnectedRef.current = midiConnected;
       return;
     }
 
-    // Skip if this is the first update (no previous value to compare)
+    // Handle initial connection - always start paused, wait for transport start or user tap
+    const justConnected = midiConnected && !prevMidiConnectedRef.current;
+    prevMidiConnectedRef.current = midiConnected;
+
+    if (justConnected) {
+      // When MIDI connects, pause the LFO and wait for transport start or user interaction
+      console.log('[MIDI] Connected - pausing LFO until transport start or user tap');
+      lfoRef.current?.stop();
+      setIsPaused(true);
+      prevTransportRunningRef.current = transportRunning;
+      return;
+    }
+
     if (prevTransportRunningRef.current === null) {
+      // First time seeing transport state - just track it, don't change pause state
       prevTransportRunningRef.current = transportRunning;
       return;
     }
@@ -665,8 +801,18 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Detect transport state changes
     if (transportRunning && !prevTransportRunningRef.current) {
       // Transport started (Start or Continue message received)
-      // Trigger the LFO to reset to startPhase and start running
+      // Trigger the LFO to reset to startPhase and start running IMMEDIATELY
       lfoRef.current?.trigger();
+      lfoRef.current?.start();
+
+      // Immediately update shared values so visualization syncs without waiting for next frame
+      if (lfoRef.current) {
+        const initialState = lfoRef.current.update(performance.now());
+        lfoPhase.value = initialState.phase;
+        lfoOutput.value = initialState.output;
+        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+      }
+
       setIsPaused(false);
 
       // Restart animation loop if it was stopped
@@ -729,6 +875,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Settings
     hideValuesWhileEditing,
     setHideValuesWhileEditing,
+    showFillsWhenEditing,
+    setShowFillsWhenEditing,
     fadeInOnOpen,
     setFadeInOnOpen,
     resetLFOOnChange,
