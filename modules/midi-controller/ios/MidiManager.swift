@@ -253,16 +253,16 @@ class MidiManager {
                 }
                 let ticksPerMinute = 60000.0 / medianInterval
                 let rawBpm = ticksPerMinute / 24.0
-                // Floor to avoid jitter-induced rounding up (120.7 → 120, not 121)
-                bpm = max(20, min(300, floor(rawBpm)))
+                // Round to nearest integer BPM
+                bpm = max(20, min(300, rawBpm.rounded()))
             }
         }
         lastClockTime = now
     }
 
     private func checkBpmChange() -> Double? {
-        // Only report if BPM changed by > 0.5
-        if abs(bpm - lastReportedBpm) > 0.5 {
+        // Hysteresis: only report if BPM changed by > 1.0 to avoid jitter-induced flicker
+        if abs(bpm - lastReportedBpm) > 1.0 {
             lastReportedBpm = bpm
             return bpm
         }

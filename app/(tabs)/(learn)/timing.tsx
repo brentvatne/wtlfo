@@ -156,6 +156,13 @@ export default function TimingScreen() {
         </Text>
       </ExpandableSection>
 
+      <View style={styles.verifiedBox}>
+        <Text style={styles.verifiedTitle}>✓ Hardware Verified</Text>
+        <Text style={styles.verifiedText}>
+          The timing formula above has been verified against real Digitakt II hardware via MIDI CC capture. Engine and hardware produce matching cycle times and direction changes.
+        </Text>
+      </View>
+
       <View style={styles.tipBox}>
         <Text style={styles.tipTitle}>Quick Tip</Text>
         <Text style={styles.tipText}>
@@ -291,6 +298,23 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 12,
     marginTop: 6,
+  },
+  verifiedBox: {
+    backgroundColor: '#1a2a1a',
+    borderRadius: 10,
+    padding: 14,
+    marginBottom: 12,
+  },
+  verifiedTitle: {
+    color: '#66cc66',
+    fontSize: 14,
+    fontWeight: '600',
+    marginBottom: 6,
+  },
+  verifiedText: {
+    color: '#aaccaa',
+    fontSize: 14,
+    lineHeight: 20,
   },
   tipBox: {
     backgroundColor: '#1a2a3a',

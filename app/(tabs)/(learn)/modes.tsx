@@ -127,6 +127,40 @@ export default function ModesScreen() {
         ))}
       </View>
 
+      <ExpandableSection title="Hardware Verified Behavior">
+        <Text style={styles.verifiedText}>
+          Verified against Digitakt II via MIDI CC capture:
+        </Text>
+        <View style={styles.verifiedList}>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>TRG and FRE have identical timing</Text> — same cycle duration, only phase reset differs
+          </Text>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>TRG resets to startPhase on trigger</Text> — SPH=0 starts at center going UP, SPH=64 starts at center going DOWN
+          </Text>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>FRE ignores all triggers</Text> — LFO continues from current phase
+          </Text>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>All modes output full bipolar range</Text> — 0-127 CC (for bipolar waveforms)
+          </Text>
+        </View>
+        <Text style={[styles.verifiedText, { marginTop: 12 }]}>
+          MIDI Transport behavior:
+        </Text>
+        <View style={styles.verifiedList}>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>Start (0xFA)</Text> — Reset LFO to beginning and play
+          </Text>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>Continue (0xFB)</Text> — Resume from current position
+          </Text>
+          <Text style={styles.verifiedItem}>
+            • <Text style={styles.verifiedHighlight}>Stop (0xFC)</Text> — Pause, keep current position
+          </Text>
+        </View>
+      </ExpandableSection>
+
       <ExpandableSection title="Mode Comparison Table">
         <View style={styles.comparisonTable}>
           <View style={styles.tableHeader}>
@@ -320,5 +354,23 @@ const styles = StyleSheet.create({
   relatedLinkText: {
     color: '#ff6600',
     fontSize: 14,
+  },
+  verifiedText: {
+    color: '#88cc88',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  verifiedList: {
+    marginTop: 8,
+    gap: 6,
+  },
+  verifiedItem: {
+    color: '#aaccaa',
+    fontSize: 13,
+    lineHeight: 19,
+  },
+  verifiedHighlight: {
+    color: '#ffffff',
+    fontWeight: '600',
   },
 });
