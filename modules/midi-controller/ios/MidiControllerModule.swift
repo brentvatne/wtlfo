@@ -8,7 +8,7 @@ public class MidiControllerModule: Module {
         Name("MidiController")
 
         // Events - no clock ticks (too frequent), only state changes
-        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onDisconnect")
+        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onDisconnect", "onCcChange")
 
         OnStartObserving {
             guard !self.isSetup else { return }
@@ -32,6 +32,13 @@ public class MidiControllerModule: Module {
             self.midiManager.onDisconnect = { [weak self] in
                 self?.sendEvent("onDisconnect", [:])
             }
+            self.midiManager.onCcReceived = { [weak self] channel, cc, value in
+                self?.sendEvent("onCcChange", [
+                    "channel": channel,
+                    "cc": cc,
+                    "value": value
+                ])
+            }
         }
 
         OnDestroy {
@@ -39,6 +46,7 @@ public class MidiControllerModule: Module {
             self.midiManager.onBpmUpdate = nil
             self.midiManager.onDevicesChanged = nil
             self.midiManager.onDisconnect = nil
+            self.midiManager.onCcReceived = nil
             self.midiManager.disconnect()
         }
 
@@ -64,6 +72,29 @@ public class MidiControllerModule: Module {
                 "clockTick": self.midiManager.clockTickCount,
                 "bpm": self.midiManager.bpm
             ]
+        }
+
+        Function("sendCC") { (channel: Int, cc: Int, value: Int) in
+            self.midiManager.sendCC(
+                channel: UInt8(channel & 0x0F),
+                cc: UInt8(cc & 0x7F),
+                value: UInt8(value & 0x7F)
+            )
+        }
+
+        Function("sendNoteOn") { (channel: Int, note: Int, velocity: Int) in
+            self.midiManager.sendNoteOn(
+                channel: UInt8(channel & 0x0F),
+                note: UInt8(note & 0x7F),
+                velocity: UInt8(velocity & 0x7F)
+            )
+        }
+
+        Function("sendNoteOff") { (channel: Int, note: Int) in
+            self.midiManager.sendNoteOff(
+                channel: UInt8(channel & 0x0F),
+                note: UInt8(note & 0x7F)
+            )
         }
     }
 }

@@ -10,13 +10,16 @@ enum MidiError: Error {
 class MidiManager {
     private var midiClient: MIDIClientRef = 0
     private var inputPort: MIDIPortRef = 0
+    private var outputPort: MIDIPortRef = 0
     private(set) var connectedSource: MIDIEndpointRef = 0
+    private(set) var connectedDestination: MIDIEndpointRef = 0
 
     // Thread-safe state access
     private let lock = NSLock()
     private var _isTransportRunning = false
     private var _clockTickCount: UInt64 = 0
     private var _bpm: Double = 0
+    private var _ccValues: [UInt8: UInt8] = [:]  // [ccNumber: value]
 
     var isTransportRunning: Bool {
         lock.lock()
@@ -41,6 +44,7 @@ class MidiManager {
     var onBpmUpdate: ((Double) -> Void)?
     var onDevicesChanged: (() -> Void)?
     var onDisconnect: (() -> Void)?
+    var onCcReceived: ((UInt8, UInt8, UInt8) -> Void)?  // (channel, cc, value)
 
     // BPM calculation state
     private var lastClockTime: CFTimeInterval = 0
@@ -63,6 +67,11 @@ class MidiManager {
         ) { [weak self] eventList, _ in
             self?.handleMidiEvents(eventList)
         }
+        guard status == noErr else {
+            throw MidiError.portCreationFailed(status)
+        }
+
+        status = MIDIOutputPortCreate(midiClient, "Output" as CFString, &outputPort)
         guard status == noErr else {
             throw MidiError.portCreationFailed(status)
         }
@@ -92,7 +101,9 @@ class MidiManager {
     }
 
     func connect(toDeviceNamed deviceName: String) -> Bool {
+        // Connect to source (for receiving MIDI)
         let sourceCount = MIDIGetNumberOfSources()
+        var sourceConnected = false
 
         for i in 0..<sourceCount {
             let source = MIDIGetSource(i)
@@ -109,11 +120,27 @@ class MidiManager {
                 let status = MIDIPortConnectSource(inputPort, source, nil)
                 if status == noErr {
                     connectedSource = source
-                    return true
+                    sourceConnected = true
+                    break
                 }
             }
         }
-        return false
+
+        // Connect to destination (for sending MIDI)
+        let destCount = MIDIGetNumberOfDestinations()
+        for i in 0..<destCount {
+            let dest = MIDIGetDestination(i)
+            var name: Unmanaged<CFString>?
+            MIDIObjectGetStringProperty(dest, kMIDIPropertyDisplayName, &name)
+
+            if let destName = name?.takeUnretainedValue() as String?,
+               destName == deviceName {
+                connectedDestination = dest
+                break
+            }
+        }
+
+        return sourceConnected
     }
 
     func disconnect() {
@@ -121,11 +148,13 @@ class MidiManager {
             MIDIPortDisconnectSource(inputPort, connectedSource)
             connectedSource = 0
         }
+        connectedDestination = 0
 
         lock.lock()
         _isTransportRunning = false
         _clockTickCount = 0
         _bpm = 0
+        _ccValues.removeAll()
         clockIntervals.removeAll()
         lastClockTime = 0
         lastReportedBpm = 0
@@ -135,6 +164,7 @@ class MidiManager {
     private func handleMidiEvents(_ eventList: UnsafePointer<MIDIEventList>) {
         var transportChanged: Bool? = nil
         var bpmChanged: Double? = nil
+        var ccEvents: [(UInt8, UInt8, UInt8)] = []  // (channel, cc, value)
 
         let list = eventList.pointee
         withUnsafePointer(to: list.packet) { firstPacket in
@@ -178,6 +208,26 @@ class MidiManager {
                         }
                         lock.unlock()
                     }
+
+                    // MIDI 1.0 Channel Voice Messages (type 0x2 in UMP)
+                    if messageType == 0x2 {
+                        let status = UInt8((word >> 16) & 0xFF)
+                        let data1 = UInt8((word >> 8) & 0x7F)
+                        let data2 = UInt8(word & 0x7F)
+
+                        // Control Change: status 0xB0-0xBF
+                        if status >= 0xB0 && status <= 0xBF {
+                            let channel = status & 0x0F
+                            let ccNumber = data1
+                            let ccValue = data2
+
+                            lock.lock()
+                            _ccValues[ccNumber] = ccValue
+                            lock.unlock()
+
+                            ccEvents.append((channel, ccNumber, ccValue))
+                        }
+                    }
                 }
 
                 packetPtr = MIDIEventPacketNext(packetPtr)
@@ -193,6 +243,11 @@ class MidiManager {
         if let newBpm = bpmChanged {
             DispatchQueue.main.async { [weak self] in
                 self?.onBpmUpdate?(newBpm)
+            }
+        }
+        for (channel, cc, value) in ccEvents {
+            DispatchQueue.main.async { [weak self] in
+                self?.onCcReceived?(channel, cc, value)
             }
         }
     }
@@ -237,6 +292,45 @@ class MidiManager {
         return nil
     }
 
+    func sendCC(channel: UInt8, cc: UInt8, value: UInt8) {
+        guard connectedDestination != 0 else { return }
+
+        // Build MIDI 1.0 Control Change message
+        let status: UInt8 = 0xB0 | (channel & 0x0F)
+
+        // Create a simple MIDI packet list (legacy API works with output ports)
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        let midiData: [UInt8] = [status, cc & 0x7F, value & 0x7F]
+        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+
+        MIDISend(outputPort, connectedDestination, &packetList)
+    }
+
+    func sendNoteOn(channel: UInt8, note: UInt8, velocity: UInt8) {
+        guard connectedDestination != 0 else { return }
+
+        let status: UInt8 = 0x90 | (channel & 0x0F)
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        let midiData: [UInt8] = [status, note & 0x7F, velocity & 0x7F]
+        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+
+        MIDISend(outputPort, connectedDestination, &packetList)
+    }
+
+    func sendNoteOff(channel: UInt8, note: UInt8) {
+        guard connectedDestination != 0 else { return }
+
+        let status: UInt8 = 0x80 | (channel & 0x0F)
+        var packetList = MIDIPacketList()
+        var packet = MIDIPacketListInit(&packetList)
+        let midiData: [UInt8] = [status, note & 0x7F, 0]
+        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+
+        MIDISend(outputPort, connectedDestination, &packetList)
+    }
+
     private func handleMidiNotification(_ notification: UnsafePointer<MIDINotification>) {
         switch notification.pointee.messageID {
         case .msgObjectRemoved:
@@ -263,6 +357,7 @@ class MidiManager {
     deinit {
         disconnect()
         if inputPort != 0 { MIDIPortDispose(inputPort) }
+        if outputPort != 0 { MIDIPortDispose(outputPort) }
         if midiClient != 0 { MIDIClientDispose(midiClient) }
     }
 }

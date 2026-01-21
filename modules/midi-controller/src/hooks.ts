@@ -57,7 +57,17 @@ export function useTransportState(): TransportState & { connected: boolean } {
 
 export async function connectToDevice(deviceName: string): Promise<boolean> {
   try {
-    return await MidiControllerModule.connect(deviceName);
+    const success = await MidiControllerModule.connect(deviceName);
+    return success;
+  } catch {
+    return false;
+  }
+}
+
+// Re-check connection status (call after connect to update hooks)
+export function checkConnectionStatus(): boolean {
+  try {
+    return MidiControllerModule.isConnected();
   } catch {
     return false;
   }
@@ -77,4 +87,38 @@ export function isDeviceConnected(): boolean {
   } catch {
     return false;
   }
+}
+
+// CC sending helpers
+export function sendCC(channel: number, cc: number, value: number): void {
+  try {
+    MidiControllerModule.sendCC(channel, cc, value);
+  } catch {
+    // Ignore errors (module not available)
+  }
+}
+
+export function sendNoteOn(channel: number, note: number, velocity: number): void {
+  try {
+    MidiControllerModule.sendNoteOn(channel, note, velocity);
+  } catch {
+    // Ignore errors
+  }
+}
+
+export function sendNoteOff(channel: number, note: number): void {
+  try {
+    MidiControllerModule.sendNoteOff(channel, note);
+  } catch {
+    // Ignore errors
+  }
+}
+
+// Hook for listening to CC changes
+export function useCcListener(
+  onCcChange: (channel: number, cc: number, value: number) => void
+): void {
+  useEventListener(MidiControllerModule, 'onCcChange', (event) => {
+    onCcChange(event.channel, event.cc, event.value);
+  });
 }
