@@ -40,6 +40,18 @@
 **Decision**: Implement MIDI as a local Expo module in `modules/midi-controller/`
 **Rationale**: iOS-only CoreMIDI integration. Receives transport (Start/Stop/Continue) and clock messages. Exposes state to JS via events and polling.
 
+### MIDI Transport Message Handling
+**Decision**: Differentiate between MIDI Start (0xFA), Continue (0xFB), and Stop (0xFC)
+**Rationale**: Matches Digitakt II behavior:
+- **MIDI Start (0xFA)**: Reset LFO to beginning (startPhase) and play
+- **MIDI Continue (0xFB)**: Resume from current position (no phase reset)
+- **MIDI Stop (0xFC)**: Pause playback (keep current position)
+
+**Implementation**:
+- Native module sends `message: "start" | "continue" | "stop"` in `onTransportChange` event
+- `preset-context.tsx` calls `lfoRef.current?.reset()` only for Start, not Continue
+- `resetTiming()` is called for both to avoid timing jumps after pause
+
 ### Dark Theme UI
 **Decision**: Use dark theme throughout (`userInterfaceStyle: "dark"`, `backgroundColor: "#000000"`)
 **Rationale**: Matches Elektron hardware aesthetic, reduces eye strain for music production use.

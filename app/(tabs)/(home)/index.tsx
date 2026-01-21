@@ -232,10 +232,7 @@ export default function HomeScreen() {
 
         {/* Destination Meter - same height as canvas */}
         <Pressable
-          style={[
-            styles.meterContainer,
-            !hasDestination && styles.meterDimmed,
-          ]}
+          style={styles.meterContainer}
           onPress={handleTap}
           accessibilityLabel={hasDestination
             ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
@@ -327,9 +324,6 @@ const styles = StyleSheet.create({
   meterContainer: {
     justifyContent: 'center',
     backgroundColor: '#000000',
-  },
-  meterDimmed: {
-    opacity: 0.3,
   },
   destinationSection: {
     paddingHorizontal: 20,

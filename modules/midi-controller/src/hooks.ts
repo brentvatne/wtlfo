@@ -1,6 +1,6 @@
 import { useEffect, useState, useCallback } from 'react';
 import { useEventListener } from 'expo';
-import MidiControllerModule, { MidiDevice, TransportState } from './MidiControllerModule';
+import MidiControllerModule, { MidiDevice, TransportState, TransportMessage } from './MidiControllerModule';
 
 export function useMidiDevices(): { devices: MidiDevice[]; refresh: () => void } {
   const [devices, setDevices] = useState<MidiDevice[]>([]);
@@ -23,7 +23,7 @@ export function useMidiDevices(): { devices: MidiDevice[]; refresh: () => void }
   return { devices, refresh };
 }
 
-export function useTransportState(): TransportState & { connected: boolean } {
+export function useTransportState(): TransportState & { connected: boolean; lastMessage: TransportMessage | null } {
   const [state, setState] = useState<TransportState>(() => {
     try {
       return MidiControllerModule.getTransportState();
@@ -38,9 +38,11 @@ export function useTransportState(): TransportState & { connected: boolean } {
       return false;
     }
   });
+  const [lastMessage, setLastMessage] = useState<TransportMessage | null>(null);
 
   useEventListener(MidiControllerModule, 'onTransportChange', (event) => {
     setState((prev) => ({ ...prev, running: event.running }));
+    setLastMessage(event.message);
   });
 
   useEventListener(MidiControllerModule, 'onBpmUpdate', (event) => {
@@ -54,9 +56,10 @@ export function useTransportState(): TransportState & { connected: boolean } {
   useEventListener(MidiControllerModule, 'onDisconnect', () => {
     setConnected(false);
     setState({ running: false, clockTick: 0, bpm: 0 });
+    setLastMessage(null);
   });
 
-  return { ...state, connected };
+  return { ...state, connected, lastMessage };
 }
 
 export async function connectToDevice(deviceName: string): Promise<boolean> {

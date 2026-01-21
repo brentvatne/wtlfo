@@ -93,7 +93,8 @@
       "Bash(then)",
       "Bash(echo:*)",
       "Bash(else)",
-      "Bash(fi)"
+      "Bash(fi)",
+      "mcp__expo-mcp__collect_app_logs"
     ]
   }
 }

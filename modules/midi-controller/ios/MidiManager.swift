@@ -19,7 +19,7 @@ class MidiManager {
     private(set) var bpm: Double = 0
 
     // Callbacks (called on main thread)
-    var onTransportChange: ((Bool) -> Void)?
+    var onTransportChange: ((Bool, String) -> Void)?  // (running, message: "start"|"continue"|"stop")
     var onBpmUpdate: ((Double) -> Void)?
     var onDevicesChanged: (() -> Void)?
     var onDisconnect: (() -> Void)?
@@ -137,7 +137,7 @@ class MidiManager {
     }
 
     private func handleMidiEvents(_ eventList: UnsafePointer<MIDIEventList>) {
-        var transportChanged: Bool? = nil
+        var transportMessage: String? = nil  // "start", "continue", or "stop"
         var bpmChanged: Double? = nil
         var ccEvents: [(UInt8, UInt8, UInt8, Double)] = []  // (channel, cc, value, timestampMs)
 
@@ -170,13 +170,13 @@ class MidiManager {
                             clockIntervals.removeAll()
                             lastClockTime = 0
                             isTransportRunning = true
-                            transportChanged = true
+                            transportMessage = "start"
                         case 0xFB: // Continue
                             isTransportRunning = true
-                            transportChanged = true
+                            transportMessage = "continue"
                         case 0xFC: // Stop
                             isTransportRunning = false
-                            transportChanged = false
+                            transportMessage = "stop"
                         default:
                             break
                         }
@@ -204,9 +204,10 @@ class MidiManager {
         }
 
         // Dispatch callbacks to main thread
-        if let running = transportChanged {
+        if let message = transportMessage {
             DispatchQueue.main.async { [weak self] in
-                self?.onTransportChange?(running)
+                guard let self = self else { return }
+                self.onTransportChange?(self.isTransportRunning, message)
             }
         }
         if let newBpm = bpmChanged {
@@ -251,8 +252,11 @@ class MidiManager {
                     medianInterval = sorted[mid]
                 }
                 let ticksPerMinute = 60000.0 / medianInterval
-                // Round to nearest integer BPM for cleaner display
-                bpm = max(20, min(300, (ticksPerMinute / 24.0).rounded()))
+                let rawBpm = ticksPerMinute / 24.0
+                // Snap to nearest integer if within ±0.3 BPM, otherwise round to 0.5 increments
+                let nearestInt = rawBpm.rounded()
+                let snappedBpm = abs(rawBpm - nearestInt) < 0.3 ? nearestInt : (rawBpm * 2.0).rounded() / 2.0
+                bpm = max(20, min(300, snappedBpm))
             }
         }
         lastClockTime = now

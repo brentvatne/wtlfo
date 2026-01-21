@@ -20,8 +20,8 @@ public class MidiControllerModule: Module {
                 return
             }
 
-            self.midiManager.onTransportChange = { [weak self] running in
-                self?.sendEvent("onTransportChange", ["running": running])
+            self.midiManager.onTransportChange = { [weak self] running, message in
+                self?.sendEvent("onTransportChange", ["running": running, "message": message])
             }
             self.midiManager.onBpmUpdate = { [weak self] bpm in
                 self?.sendEvent("onBpmUpdate", ["bpm": bpm])

@@ -6,6 +6,7 @@ import {
   connectToDevice,
   disconnectDevice,
   type MidiDevice,
+  type TransportMessage,
 } from '@/modules/midi-controller';
 
 const RECEIVE_TRANSPORT_KEY = 'midi_receive_transport';
@@ -24,6 +25,7 @@ interface MidiContextType {
 
   // Transport state (from native module)
   transportRunning: boolean;
+  lastTransportMessage: TransportMessage | null;  // "start", "continue", or "stop"
   externalBpm: number;
 
   // Settings (persisted)
@@ -39,7 +41,7 @@ const MidiContext = createContext<MidiContextType | null>(null);
 
 export function MidiProvider({ children }: { children: ReactNode }) {
   const { devices, refresh: refreshDevices } = useMidiDevices();
-  const { running: transportRunning, bpm: externalBpm, connected: nativeConnected } = useTransportState();
+  const { running: transportRunning, bpm: externalBpm, connected: nativeConnected, lastMessage } = useTransportState();
 
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
@@ -141,6 +143,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
     connectedDeviceName,
     connecting,
     transportRunning: receiveTransport ? transportRunning : false,
+    lastTransportMessage: receiveTransport ? lastMessage : null,
     externalBpm: receiveClock ? externalBpm : 0,
     autoConnect,
     setAutoConnect,

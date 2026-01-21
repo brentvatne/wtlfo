@@ -11,8 +11,10 @@ export interface TransportState {
   bpm: number;
 }
 
+export type TransportMessage = 'start' | 'continue' | 'stop';
+
 export type MidiControllerModuleEvents = {
-  onTransportChange: (event: { running: boolean }) => void;
+  onTransportChange: (event: { running: boolean; message: TransportMessage }) => void;
   onBpmUpdate: (event: { bpm: number }) => void;
   onDevicesChanged: () => void;
   onConnect: () => void;

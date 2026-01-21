@@ -60,7 +60,7 @@ export default function DeveloperScreen() {
               onPress={() => setSelectedSuite('all')}
             >
               <Text style={[styles.suiteChipText, selectedSuite === 'all' && styles.suiteChipTextSelected]}>
-                All (56)
+                All (75)
               </Text>
             </Pressable>
             {(Object.entries(testSuites) as [TestSuiteKey, { name: string; tests: unknown[] }][]).map(([key, suite]) => (

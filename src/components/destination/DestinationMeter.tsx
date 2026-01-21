@@ -479,14 +479,16 @@ export function DestinationMeter({
         onPress={handleDisplayModePress}
         hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
       >
-        <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
-          {displayMode === 'VALUE'
-            ? (shouldHideValue ? Math.round(centerValue) : currentValue)
-            : displayMode === 'MIN'
-              ? Math.round(hasFade ? fadeActualMin : targetLowerBound)
-              : Math.round(hasFade ? fadeActualMax : targetUpperBound)}
+        <Text style={styles.valueText}>
+          {!showValue || depth === 0
+            ? '—'
+            : displayMode === 'VALUE'
+              ? (shouldHideValue ? Math.round(centerValue) : currentValue)
+              : displayMode === 'MIN'
+                ? Math.round(hasFade ? fadeActualMin : targetLowerBound)
+                : Math.round(hasFade ? fadeActualMax : targetUpperBound)}
         </Text>
-        <Text style={[styles.valueLabel, !showValue && styles.valueHidden]}>
+        <Text style={styles.valueLabel}>
           {displayMode}
         </Text>
       </Pressable>
@@ -516,8 +518,5 @@ const styles = StyleSheet.create({
     fontSize: 10,
     fontWeight: '500',
     marginTop: 2,
-  },
-  valueHidden: {
-    opacity: 0,
   },
 });

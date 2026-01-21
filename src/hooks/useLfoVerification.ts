@@ -794,6 +794,254 @@ const COMBINATION_TESTS: TestConfig[] = [
 ];
 
 // ============================================
+// INVESTIGATION TESTS
+// Goal: Gather detailed data to reverse engineer LFO behavior
+// These tests are designed to help determine correct formulas for:
+// - SAW waveform direction
+// - Negative speed behavior
+// - Fade timing formula
+// - RMP/unipolar depth scaling
+// ============================================
+const INVESTIGATION_TESTS: TestConfig[] = [
+  // --- Experiment 1: SAW Waveform Direction (Baseline) ---
+  // Goal: Verify our SAW definition matches Digitakt's
+  // Our model: SAW = 1 - phase*2, so phase 0 → +1 (CC 103), phase 1 → -1 (CC 24)
+  // Observe: First CC value after trigger and direction of change
+  {
+    name: 'INV1: SAW baseline (+16 speed)',
+    waveform: 'SAW',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
+  // --- Experiment 2: Negative Speed on SAW ---
+  // Goal: Determine what negative speed does
+  // If start is LOW, rises to HIGH → Digitakt inverts output (like our model)
+  // If start is HIGH, falls to LOW → Digitakt reverses phase direction
+  {
+    name: 'INV2: SAW negative speed (-16)',
+    waveform: 'SAW',
+    speed: -16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
+  // --- Experiment 3: Negative Speed on TRI ---
+  // Goal: Confirm negative speed behavior on symmetric waveform
+  // TRI starts at center (64), positive goes UP first
+  // If negative inverts: start at 64, go DOWN first
+  // If negative reverses phase: start at 64, go DOWN first (same result for TRI)
+  {
+    name: 'INV3a: TRI positive speed (+16)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV3b: TRI negative speed (-16)',
+    waveform: 'TRI',
+    speed: -16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
+  // --- Experiment 4: Fade Timing Measurement ---
+  // Goal: Measure actual cycles to complete fade-in
+  // Using fast LFO (1000ms cycle) to see multiple cycles during fade
+  // Our formula: 128/|FADE| cycles. Alternative: |FADE|/8 or |FADE|/16 cycles
+  {
+    name: 'INV4a: Fade-in FADE=-64 (expect ~2 cycles)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,  // 32×8=256 → 1000ms cycle
+    depth: 40,
+    fade: -64,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 8000,
+  },
+  {
+    name: 'INV4b: Fade-in FADE=-32 (expect ~4 cycles)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 40,
+    fade: -32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 8000,
+  },
+  {
+    name: 'INV4c: Fade-in FADE=-16 (expect ~8 cycles)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 40,
+    fade: -16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 10000,
+  },
+  {
+    name: 'INV4d: Fade-in FADE=-8 (expect ~16 cycles)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 40,
+    fade: -8,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 20000,
+  },
+
+  // --- Experiment 5: Fade-Out Measurement ---
+  // Goal: Verify fade-out follows same formula as fade-in
+  {
+    name: 'INV5a: Fade-out FADE=+64',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 40,
+    fade: 64,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 8000,
+  },
+  {
+    name: 'INV5b: Fade-out FADE=+32',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 40,
+    fade: 32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 8000,
+  },
+
+  // --- Experiment 6: RMP Depth Range Measurement ---
+  // Goal: Determine actual CC range for RMP at various depths
+  // Currently: depth 40 gives [64-84] (20 CC range) - HALF expected
+  // Expected if 1x: [64-104] (40 CC range)
+  // Expected if 2x: [64-127] clamped (63 CC range)
+  {
+    name: 'INV6a: RMP depth=20',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 20,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV6b: RMP depth=40',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV6c: RMP depth=63',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
+  // --- Experiment 7: EXP Depth Range Measurement ---
+  // Goal: Verify EXP (also unipolar) follows same depth formula as RMP
+  {
+    name: 'INV7a: EXP depth=20',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 20,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV7b: EXP depth=40',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV7c: EXP depth=63',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
+  // --- Experiment 8: Bipolar vs Unipolar Comparison ---
+  // Goal: Compare SAW (bipolar) vs RMP (unipolar) to understand depth handling
+  // SAW output [-1,1] → CC [24-104] with depth 40 (80 CC swing)
+  // RMP output [0,1] with 1x depth → [64-104] (40 CC swing)
+  // RMP output [0,1] with 2x depth → [64-127] (63 CC swing)
+  {
+    name: 'INV8a: SAW depth=40 (bipolar baseline)',
+    waveform: 'SAW',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV8b: RMP depth=40 (unipolar comparison)',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
 // EDGE CASE TESTS
 // Goal: Verify behavior at parameter boundaries
 // ============================================
@@ -867,6 +1115,7 @@ const ALL_TEST_SUITES = {
   unipolar: { name: 'Unipolar Waveform Tests', tests: UNIPOLAR_TESTS },
   combination: { name: 'Combination Tests', tests: COMBINATION_TESTS },
   edgeCase: { name: 'Edge Case Tests', tests: EDGE_CASE_TESTS },
+  investigation: { name: 'Investigation Tests', tests: INVESTIGATION_TESTS },
 };
 
 // Legacy exports for backward compatibility

@@ -295,6 +295,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // MIDI sync state
   const {
     transportRunning,
+    lastTransportMessage,
     externalBpm,
     receiveTransport,
     receiveClock,
@@ -800,10 +801,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Detect transport state changes
     if (transportRunning && !prevTransportRunningRef.current) {
-      // Transport started (Start or Continue message received)
-      // Trigger the LFO to reset to startPhase and start running IMMEDIATELY
-      // NOTE: FRE mode ignores triggers - see todo for force reset feature
-      lfoRef.current?.trigger();
+      // Transport started - check if it's Start (reset to beginning) or Continue (resume)
+      if (lastTransportMessage === 'start') {
+        // MIDI Start: Reset LFO to startPhase and start from beginning
+        console.log('[MIDI] Start received - resetting LFO to beginning');
+        lfoRef.current?.reset();
+      } else {
+        // MIDI Continue: Resume from current position
+        console.log('[MIDI] Continue received - resuming LFO from current position');
+      }
       lfoRef.current?.resetTiming(); // Reset timing so next update has deltaMs=0
       lfoRef.current?.start();
 
@@ -837,7 +843,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
 
     prevTransportRunningRef.current = transportRunning;
-  }, [transportRunning, receiveTransport, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
+  }, [transportRunning, lastTransportMessage, receiveTransport, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
   // LFO control methods
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
