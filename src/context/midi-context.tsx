@@ -1,4 +1,4 @@
-import React, { createContext, useContext, useState, useCallback, ReactNode } from 'react';
+import React, { createContext, useContext, useState, useCallback, useEffect, ReactNode } from 'react';
 import { Storage } from 'expo-sqlite/kv-store';
 import {
   useMidiDevices,
@@ -44,6 +44,13 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+
+  // Sync with native disconnect events
+  useEffect(() => {
+    if (!nativeConnected && connectedDeviceName !== null) {
+      setConnectedDeviceName(null);
+    }
+  }, [nativeConnected, connectedDeviceName]);
   const [receiveTransport, setReceiveTransportState] = useState(() => {
     const saved = Storage.getItemSync(RECEIVE_TRANSPORT_KEY);
     return saved !== 'false';
@@ -85,7 +92,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
   const value: MidiContextType = {
     devices,
     refreshDevices,
-    connected: nativeConnected && connectedDeviceName !== null,
+    connected: connectedDeviceName !== null,
     connectedDeviceName,
     connecting,
     connect,

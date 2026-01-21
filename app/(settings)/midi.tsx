@@ -1,5 +1,7 @@
 import React, { useEffect } from 'react';
 import { View, Text, ScrollView, Pressable, Switch, StyleSheet, ActivityIndicator } from 'react-native';
+import { router, Stack } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { useMidi } from '@/src/context/midi-context';
 
 export default function MidiScreen() {
@@ -32,11 +34,21 @@ export default function MidiScreen() {
   };
 
   return (
-    <ScrollView
-      style={styles.container}
-      contentContainerStyle={styles.content}
-      contentInsetAdjustmentBehavior="automatic"
-    >
+    <>
+      <Stack.Screen
+        options={{
+          headerLeft: () => (
+            <Pressable onPress={() => router.back()} hitSlop={8}>
+              <SymbolView name="xmark" size={20} tintColor="#ff6600" />
+            </Pressable>
+          ),
+        }}
+      />
+      <ScrollView
+        style={styles.container}
+        contentContainerStyle={styles.content}
+        contentInsetAdjustmentBehavior="automatic"
+      >
       {/* Status Banner */}
       {connected && (
         <View style={styles.statusBanner}>
@@ -68,13 +80,18 @@ export default function MidiScreen() {
             </Text>
           </View>
         ) : (
-          devices.map((device) => {
+          devices.map((device, index) => {
             const isConnected = connected && connectedDeviceName === device.name;
             const isConnecting = connecting && !connected;
+            const isLast = index === devices.length - 1;
             return (
               <Pressable
                 key={device.id}
-                style={[styles.deviceRow, isConnected && styles.deviceRowConnected]}
+                style={[
+                  styles.deviceRow,
+                  isConnected && styles.deviceRowConnected,
+                  isLast && styles.deviceRowLast,
+                ]}
                 onPress={() => handleDevicePress(device.name)}
                 disabled={connecting}
               >
@@ -131,6 +148,7 @@ export default function MidiScreen() {
         messages control play/stop state, and clock messages set the tempo.
       </Text>
     </ScrollView>
+    </>
   );
 }
 
@@ -256,6 +274,9 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     paddingHorizontal: 16,
     borderBottomColor: '#2a3a2a',
+  },
+  deviceRowLast: {
+    borderBottomWidth: 0,
   },
   deviceInfo: {
     flex: 1,
