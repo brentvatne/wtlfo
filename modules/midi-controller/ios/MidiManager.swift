@@ -14,30 +14,9 @@ class MidiManager {
     private(set) var connectedSource: MIDIEndpointRef = 0
     private(set) var connectedDestination: MIDIEndpointRef = 0
 
-    // Thread-safe state access
-    private let lock = NSLock()
-    private var _isTransportRunning = false
-    private var _clockTickCount: UInt64 = 0
-    private var _bpm: Double = 0
-    private var _ccValues: [UInt8: UInt8] = [:]  // [ccNumber: value]
-
-    var isTransportRunning: Bool {
-        lock.lock()
-        defer { lock.unlock() }
-        return _isTransportRunning
-    }
-
-    var clockTickCount: UInt64 {
-        lock.lock()
-        defer { lock.unlock() }
-        return _clockTickCount
-    }
-
-    var bpm: Double {
-        lock.lock()
-        defer { lock.unlock() }
-        return _bpm
-    }
+    private(set) var isTransportRunning = false
+    private(set) var clockTickCount: UInt64 = 0
+    private(set) var bpm: Double = 0
 
     // Callbacks (called on main thread)
     var onTransportChange: ((Bool) -> Void)?
@@ -149,16 +128,12 @@ class MidiManager {
             connectedSource = 0
         }
         connectedDestination = 0
-
-        lock.lock()
-        _isTransportRunning = false
-        _clockTickCount = 0
-        _bpm = 0
-        _ccValues.removeAll()
+        isTransportRunning = false
+        clockTickCount = 0
+        bpm = 0
         clockIntervals.removeAll()
         lastClockTime = 0
         lastReportedBpm = 0
-        lock.unlock()
     }
 
     private func handleMidiEvents(_ eventList: UnsafePointer<MIDIEventList>) {
@@ -183,30 +158,28 @@ class MidiManager {
                     if messageType == 0x1 || messageType == 0xF {
                         let status = UInt8((word >> 16) & 0xFF)
 
-                        lock.lock()
                         switch status {
                         case 0xF8: // Clock
-                            _clockTickCount += 1
-                            calculateBpmLocked()
-                            if let newBpm = checkBpmChangeLocked() {
+                            clockTickCount += 1
+                            calculateBpm()
+                            if let newBpm = checkBpmChange() {
                                 bpmChanged = newBpm
                             }
                         case 0xFA: // Start
-                            _clockTickCount = 0
+                            clockTickCount = 0
                             clockIntervals.removeAll()
                             lastClockTime = 0
-                            _isTransportRunning = true
+                            isTransportRunning = true
                             transportChanged = true
                         case 0xFB: // Continue
-                            _isTransportRunning = true
+                            isTransportRunning = true
                             transportChanged = true
                         case 0xFC: // Stop
-                            _isTransportRunning = false
+                            isTransportRunning = false
                             transportChanged = false
                         default:
                             break
                         }
-                        lock.unlock()
                     }
 
                     // MIDI 1.0 Channel Voice Messages (type 0x2 in UMP)
@@ -220,11 +193,6 @@ class MidiManager {
                             let channel = status & 0x0F
                             let ccNumber = data1
                             let ccValue = data2
-
-                            lock.lock()
-                            _ccValues[ccNumber] = ccValue
-                            lock.unlock()
-
                             ccEvents.append((channel, ccNumber, ccValue))
                         }
                     }
@@ -252,8 +220,7 @@ class MidiManager {
         }
     }
 
-    // Must be called with lock held
-    private func calculateBpmLocked() {
+    private func calculateBpm() {
         let now = CACurrentMediaTime()
         if lastClockTime > 0 {
             let intervalMs = (now - lastClockTime) * 1000.0
@@ -276,18 +243,17 @@ class MidiManager {
                 let sorted = clockIntervals.sorted()
                 let medianInterval = sorted[sorted.count / 2]
                 let ticksPerMinute = 60000.0 / medianInterval
-                _bpm = max(20, min(300, ticksPerMinute / 24.0)) // Clamp to sane range
+                bpm = max(20, min(300, ticksPerMinute / 24.0)) // Clamp to sane range
             }
         }
         lastClockTime = now
     }
 
-    // Must be called with lock held
-    private func checkBpmChangeLocked() -> Double? {
+    private func checkBpmChange() -> Double? {
         // Only report if BPM changed by > 0.5
-        if abs(_bpm - lastReportedBpm) > 0.5 {
-            lastReportedBpm = _bpm
-            return _bpm
+        if abs(bpm - lastReportedBpm) > 0.5 {
+            lastReportedBpm = bpm
+            return bpm
         }
         return nil
     }
@@ -302,7 +268,7 @@ class MidiManager {
         var packetList = MIDIPacketList()
         var packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, cc & 0x7F, value & 0x7F]
-        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+        _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
         MIDISend(outputPort, connectedDestination, &packetList)
     }
@@ -314,7 +280,7 @@ class MidiManager {
         var packetList = MIDIPacketList()
         var packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, note & 0x7F, velocity & 0x7F]
-        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+        _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
         MIDISend(outputPort, connectedDestination, &packetList)
     }
@@ -326,7 +292,7 @@ class MidiManager {
         var packetList = MIDIPacketList()
         var packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, note & 0x7F, 0]
-        packet = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
+        _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
         MIDISend(outputPort, connectedDestination, &packetList)
     }
@@ -335,14 +301,16 @@ class MidiManager {
         switch notification.pointee.messageID {
         case .msgObjectRemoved:
             notification.withMemoryRebound(to: MIDIObjectAddRemoveNotification.self, capacity: 1) { removeNotification in
-                if removeNotification.pointee.child == connectedSource {
-                    lock.lock()
+                let removedChild = removeNotification.pointee.child
+                if removedChild == connectedSource {
                     connectedSource = 0
-                    _isTransportRunning = false
-                    lock.unlock()
+                    isTransportRunning = false
                     DispatchQueue.main.async { [weak self] in
                         self?.onDisconnect?()
                     }
+                }
+                if removedChild == connectedDestination {
+                    connectedDestination = 0
                 }
             }
         case .msgSetupChanged, .msgObjectAdded:

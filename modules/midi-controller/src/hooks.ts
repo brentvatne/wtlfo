@@ -47,6 +47,10 @@ export function useTransportState(): TransportState & { connected: boolean } {
     setState((prev) => ({ ...prev, bpm: event.bpm }));
   });
 
+  useEventListener(MidiControllerModule, 'onConnect', () => {
+    setConnected(true);
+  });
+
   useEventListener(MidiControllerModule, 'onDisconnect', () => {
     setConnected(false);
     setState({ running: false, clockTick: 0, bpm: 0 });

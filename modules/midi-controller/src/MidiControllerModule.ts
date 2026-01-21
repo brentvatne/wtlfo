@@ -15,6 +15,7 @@ export type MidiControllerModuleEvents = {
   onTransportChange: (event: { running: boolean }) => void;
   onBpmUpdate: (event: { bpm: number }) => void;
   onDevicesChanged: () => void;
+  onConnect: () => void;
   onDisconnect: () => void;
   onCcChange: (event: { channel: number; cc: number; value: number }) => void;
 };

@@ -8,7 +8,7 @@ public class MidiControllerModule: Module {
         Name("MidiController")
 
         // Events - no clock ticks (too frequent), only state changes
-        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onDisconnect", "onCcChange")
+        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onConnect", "onDisconnect", "onCcChange")
 
         OnStartObserving {
             guard !self.isSetup else { return }
@@ -55,7 +55,11 @@ public class MidiControllerModule: Module {
         }
 
         AsyncFunction("connect") { (deviceName: String) -> Bool in
-            return self.midiManager.connect(toDeviceNamed: deviceName)
+            let success = self.midiManager.connect(toDeviceNamed: deviceName)
+            if success {
+                self.sendEvent("onConnect", [:])
+            }
+            return success
         }
 
         Function("disconnect") {
