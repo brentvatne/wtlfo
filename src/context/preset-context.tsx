@@ -802,7 +802,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     if (transportRunning && !prevTransportRunningRef.current) {
       // Transport started (Start or Continue message received)
       // Trigger the LFO to reset to startPhase and start running IMMEDIATELY
+      // NOTE: FRE mode ignores triggers - see todo for force reset feature
       lfoRef.current?.trigger();
+      lfoRef.current?.resetTiming(); // Reset timing so next update has deltaMs=0
       lfoRef.current?.start();
 
       // Immediately update shared values so visualization syncs without waiting for next frame

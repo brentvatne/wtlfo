@@ -73,7 +73,27 @@
       "Bash(bunx jest:*)",
       "Bash(npx expo-modules-autolinking:*)",
       "Bash(npx create-expo-module@latest:*)",
-      "Bash(pod install)"
+      "Bash(pod install)",
+      "WebFetch(domain:midi.guide)",
+      "WebFetch(domain:docs.swmansion.com)",
+      "Bash(npm run build:*)",
+      "Bash(bun build:*)",
+      "Bash(npx expo-mcp:*)",
+      "Bash(npm update:*)",
+      "Bash(bun update:*)",
+      "Bash(bun link:*)",
+      "Bash(npm version:*)",
+      "Bash(npm pkg:*)",
+      "Bash(pkill:*)",
+      "Bash(npx expo start)",
+      "Bash(done)",
+      "Bash(for id in aa6f8fd aa48192 a9b79d6 a49c964)",
+      "Bash(do)",
+      "Bash(if grep -q \"AGENT_DONE\\\\|completed\\\\|Recommendation\\\\|## Summary\" /private/tmp/claude/-Users-brent-wtlfo/tasks/$id.output)",
+      "Bash(then)",
+      "Bash(echo:*)",
+      "Bash(else)",
+      "Bash(fi)"
     ]
   }
 }

@@ -20,7 +20,7 @@
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
     "@shopify/react-native-skia": "2.2.12",
-    "elektron-lfo": "1.0.3",
+    "elektron-lfo": "^1.0.7",
     "expo": "~54.0.31",
     "expo-constants": "~18.0.13",
     "expo-dev-client": "~6.0.20",

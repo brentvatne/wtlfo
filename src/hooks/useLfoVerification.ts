@@ -15,6 +15,27 @@ interface CapturedCC {
   value: number;
 }
 
+interface TestFailure {
+  testName: string;
+  timestamp: number;
+  digitaktValue: number;
+  engineValue: number;
+  diff: number;
+}
+
+interface TestResult {
+  testName: string;
+  passed: number;
+  failed: number;
+  failures: TestFailure[];
+  timingStatus: string;
+  rangeStatus: string;
+  observedRange: { min: number; max: number };
+  expectedRange: { min: number; max: number };
+  observedCycleMs: number;
+  expectedCycleMs: number;
+}
+
 interface TestConfig {
   name: string;
   waveform: 'TRI' | 'SIN' | 'SQR' | 'SAW' | 'EXP' | 'RMP' | 'RND';
@@ -923,9 +944,22 @@ export function useLfoVerification() {
     sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.destination, LFO_DEST_CC_VAL1);
   }, []);
 
-  const runSingleTest = useCallback(async (config: TestConfig): Promise<{ passed: number; failed: number }> => {
+  const runSingleTest = useCallback(async (config: TestConfig): Promise<TestResult> => {
     capturedCCsRef.current = [];
     allCCsSeenRef.current.clear();
+
+    const result: TestResult = {
+      testName: config.name,
+      passed: 0,
+      failed: 0,
+      failures: [],
+      timingStatus: 'UNKNOWN',
+      rangeStatus: 'UNKNOWN',
+      observedRange: { min: 64, max: 64 },
+      expectedRange: { min: 64, max: 64 },
+      observedCycleMs: 0,
+      expectedCycleMs: 0,
+    };
 
     log(`--- ${config.name} ---`);
     log(`${config.waveform} | SPD=${config.speed} | MULT=${config.multiplier} | DEPTH=${config.depth} | MODE=${config.mode}`);
@@ -1014,6 +1048,13 @@ export function useLfoVerification() {
       const rangeError = Math.abs(expectedRange - rangeSize);
       const rangeStatus = rangeError < 20 ? 'OK' : 'LIMITED';
 
+      // Store in result for summary
+      result.timingStatus = timingStatus;
+      result.rangeStatus = rangeStatus;
+      result.observedCycleMs = observedCycleMs;
+      result.expectedCycleMs = expectedCycleMs;
+      result.observedRange = { min: minVal, max: maxVal };
+
       // Trigger behavior check
       const triggerStatus = config.mode === 'TRG'
         ? (Math.abs(startValue - 64) < 20 ? 'RESET_OK' : 'NO_RESET')
@@ -1039,13 +1080,19 @@ export function useLfoVerification() {
 
     if (capturedCCsRef.current.length === 0) {
       log('No data captured!', 'error');
-      return { passed: 0, failed: 1 };
+      result.failed = 1;
+      result.failures.push({
+        testName: config.name,
+        timestamp: 0,
+        digitaktValue: -1,
+        engineValue: -1,
+        diff: -1,
+      });
+      return result;
     }
 
     // Compare with engine - create LFO once and simulate time progression
     const sampleCount = 5;
-    let passed = 0;
-    let failed = 0;
 
     // Engine depth maps directly to CC swing: depth N = ±N CC values from center
     // (clamped to 0-127 range at output)
@@ -1060,15 +1107,29 @@ export function useLfoVerification() {
       startPhase: config.startPhase,
       mode: config.mode,
     }, TEST_BPM);
+
+    // For HLD mode, simulate the LFO running before the trigger to match Digitakt behavior.
+    // The test waits 500ms after configuring before sending the trigger - during this time,
+    // Digitakt's LFO is running in the background. We simulate this by updating the engine
+    // for 500ms before triggering.
+    const PRE_TRIGGER_WAIT_MS = 500;
+    const baseTime = 1;
+    if (config.mode === 'HLD') {
+      // Run the LFO for the same duration Digitakt waited before trigger
+      engineLfo.update(baseTime);
+      engineLfo.update(baseTime + PRE_TRIGGER_WAIT_MS);
+    }
+
     engineLfo.trigger();
 
     // NEW APPROACH: Compare at the actual captured timestamps, not at fixed intervals
     // This is more accurate because the Digitakt only sends CCs when values change
     //
-    // Engine starts at t=1 (not t=0 to avoid sentinel bug in lfo.ts where lastUpdateTime===0
-    // is treated as "first call" and returns deltaMs=0)
-    const baseTime = 1;
-    engineLfo.update(baseTime);
+    // Engine starts at baseTime (not 0 to avoid sentinel bug in lfo.ts where lastUpdateTime===0
+    // is treated as "first call" and returns deltaMs=0).
+    // For HLD mode, the effective base time is after the pre-trigger wait.
+    const effectiveBaseTime = config.mode === 'HLD' ? baseTime + PRE_TRIGGER_WAIT_MS : baseTime;
+    engineLfo.update(effectiveBaseTime);
 
     // Sort captured CCs by timestamp and take evenly spaced samples
     const sortedCCs = [...capturedCCsRef.current].sort((a, b) => a.timestamp - b.timestamp);
@@ -1086,7 +1147,7 @@ export function useLfoVerification() {
 
     for (const captured of sampledCCs) {
       // Get engine value at the exact timestamp when this CC was captured
-      const engineTime = baseTime + captured.timestamp;
+      const engineTime = effectiveBaseTime + captured.timestamp;
       const state = engineLfo.update(engineTime);
 
       // Debug first 3 samples
@@ -1103,10 +1164,17 @@ export function useLfoVerification() {
       const pass = diff <= 15; // Allow tolerance for phase alignment differences
 
       if (pass) {
-        passed++;
+        result.passed++;
         log(`  t=${captured.timestamp}ms: DT=${captured.value} ENG=${engineCcValue} ✓`, 'success');
       } else {
-        failed++;
+        result.failed++;
+        result.failures.push({
+          testName: config.name,
+          timestamp: captured.timestamp,
+          digitaktValue: captured.value,
+          engineValue: engineCcValue,
+          diff,
+        });
         log(`  t=${captured.timestamp}ms: DT=${captured.value} ENG=${engineCcValue} Δ${diff} ✗`, 'error');
       }
     }
@@ -1128,12 +1196,18 @@ export function useLfoVerification() {
       startPhase: config.startPhase,
       mode: config.mode,
     }, TEST_BPM);
+
+    // Apply same pre-trigger simulation for HLD mode as the main LFO
+    if (config.mode === 'HLD') {
+      engineLfoViz.update(baseTime);
+      engineLfoViz.update(baseTime + PRE_TRIGGER_WAIT_MS);
+    }
     engineLfoViz.trigger();
-    engineLfoViz.update(baseTime);
+    engineLfoViz.update(effectiveBaseTime);
 
     const expectedPoints: { timestamp: number; value: number }[] = [];
     for (const captured of sortedCCs) {
-      const engineTime = baseTime + captured.timestamp;
+      const engineTime = effectiveBaseTime + captured.timestamp;
       const state = engineLfoViz.update(engineTime);
       const engineCcValue = Math.max(0, Math.min(127, Math.round(64 + state.output * 63)));
       expectedPoints.push({ timestamp: captured.timestamp, value: engineCcValue });
@@ -1149,6 +1223,12 @@ export function useLfoVerification() {
     const expMax = Math.max(...expValues);
 
     log(`Range: DT=[${obsMin}-${obsMax}] ENG=[${expMin}-${expMax}]`, 'info');
+
+    // Store expected range for summary
+    result.expectedRange = { min: expMin, max: expMax };
+    if (result.observedRange.min === 64 && result.observedRange.max === 64) {
+      result.observedRange = { min: obsMin, max: obsMax };
+    }
 
     // Estimate frequency by counting direction changes (peaks + valleys)
     const countDirectionChanges = (values: number[]) => {
@@ -1174,7 +1254,7 @@ export function useLfoVerification() {
       console.log(`[LFO Viz] ${line}`);
     }
 
-    return { passed, failed };
+    return result;
   }, [log, configureLfo]);
 
   const runTestSuite = useCallback(async (suite: TestConfig[], suiteName: string) => {
@@ -1189,6 +1269,7 @@ export function useLfoVerification() {
 
     let totalPassed = 0;
     let totalFailed = 0;
+    const failedTests: TestResult[] = [];
 
     for (let i = 0; i < suite.length; i++) {
       setCurrentTest(i + 1);
@@ -1196,6 +1277,9 @@ export function useLfoVerification() {
       const result = await runSingleTest(config);
       totalPassed += result.passed;
       totalFailed += result.failed;
+      if (result.failed > 0) {
+        failedTests.push(result);
+      }
       log('');
     }
 
@@ -1211,6 +1295,29 @@ export function useLfoVerification() {
         log(`All ${totalPassed} checkpoints PASSED! ✓`, 'success');
       } else {
         log(`${totalPassed}/${total} passed (${successRate}%)`, totalFailed > totalPassed ? 'error' : 'info');
+      }
+    }
+
+    // Print failed test summary
+    if (failedTests.length > 0) {
+      log('');
+      log('========================================');
+      log('  FAILED TESTS SUMMARY');
+      log('========================================');
+      for (const testResult of failedTests) {
+        log(`✗ ${testResult.testName}`, 'error');
+        log(`  Timing: ${testResult.timingStatus} (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms expected)`, 'info');
+        log(`  Range: DT=[${testResult.observedRange.min}-${testResult.observedRange.max}] ENG=[${testResult.expectedRange.min}-${testResult.expectedRange.max}]`, 'info');
+        if (testResult.failures.length > 0) {
+          const sample = testResult.failures.slice(0, 3);
+          for (const f of sample) {
+            log(`    t=${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} vs ENG=${f.engineValue} (Δ${f.diff})`, 'data');
+          }
+          if (testResult.failures.length > 3) {
+            log(`    ... and ${testResult.failures.length - 3} more failures`, 'info');
+          }
+        }
+        log('');
       }
     }
 
@@ -1249,6 +1356,7 @@ export function useLfoVerification() {
     const suiteKeys = Object.keys(ALL_TEST_SUITES) as Array<keyof typeof ALL_TEST_SUITES>;
     let grandTotalPassed = 0;
     let grandTotalFailed = 0;
+    const allFailedTests: TestResult[] = [];
 
     for (const key of suiteKeys) {
       const suite = ALL_TEST_SUITES[key];
@@ -1259,6 +1367,9 @@ export function useLfoVerification() {
         const result = await runSingleTest(suite.tests[i]);
         grandTotalPassed += result.passed;
         grandTotalFailed += result.failed;
+        if (result.failed > 0) {
+          allFailedTests.push(result);
+        }
       }
     }
 
@@ -1279,6 +1390,61 @@ export function useLfoVerification() {
         log(`All ${grandTotalPassed} checkpoints PASSED! ✓`, 'success');
       } else {
         log(`${grandTotalPassed}/${grandTotal} passed (${successRate}%)`, grandTotalFailed > grandTotalPassed ? 'error' : 'info');
+      }
+    }
+
+    // Print comprehensive failed test summary
+    if (allFailedTests.length > 0) {
+      log('');
+      log('╔══════════════════════════════════════╗');
+      log('║       FAILED TESTS SUMMARY           ║');
+      log('╚══════════════════════════════════════╝');
+      log(`${allFailedTests.length} tests had failures:`);
+      log('');
+
+      // Group failures by waveform to help identify patterns
+      const byWaveform = new Map<string, TestResult[]>();
+      for (const testResult of allFailedTests) {
+        // Extract waveform from test name
+        const match = testResult.testName.match(/^(TRI|SIN|SQR|SAW|EXP|RMP|RND)/);
+        const waveform = match?.[1] || 'OTHER';
+        if (!byWaveform.has(waveform)) {
+          byWaveform.set(waveform, []);
+        }
+        byWaveform.get(waveform)!.push(testResult);
+      }
+
+      for (const [waveform, tests] of byWaveform) {
+        log(`── ${waveform} waveform (${tests.length} failures) ──`, 'error');
+        for (const testResult of tests) {
+          log(`✗ ${testResult.testName}`, 'error');
+          log(`  Timing: ${testResult.timingStatus} (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms)`, 'info');
+          log(`  Range: DT=[${testResult.observedRange.min}-${testResult.observedRange.max}] ENG=[${testResult.expectedRange.min}-${testResult.expectedRange.max}]`, 'info');
+
+          // Show sample failures with context
+          if (testResult.failures.length > 0) {
+            const sample = testResult.failures.slice(0, 2);
+            for (const f of sample) {
+              const direction = f.engineValue > f.digitaktValue ? 'ENG>DT' : 'DT>ENG';
+              log(`    @${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} ENG=${f.engineValue} Δ${f.diff} (${direction})`, 'data');
+            }
+            if (testResult.failures.length > 2) {
+              log(`    ... +${testResult.failures.length - 2} more`, 'info');
+            }
+          }
+          log('');
+        }
+      }
+
+      // Summary analysis hints
+      log('── DEBUGGING HINTS ──', 'info');
+      const expFailures = byWaveform.get('EXP') || [];
+      const rmpFailures = byWaveform.get('RMP') || [];
+      if (expFailures.length > 0) {
+        log('EXP failures: Check if waveform direction is inverted (should decay 1→0, not rise 0→1)', 'info');
+      }
+      if (rmpFailures.length > 0) {
+        log('RMP failures: Check unipolar depth scaling', 'info');
       }
     }
 
@@ -1305,6 +1471,15 @@ export function useLfoVerification() {
       log(`Test PASSED (${result.passed}/${result.passed} checkpoints)`, 'success');
     } else {
       log(`Test: ${result.passed} passed, ${result.failed} failed`, 'error');
+
+      // Show failure details
+      log('');
+      log('── FAILURE DETAILS ──', 'error');
+      log(`Timing: ${result.timingStatus} (${result.observedCycleMs.toFixed(0)}ms vs ${result.expectedCycleMs.toFixed(0)}ms expected)`, 'info');
+      log(`Range: DT=[${result.observedRange.min}-${result.observedRange.max}] ENG=[${result.expectedRange.min}-${result.expectedRange.max}]`, 'info');
+      for (const f of result.failures) {
+        log(`  @${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} vs ENG=${f.engineValue} (Δ${f.diff})`, 'data');
+      }
     }
 
     setIsRunning(false);
