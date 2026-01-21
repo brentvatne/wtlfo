@@ -5,6 +5,7 @@ import { useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
+import { useMidi } from '@/src/context/midi-context';
 
 const ENGINE_DEBOUNCE_MS = 100;
 
@@ -177,6 +178,12 @@ interface PresetContextValue {
   resetToPreset: () => void;
   bpm: number;
   setBPM: (bpm: number) => void;
+  /** Effective BPM - uses external MIDI clock when enabled, otherwise user BPM */
+  effectiveBpm: number;
+  /** True when using external MIDI clock for tempo */
+  usingMidiClock: boolean;
+  /** True when MIDI transport is controlling playback */
+  usingMidiTransport: boolean;
 
   // LFO animation state - shared across tabs
   lfoPhase: SharedValue<number>;
@@ -232,10 +239,22 @@ const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
+  // MIDI sync state
+  const {
+    transportRunning,
+    externalBpm,
+    receiveTransport,
+    receiveClock,
+    connected: midiConnected,
+  } = useMidi();
+
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
   const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(() => ({ ...INITIAL_CONFIG }));
   const [debouncedConfig, setDebouncedConfig] = useState<LFOPresetConfig>(() => ({ ...INITIAL_CONFIG }));
   const [bpm, setBPMState] = useState(INITIAL_BPM);
+
+  // Effective BPM: use external MIDI clock when enabled and available
+  const effectiveBpm = receiveClock && externalBpm > 0 ? Math.round(externalBpm) : bpm;
   const [isEditing, setIsEditing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
@@ -463,7 +482,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       // the animation loop. This ensures the LFO engine uses the same config as the
       // visualizers. If we use setDebouncedConfig (async), there's a timing gap where
       // the animation runs with the old LFO before React re-renders.
-      lfoRef.current = new LFO(currentConfig, bpm);
+      lfoRef.current = new LFO(currentConfig, effectiveBpm);
 
       // Reset and get the correct initial state
       if (resetLFOOnChange) {
@@ -532,12 +551,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    lfoRef.current = new LFO(debouncedConfig, bpm);
+    lfoRef.current = new LFO(debouncedConfig, effectiveBpm);
 
     // Get timing info
     const info = lfoRef.current.getTimingInfo();
     // Calculate steps: one step = 1/16 note = (60000/bpm)/4 ms
-    const msPerStep = 15000 / bpm;
+    const msPerStep = 15000 / effectiveBpm;
     const steps = info.cycleTimeMs / msPerStep;
     setTimingInfo({
       cycleTimeMs: info.cycleTimeMs,
@@ -557,7 +576,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       // Clear pause state when config changes
       setIsPaused(false);
     }
-  }, [debouncedConfig, bpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange]);
+  }, [debouncedConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange]);
 
   // Animation loop - runs at provider level, independent of tabs
   useEffect(() => {
@@ -628,6 +647,50 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [lfoPhase, lfoOutput]);
 
+  // MIDI Transport sync - react to external transport start/stop
+  const prevTransportRunningRef = useRef<boolean | null>(null);
+  useEffect(() => {
+    // Skip if transport receive is disabled or not connected
+    if (!receiveTransport || !midiConnected) {
+      prevTransportRunningRef.current = null;
+      return;
+    }
+
+    // Skip if this is the first update (no previous value to compare)
+    if (prevTransportRunningRef.current === null) {
+      prevTransportRunningRef.current = transportRunning;
+      return;
+    }
+
+    // Detect transport state changes
+    if (transportRunning && !prevTransportRunningRef.current) {
+      // Transport started (Start or Continue message received)
+      // Trigger the LFO to reset to startPhase and start running
+      lfoRef.current?.trigger();
+      setIsPaused(false);
+
+      // Restart animation loop if it was stopped
+      if (animationRef.current === 0 && hasMainLoopStarted.current) {
+        const animate = (timestamp: number) => {
+          if (lfoRef.current) {
+            const state = lfoRef.current.update(timestamp);
+            lfoPhase.value = state.phase;
+            lfoOutput.value = state.output;
+            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+          }
+          animationRef.current = requestAnimationFrame(animate);
+        };
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    } else if (!transportRunning && prevTransportRunningRef.current) {
+      // Transport stopped (Stop message received)
+      lfoRef.current?.stop();
+      setIsPaused(true);
+    }
+
+    prevTransportRunningRef.current = transportRunning;
+  }, [transportRunning, receiveTransport, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
+
   // LFO control methods
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
   const startLFO = useCallback(() => lfoRef.current?.start(), []);
@@ -647,6 +710,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     resetToPreset,
     bpm,
     setBPM,
+    effectiveBpm,
+    usingMidiClock: receiveClock && externalBpm > 0,
+    usingMidiTransport: receiveTransport && midiConnected,
     // LFO animation state
     lfoPhase,
     lfoOutput,

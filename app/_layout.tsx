@@ -11,9 +11,9 @@ const isLegacyIOS =
 export default function RootLayout() {
   return (
     <ErrorBoundary>
-      <PresetProvider>
-        <ModulationProvider>
-          <MidiProvider>
+      <MidiProvider>
+        <PresetProvider>
+          <ModulationProvider>
             <NativeTabs
             tintColor="#ff6600"
             {...(isLegacyIOS && {
@@ -34,9 +34,9 @@ export default function RootLayout() {
               <Label>Settings</Label>
             </NativeTabs.Trigger>
             </NativeTabs>
-          </MidiProvider>
-        </ModulationProvider>
-      </PresetProvider>
+          </ModulationProvider>
+        </PresetProvider>
+      </MidiProvider>
     </ErrorBoundary>
   );
 }
