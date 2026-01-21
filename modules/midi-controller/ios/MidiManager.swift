@@ -237,10 +237,10 @@ class MidiManager {
             }
 
             clockIntervals.append(intervalMs)
-            if clockIntervals.count > 24 {
+            if clockIntervals.count > 96 {
                 clockIntervals.removeFirst()
             }
-            if clockIntervals.count >= 6 {
+            if clockIntervals.count >= 24 {
                 // Use proper median for jitter resistance
                 // For even-sized arrays, average the two middle elements
                 let sorted = clockIntervals.sorted()
@@ -253,10 +253,8 @@ class MidiManager {
                 }
                 let ticksPerMinute = 60000.0 / medianInterval
                 let rawBpm = ticksPerMinute / 24.0
-                // Snap to nearest integer if within ±0.3 BPM, otherwise round to 0.5 increments
-                let nearestInt = rawBpm.rounded()
-                let snappedBpm = abs(rawBpm - nearestInt) < 0.3 ? nearestInt : (rawBpm * 2.0).rounded() / 2.0
-                bpm = max(20, min(300, snappedBpm))
+                // Floor to avoid jitter-induced rounding up (120.7 → 120, not 121)
+                bpm = max(20, min(300, floor(rawBpm)))
             }
         }
         lastClockTime = now
