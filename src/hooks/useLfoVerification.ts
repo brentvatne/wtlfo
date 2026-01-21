@@ -137,88 +137,721 @@ function drawWaveformComparison(
 }
 
 // ============================================
-// TRIGGER BEHAVIOR TESTS
-// Goal: Understand how different modes respond to note triggers
-// Using slow LFO (product=64, cycle=4000ms) so we can clearly see
-// where in the cycle the capture starts after trigger
-//
-// Using depth=20 for cleaner MIDI CC mapping:
-// - CC 74 sent → display value ~20
-// - Engine depth 10 → ±10/63 scaling
-// - Expected CC range: ~54-74 (±10 from center 64)
+// WAVEFORM TESTS
+// Goal: Verify each waveform type produces correct shape
+// Using consistent settings: speed=16, mult=4 (product=64, ~4s cycle)
 // ============================================
-const TRIGGER_TESTS: TestConfig[] = [
-  // TRG mode: Should reset phase to startPhase on note trigger
+const WAVEFORM_TESTS: TestConfig[] = [
   {
-    name: 'TRG phase=0',
+    name: 'TRI waveform',
     waveform: 'TRI',
     speed: 16,
-    multiplier: 4,  // 16 × 4 = 64 → 4000ms cycle
-    depth: 20,      // Easier to verify via MIDI - should show ~20 on device
+    multiplier: 4,
+    depth: 40,
     fade: 0,
     startPhase: 0,
     mode: 'TRG',
     durationMs: 5000,
   },
-  // TRG mode with startPhase=64 (180°): Should start at center going DOWN
   {
-    name: 'TRG phase=64',
-    waveform: 'TRI',
+    name: 'SIN waveform',
+    waveform: 'SIN',
     speed: 16,
     multiplier: 4,
-    depth: 20,
+    depth: 40,
     fade: 0,
-    startPhase: 64,
+    startPhase: 0,
     mode: 'TRG',
     durationMs: 5000,
   },
-  // FRE mode: Should NOT reset on trigger, runs freely
   {
-    name: 'FRE mode',
-    waveform: 'TRI',
+    name: 'SQR waveform',
+    waveform: 'SQR',
     speed: 16,
     multiplier: 4,
-    depth: 20,
+    depth: 40,
     fade: 0,
     startPhase: 0,
-    mode: 'FRE',
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'SAW waveform',
+    waveform: 'SAW',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'EXP waveform',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'RMP waveform',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'RND waveform',
+    waveform: 'RND',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
     durationMs: 5000,
   },
 ];
 
 // ============================================
-// TIMING/WAVEFORM COMPARISON TESTS
-// Goal: Verify engine timing and waveform accuracy
+// SPEED/TIMING TESTS
+// Goal: Verify cycle timing at different speed×multiplier products
 // ============================================
-const TIMING_TESTS: TestConfig[] = [
-  // 1 cycle per bar (2000ms at 120 BPM) - SPD×MULT = 128
+const SPEED_TESTS: TestConfig[] = [
+  // Very slow: 16 bars (32000ms at 120 BPM)
   {
-    name: '1 bar cycle',
+    name: 'SPD=8 MULT=1 (16 bars)',
+    waveform: 'TRI',
+    speed: 8,
+    multiplier: 1,  // 8 × 1 = 8 → 128/8 = 16 bars
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 8000,  // Capture partial cycle
+  },
+  // Slow: 4 bars (8000ms)
+  {
+    name: 'SPD=16 MULT=2 (4 bars)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 2,  // 16 × 2 = 32 → 128/32 = 4 bars
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 10000,
+  },
+  // Medium: 1 bar (2000ms)
+  {
+    name: 'SPD=32 MULT=4 (1 bar)',
     waveform: 'TRI',
     speed: 32,
-    multiplier: 4,  // 32 × 4 = 128 = 1 whole note
-    depth: 127,
+    multiplier: 4,  // 32 × 4 = 128 → 1 bar
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  // Fast: 1/2 note (1000ms)
+  {
+    name: 'SPD=32 MULT=8 (1/2 note)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,  // 32 × 8 = 256 → 1/2 note
+    depth: 40,
     fade: 0,
     startPhase: 0,
     mode: 'TRG',
     durationMs: 4000,
   },
-  // 2 cycles per bar (1000ms at 120 BPM) - SPD×MULT = 256
+  // Faster: 1/4 note (500ms)
   {
-    name: '1/2 note cycle',
+    name: 'SPD=32 MULT=16 (1/4 note)',
     waveform: 'TRI',
     speed: 32,
-    multiplier: 8,  // 32 × 8 = 256 = 1/2 note
+    multiplier: 16,  // 32 × 16 = 512 → 1/4 note
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 3000,
+  },
+  // Very fast: 1/8 note (250ms)
+  {
+    name: 'SPD=32 MULT=32 (1/8 note)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 32,  // 32 × 32 = 1024 → 1/8 note
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // Fastest: 1/16 note (125ms)
+  {
+    name: 'SPD=64 MULT=32 (1/16 note)',
+    waveform: 'TRI',
+    speed: 63,       // Max positive speed
+    multiplier: 32,  // 63 × 32 = 2016 ≈ 1/16 note
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+];
+
+// ============================================
+// DEPTH TESTS
+// Goal: Verify depth scaling produces correct CC range
+// ============================================
+const DEPTH_TESTS: TestConfig[] = [
+  {
+    name: 'Depth=10 (±10 CC)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 10,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Depth=32 (±32 CC)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 32,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Depth=64 (±64 CC)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 64,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Depth=127 (full range)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 127,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  // Negative depth (inverted)
+  {
+    name: 'Depth=-32 (inverted)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: -32,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Depth=-127 (full inverted)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: -127,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
+// START PHASE TESTS
+// Goal: Verify phase offset works correctly
+// ============================================
+const PHASE_TESTS: TestConfig[] = [
+  {
+    name: 'Phase=0 (0°)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Phase=32 (90°)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 32,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Phase=64 (180°)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 64,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Phase=96 (270°)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 96,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Phase=127 (358°)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 127,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  // SIN waveform phase tests (different start values than TRI)
+  {
+    name: 'SIN Phase=0 (start at 0)',
+    waveform: 'SIN',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'SIN Phase=32 (start at peak)',
+    waveform: 'SIN',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 32,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
+// MODE TESTS
+// Goal: Verify each trigger mode behaves correctly
+// ============================================
+const MODE_TESTS: TestConfig[] = [
+  {
+    name: 'FRE mode (free running)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'FRE',
+    durationMs: 5000,
+  },
+  {
+    name: 'TRG mode (reset on trigger)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'HLD mode (hold on trigger)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'HLD',
+    durationMs: 5000,
+  },
+  {
+    name: 'ONE mode (one-shot)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'ONE',
+    durationMs: 6000,  // Longer to see it stop
+  },
+  {
+    name: 'HLF mode (half cycle)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'HLF',
+    durationMs: 4000,
+  },
+];
+
+// ============================================
+// FADE TESTS
+// Goal: Verify fade-in and fade-out envelopes
+// ============================================
+const FADE_TESTS: TestConfig[] = [
+  // Fade-in (negative values)
+  {
+    name: 'Fade=-16 (slow fade-in)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: -16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'Fade=-32 (medium fade-in)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: -32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'Fade=-63 (fast fade-in)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: -63,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  // Fade-out (positive values)
+  {
+    name: 'Fade=+16 (slow fade-out)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'Fade=+32 (medium fade-out)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'Fade=+63 (fast fade-out)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 63,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
+// NEGATIVE SPEED TESTS
+// Goal: Verify reversed LFO direction
+// ============================================
+const NEGATIVE_SPEED_TESTS: TestConfig[] = [
+  {
+    name: 'Speed=-16 (reversed TRI)',
+    waveform: 'TRI',
+    speed: -16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Speed=-16 (reversed SAW)',
+    waveform: 'SAW',
+    speed: -16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Speed=-32 (reversed RMP)',
+    waveform: 'RMP',
+    speed: -32,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
+// UNIPOLAR WAVEFORM TESTS
+// Goal: Verify EXP and RMP only modulate one direction
+// ============================================
+const UNIPOLAR_TESTS: TestConfig[] = [
+  {
+    name: 'EXP positive depth',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'EXP negative depth',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: -40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'RMP positive depth',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'RMP negative depth',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: -40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// ============================================
+// COMBINATION TESTS
+// Goal: Verify features work together correctly
+// ============================================
+const COMBINATION_TESTS: TestConfig[] = [
+  {
+    name: 'SIN + Fade-in + Phase=32',
+    waveform: 'SIN',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: -32,
+    startPhase: 32,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'SAW + Fade-out + Negative speed',
+    waveform: 'SAW',
+    speed: -16,
+    multiplier: 4,
+    depth: 40,
+    fade: 32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 6000,
+  },
+  {
+    name: 'TRI + ONE mode + Phase=64',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 64,
+    mode: 'ONE',
+    durationMs: 6000,
+  },
+  {
+    name: 'SQR + HLF mode + Fade-in',
+    waveform: 'SQR',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: -32,
+    startPhase: 0,
+    mode: 'HLF',
+    durationMs: 5000,
+  },
+  {
+    name: 'Fast SIN + Full depth',
+    waveform: 'SIN',
+    speed: 32,
+    multiplier: 16,
     depth: 127,
     fade: 0,
     startPhase: 0,
     mode: 'TRG',
     durationMs: 3000,
   },
+  {
+    name: 'Slow TRI + Fade-out + Inverted',
+    waveform: 'TRI',
+    speed: 8,
+    multiplier: 2,
+    depth: -40,
+    fade: 32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 10000,
+  },
 ];
 
-// Default to trigger tests
-const TEST_SUITE = TRIGGER_TESTS;
+// ============================================
+// EDGE CASE TESTS
+// Goal: Verify behavior at parameter boundaries
+// ============================================
+const EDGE_CASE_TESTS: TestConfig[] = [
+  {
+    name: 'Max speed (63)',
+    waveform: 'TRI',
+    speed: 63,
+    multiplier: 1,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Min speed (1)',
+    waveform: 'TRI',
+    speed: 1,
+    multiplier: 1,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 10000,
+  },
+  {
+    name: 'Max multiplier (2048)',
+    waveform: 'TRI',
+    speed: 1,
+    multiplier: 2048,
+    depth: 40,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  {
+    name: 'Depth=1 (minimal)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 1,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'Phase=1 (minimal offset)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 40,
+    fade: 0,
+    startPhase: 1,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+];
+
+// Collect all test suites
+const ALL_TEST_SUITES = {
+  waveform: { name: 'Waveform Tests', tests: WAVEFORM_TESTS },
+  speed: { name: 'Speed/Timing Tests', tests: SPEED_TESTS },
+  depth: { name: 'Depth Tests', tests: DEPTH_TESTS },
+  phase: { name: 'Start Phase Tests', tests: PHASE_TESTS },
+  mode: { name: 'Mode Tests', tests: MODE_TESTS },
+  fade: { name: 'Fade Tests', tests: FADE_TESTS },
+  negativeSpeed: { name: 'Negative Speed Tests', tests: NEGATIVE_SPEED_TESTS },
+  unipolar: { name: 'Unipolar Waveform Tests', tests: UNIPOLAR_TESTS },
+  combination: { name: 'Combination Tests', tests: COMBINATION_TESTS },
+  edgeCase: { name: 'Edge Case Tests', tests: EDGE_CASE_TESTS },
+};
+
+// Legacy exports for backward compatibility
+const TRIGGER_TESTS = MODE_TESTS.filter(t => t.mode === 'TRG' || t.mode === 'FRE');
+const TIMING_TESTS = SPEED_TESTS;
+const TEST_SUITE = WAVEFORM_TESTS;
 
 export function useLfoVerification() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
@@ -593,6 +1226,66 @@ export function useLfoVerification() {
     return runTestSuite(TIMING_TESTS, 'TIMING VERIFICATION TESTS');
   }, [runTestSuite]);
 
+  // Run a specific test suite by key
+  const runSuiteByKey = useCallback((suiteKey: keyof typeof ALL_TEST_SUITES) => {
+    const suite = ALL_TEST_SUITES[suiteKey];
+    if (!suite) {
+      log(`Unknown test suite: ${suiteKey}`, 'error');
+      return;
+    }
+    return runTestSuite(suite.tests, suite.name.toUpperCase());
+  }, [runTestSuite, log]);
+
+  // Run all test suites sequentially
+  const runAllSuites = useCallback(async () => {
+    setIsRunning(true);
+    clearLogs();
+
+    log('╔══════════════════════════════════════╗');
+    log('║   COMPLETE LFO VERIFICATION SUITE    ║');
+    log('╚══════════════════════════════════════╝');
+    log('');
+
+    const suiteKeys = Object.keys(ALL_TEST_SUITES) as Array<keyof typeof ALL_TEST_SUITES>;
+    let grandTotalPassed = 0;
+    let grandTotalFailed = 0;
+
+    for (const key of suiteKeys) {
+      const suite = ALL_TEST_SUITES[key];
+      log(`\n▸ Running: ${suite.name} (${suite.tests.length} tests)`);
+
+      for (let i = 0; i < suite.tests.length; i++) {
+        setCurrentTest(i + 1);
+        const result = await runSingleTest(suite.tests[i]);
+        grandTotalPassed += result.passed;
+        grandTotalFailed += result.failed;
+      }
+    }
+
+    const grandTotal = grandTotalPassed + grandTotalFailed;
+    const totalTests = suiteKeys.reduce((sum, key) => sum + ALL_TEST_SUITES[key].tests.length, 0);
+
+    log('');
+    log('╔══════════════════════════════════════╗');
+    log('║         GRAND TOTAL RESULTS          ║');
+    log('╚══════════════════════════════════════╝');
+    log(`Tests run: ${totalTests}`);
+
+    if (grandTotal === 0) {
+      log('No checkpoints evaluated');
+    } else {
+      const successRate = Math.round((grandTotalPassed / grandTotal) * 100);
+      if (grandTotalFailed === 0) {
+        log(`All ${grandTotalPassed} checkpoints PASSED! ✓`, 'success');
+      } else {
+        log(`${grandTotalPassed}/${grandTotal} passed (${successRate}%)`, grandTotalFailed > grandTotalPassed ? 'error' : 'info');
+      }
+    }
+
+    setIsRunning(false);
+    setCurrentTest(0);
+  }, [log, clearLogs, runSingleTest]);
+
   // Run a single specific test
   const runTest = useCallback(async (index: number) => {
     if (index < 0 || index >= TEST_SUITE.length) return;
@@ -623,12 +1316,18 @@ export function useLfoVerification() {
     isRunning,
     currentTest,
     clearLogs,
-    // Separate test runners
+    // Legacy test runners (backward compatibility)
     runTriggerTests,
     runTimingTests,
-    // For individual test running
     runTest,
     triggerTests: TRIGGER_TESTS,
     timingTests: TIMING_TESTS,
+    // New comprehensive test suites
+    testSuites: ALL_TEST_SUITES,
+    runSuiteByKey,
+    runAllSuites,
   };
 }
+
+// Export test suite type for UI components
+export type TestSuiteKey = keyof typeof ALL_TEST_SUITES;
