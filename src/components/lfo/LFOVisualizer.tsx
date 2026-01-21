@@ -40,6 +40,7 @@ export function LFOVisualizer({
   strokeWidth = 2,
   isEditing = false,
   hideValuesWhileEditing = true,
+  showFillsWhenEditing = true,
   editFadeOutDuration = 100,
   editFadeInDuration = 350,
   fadeMultiplier,
@@ -48,6 +49,8 @@ export function LFOVisualizer({
 }: LFOVisualizerProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
+  // Only hide fills if editing AND the setting says to hide them (showFillsWhenEditing=false)
+  const shouldHideFill = isEditing && !showFillsWhenEditing;
   // Check if user prefers reduced motion (accessibility setting)
   const reducedMotion = useReducedMotion();
 
@@ -160,6 +163,8 @@ export function LFOVisualizer({
               fillColor={resolvedTheme.waveformFill}
               depth={depth}
               startPhase={startPhase}
+              isEditing={shouldHideFill}
+              editFadeInDuration={editFadeInDuration}
             />
           ) : (
             <WaveformDisplay
@@ -172,6 +177,8 @@ export function LFOVisualizer({
               resolution={128}
               depth={depth}
               startPhase={startPhase}
+              isEditing={shouldHideFill}
+              editFadeInDuration={editFadeInDuration}
             />
           )}
 
@@ -191,7 +198,7 @@ export function LFOVisualizer({
 
           {/* Fade trajectory curve - shows path with fade envelope applied to LFO */}
           {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
-          {showFadeEnvelope && fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
+          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
             <FadeEnvelope
               waveform={waveform}
               width={width}

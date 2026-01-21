@@ -1,5 +1,8 @@
-import React, { useMemo } from 'react';
+import React, { useMemo, useEffect } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
+import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+
+const BASE_FILL_OPACITY = 0.2;
 
 interface RandomWaveformProps {
   samples: Array<{ phase: number; value: number }>;
@@ -11,6 +14,10 @@ interface RandomWaveformProps {
   depth?: number;
   /** Start phase offset (0-127) to shift display position */
   startPhase?: number;
+  /** When true, hides the fill (while actively editing depth) */
+  isEditing?: boolean;
+  /** Duration in ms for fade-in when editing ends (default 350) */
+  editFadeInDuration?: number;
 }
 
 /**
@@ -26,7 +33,25 @@ export function RandomWaveform({
   fillColor,
   depth,
   startPhase,
+  isEditing = false,
+  editFadeInDuration = 350,
 }: RandomWaveformProps) {
+  // Animated fill opacity - fades in when editing ends
+  const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);
+
+  useEffect(() => {
+    if (isEditing) {
+      // Instantly hide when editing starts
+      fillOpacity.value = 0;
+    } else {
+      // Fade in when editing ends
+      fillOpacity.value = withTiming(BASE_FILL_OPACITY, {
+        duration: editFadeInDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [isEditing, editFadeInDuration, fillOpacity]);
+
   const padding = 8;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
@@ -103,7 +128,7 @@ export function RandomWaveform({
   return (
     <>
       {fillColor && (
-        <Path path={fillPath} color={fillColor} style="fill" opacity={0.2} />
+        <Path path={fillPath} color={fillColor} style="fill" opacity={fillOpacity} />
       )}
       <Path
         path={strokePath}

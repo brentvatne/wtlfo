@@ -89,6 +89,9 @@ export interface LFOVisualizerProps {
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
 
+  /** When true, keeps fill areas visible while editing depth (default true) */
+  showFillsWhenEditing?: boolean;
+
   /** Duration in ms for fade-out when editing starts (default 100) */
   editFadeOutDuration?: number;
 
@@ -136,6 +139,10 @@ export interface WaveformDisplayProps {
   depth?: number;
   /** Start phase offset (0-127) to shift waveform display */
   startPhase?: number;
+  /** When true, hides the fill (while actively editing depth) */
+  isEditing?: boolean;
+  /** Duration in ms for fade-in when editing ends (default 350) */
+  editFadeInDuration?: number;
 }
 
 /**

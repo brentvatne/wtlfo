@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native'
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
 
 type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
-import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
@@ -34,6 +34,8 @@ interface DestinationMeterProps {
   isEditing?: boolean;
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
+  /** When true, keeps fill areas visible while editing (default true) */
+  showFillsWhenEditing?: boolean;
   /** Duration in ms for fade-out when editing starts (default 100) */
   editFadeOutDuration?: number;
   /** Duration in ms for fade-in when editing ends (default 350) */
@@ -58,12 +60,15 @@ export function DestinationMeter({
   showValue = false,
   isEditing = false,
   hideValuesWhileEditing = true,
+  showFillsWhenEditing = true,
   editFadeOutDuration = 100,
   editFadeInDuration = 350,
   isPaused = false,
 }: DestinationMeterProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
+  // Only hide fills if editing AND the setting says to hide them
+  const shouldHideFill = isEditing && !showFillsWhenEditing;
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
   const max = destination?.max ?? 127;
@@ -108,7 +113,10 @@ export function DestinationMeter({
   const currentValueOpacity = useSharedValue(shouldHideValue ? 0 : 1);
   const prevWaveformRef = useRef(waveform);
 
-  // Single consolidated effect for current value opacity
+  // Animated opacity for modulation range fill (orange area)
+  const modulationRangeOpacity = useSharedValue(shouldHideFill ? 0 : 0.2);
+
+  // Effect for current value line opacity
   // Handles: editing state changes, waveform changes, and their combinations
   useEffect(() => {
     // Check if waveform changed since last render
@@ -138,11 +146,31 @@ export function DestinationMeter({
     }
   }, [shouldHideValue, waveform, currentValueOpacity, editFadeOutDuration, editFadeInDuration]);
 
-  // Update values directly (no spring) to avoid ghosting during slider drag
+  // Separate effect for modulation range fill opacity (controlled by showFillsWhenEditing)
   useEffect(() => {
-    animatedCenterValue.value = centerValue;
-    animatedLowerBound.value = targetLowerBound;
-    animatedUpperBound.value = targetUpperBound;
+    if (shouldHideFill) {
+      // Instantly hide modulation range when editing starts
+      modulationRangeOpacity.value = 0;
+    } else {
+      // Fade in modulation range when editing ends
+      modulationRangeOpacity.value = withTiming(0.2, {
+        duration: editFadeInDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [shouldHideFill, modulationRangeOpacity, editFadeInDuration]);
+
+  // Animate bounds smoothly to match waveform path interpolation (60ms)
+  // Uses withTiming instead of direct assignment for cohesive visual transitions
+  // Cancel in-progress animations to prevent stacking during rapid changes
+  useEffect(() => {
+    cancelAnimation(animatedCenterValue);
+    cancelAnimation(animatedLowerBound);
+    cancelAnimation(animatedUpperBound);
+    const config = { duration: 60, easing: Easing.out(Easing.ease) };
+    animatedCenterValue.value = withTiming(centerValue, config);
+    animatedLowerBound.value = withTiming(targetLowerBound, config);
+    animatedUpperBound.value = withTiming(targetUpperBound, config);
   }, [centerValue, targetLowerBound, targetUpperBound]);
 
   // Track current value for display - updated via interval to avoid blocking UI thread
@@ -255,16 +283,28 @@ export function DestinationMeter({
     return { fadeActualMax: actualMax, fadeActualMin: actualMin };
   }, [hasFade, depth, fade, waveform, startPhase, centerValue, maxModulation, min, max, targetUpperBound, targetLowerBound]);
 
+  // Animated fade bounds for smooth transitions
+  const animatedFadeActualMax = useSharedValue(fadeActualMax);
+  const animatedFadeActualMin = useSharedValue(fadeActualMin);
+
+  useEffect(() => {
+    cancelAnimation(animatedFadeActualMax);
+    cancelAnimation(animatedFadeActualMin);
+    const config = { duration: 60, easing: Easing.out(Easing.ease) };
+    animatedFadeActualMax.value = withTiming(fadeActualMax, config);
+    animatedFadeActualMin.value = withTiming(fadeActualMin, config);
+  }, [fadeActualMax, fadeActualMin]);
+
   // Fade bounds Y positions - FIXED at the actual max/min the output will reach
   const fadeMaxBoundY = useDerivedValue(() => {
     'worklet';
-    return meterTop + meterHeight - ((fadeActualMax - min) / range) * meterHeight;
-  }, [meterTop, meterHeight, min, range, fadeActualMax]);
+    return meterTop + meterHeight - ((animatedFadeActualMax.value - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range]);
 
   const fadeMinBoundY = useDerivedValue(() => {
     'worklet';
-    return meterTop + meterHeight - ((fadeActualMin - min) / range) * meterHeight;
-  }, [meterTop, meterHeight, min, range, fadeActualMin]);
+    return meterTop + meterHeight - ((animatedFadeActualMin.value - min) / range) * meterHeight;
+  }, [meterTop, meterHeight, min, range]);
 
   // Animated current value Y position
   const currentValueY = useDerivedValue(() => {
@@ -366,14 +406,15 @@ export function DestinationMeter({
           {gridLines}
         </Group>
 
-        {/* Modulation range - orange filled area showing depth bounds */}
+        {/* Modulation range - orange filled area showing depth bounds, fades in when editing ends */}
         {depth !== 0 && (
           <Rect
             x={meterX}
             y={upperBoundY}
             width={meterWidth}
             height={boundRangeHeight}
-            color="rgba(255, 102, 0, 0.2)"
+            color="#ff6600"
+            opacity={modulationRangeOpacity}
           />
         )}
 
