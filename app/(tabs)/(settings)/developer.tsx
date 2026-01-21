@@ -1,14 +1,15 @@
-import React, { useRef } from 'react';
+import React, { useRef, useState } from 'react';
 import { View, Text, ScrollView, Pressable, StyleSheet } from 'react-native';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMidi } from '@/src/context/midi-context';
 import { DigitaktConnection } from '@/src/components/settings/DigitaktConnection';
-import { useLfoVerification } from '@/src/hooks/useLfoVerification';
+import { useLfoVerification, TestSuiteKey } from '@/src/hooks/useLfoVerification';
 
 export default function DeveloperScreen() {
   const { connected } = useMidi();
-  const { logs, isRunning, runTimingTest, clearLogs } = useLfoVerification();
+  const { logs, isRunning, testSuites, runSuiteByKey, runAllSuites, clearLogs } = useLfoVerification();
+  const [selectedSuite, setSelectedSuite] = useState<TestSuiteKey | 'all'>('all');
   const scrollViewRef = useRef<ScrollView>(null);
 
   // Auto-scroll when logs update
@@ -46,21 +47,53 @@ export default function DeveloperScreen() {
 
         {/* Test Card */}
         <View style={styles.testCard}>
-          <Text style={styles.testTitle}>LFO Timing Verification</Text>
+          <Text style={styles.testTitle}>LFO Verification</Text>
           <Text style={styles.testDescription}>
-            Setup: MIDI track, CC SEL1=1, CC VAL1=64{'\n'}
-            Test: TRI | SPD=16 | MULT=8 | LFO→CC1{'\n'}
-            Monitors CC 70 for 3 sec at 120 BPM.
+            Setup: Digitakt at 120 BPM{'\n'}
+            MIDI track, LFO DEST=CC1, VAL1=64
           </Text>
+
+          {/* Test Suite Selector */}
+          <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suiteScroller}>
+            <Pressable
+              style={[styles.suiteChip, selectedSuite === 'all' && styles.suiteChipSelected]}
+              onPress={() => setSelectedSuite('all')}
+            >
+              <Text style={[styles.suiteChipText, selectedSuite === 'all' && styles.suiteChipTextSelected]}>
+                All (56)
+              </Text>
+            </Pressable>
+            {(Object.entries(testSuites) as [TestSuiteKey, { name: string; tests: unknown[] }][]).map(([key, suite]) => (
+              <Pressable
+                key={key}
+                style={[styles.suiteChip, selectedSuite === key && styles.suiteChipSelected]}
+                onPress={() => setSelectedSuite(key)}
+              >
+                <Text style={[styles.suiteChipText, selectedSuite === key && styles.suiteChipTextSelected]}>
+                  {suite.name.replace(' Tests', '')} ({suite.tests.length})
+                </Text>
+              </Pressable>
+            ))}
+          </ScrollView>
+
           <Pressable
             style={[styles.runButton, (!connected || isRunning) && styles.runButtonDisabled]}
-            onPress={runTimingTest}
+            onPress={() => {
+              if (selectedSuite === 'all') {
+                runAllSuites();
+              } else {
+                runSuiteByKey(selectedSuite);
+              }
+            }}
             disabled={!connected || isRunning}
           >
             <Text style={styles.runButtonText}>
-              {isRunning ? 'Running...' : connected ? 'Run Test' : 'Connect MIDI First'}
+              {isRunning ? 'Running...' : `Run ${selectedSuite === 'all' ? 'All Tests' : testSuites[selectedSuite].name}`}
             </Text>
           </Pressable>
+          {!connected && (
+            <Text style={styles.connectHint}>Connect MIDI first</Text>
+          )}
         </View>
 
         {/* Log Output */}
@@ -80,6 +113,7 @@ export default function DeveloperScreen() {
             {logs.length === 0 ? (
               <Text style={styles.logPlaceholder}>
                 Digitakt setup required:{'\n'}
+                • Set tempo to 120 BPM{'\n'}
                 • Select a track, set to MIDI machine{'\n'}
                 • CC SEL page: SEL1 = 1{'\n'}
                 • CC VAL page: VAL1 = 64{'\n'}
@@ -138,6 +172,28 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 16,
   },
+  suiteScroller: {
+    marginBottom: 12,
+    marginHorizontal: -4,
+  },
+  suiteChip: {
+    backgroundColor: '#2a2a2a',
+    borderRadius: 16,
+    paddingHorizontal: 12,
+    paddingVertical: 6,
+    marginHorizontal: 4,
+  },
+  suiteChipSelected: {
+    backgroundColor: '#ff6600',
+  },
+  suiteChipText: {
+    color: '#888899',
+    fontSize: 12,
+    fontWeight: '500',
+  },
+  suiteChipTextSelected: {
+    color: '#ffffff',
+  },
   runButton: {
     backgroundColor: '#ff6600',
     borderRadius: 8,
@@ -149,8 +205,14 @@ const styles = StyleSheet.create({
   },
   runButtonText: {
     color: '#ffffff',
-    fontSize: 15,
+    fontSize: 14,
     fontWeight: '600',
+  },
+  connectHint: {
+    color: '#888899',
+    fontSize: 12,
+    textAlign: 'center',
+    marginTop: 8,
   },
   logSection: {
     flex: 1,
