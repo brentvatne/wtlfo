@@ -240,11 +240,19 @@ class MidiManager {
                 clockIntervals.removeFirst()
             }
             if clockIntervals.count >= 6 {
-                // Use median for jitter resistance
+                // Use proper median for jitter resistance
+                // For even-sized arrays, average the two middle elements
                 let sorted = clockIntervals.sorted()
-                let medianInterval = sorted[sorted.count / 2]
+                let mid = sorted.count / 2
+                let medianInterval: Double
+                if sorted.count % 2 == 0 {
+                    medianInterval = (sorted[mid - 1] + sorted[mid]) / 2.0
+                } else {
+                    medianInterval = sorted[mid]
+                }
                 let ticksPerMinute = 60000.0 / medianInterval
-                bpm = max(20, min(300, ticksPerMinute / 24.0)) // Clamp to sane range
+                // Round to nearest integer BPM for cleaner display
+                bpm = max(20, min(300, (ticksPerMinute / 24.0).rounded()))
             }
         }
         lastClockTime = now
