@@ -3,6 +3,7 @@ import { View, Text, ScrollView, Pressable, Switch, StyleSheet, Alert, ActivityI
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
+import { SymbolView } from 'expo-symbols';
 import { usePreset } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
 import { ParameterSlider } from '@/src/components/controls';
@@ -14,6 +15,7 @@ export default function SettingsScreen() {
   const {
     bpm, setBPM,
     hideValuesWhileEditing, setHideValuesWhileEditing,
+    showFillsWhenEditing, setShowFillsWhenEditing,
     fadeInOnOpen, setFadeInOnOpen,
     resetLFOOnChange, setResetLFOOnChange,
     fadeInDuration, setFadeInDuration,
@@ -27,7 +29,10 @@ export default function SettingsScreen() {
     isChecking,
     isDownloading,
   } = useUpdates();
-  const { connected, connectedDeviceName, externalBpm } = useMidi();
+  const { connected, connectedDeviceName, externalBpm, receiveClock } = useMidi();
+
+  // When MIDI clock sync is active, tempo is controlled externally
+  const midiClockActive = connected && receiveClock && externalBpm > 0;
 
   const getUpdateId = () => {
     if (!Updates.isEnabled) return '-';
@@ -73,39 +78,56 @@ export default function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Tempo</Text>
-        <ParameterSlider
-          label="BPM"
-          min={30}
-          max={300}
-          value={bpm}
-          onChange={setBPM}
-          formatValue={(v) => String(Math.round(v))}
-        />
-        <View style={styles.segmentedControl}>
-          {COMMON_BPMS.map((tempo) => {
-            const isSelected = Math.round(bpm) === tempo;
-            return (
-              <Pressable
-                key={tempo}
-                style={[
-                  styles.segment,
-                  isSelected && styles.segmentSelected,
-                ]}
-                onPress={() => setBPM(tempo)}
-              >
-                <Text
-                  style={[
-                    styles.segmentText,
-                    isSelected && styles.segmentTextSelected,
-                  ]}
-                >
-                  {tempo}
-                </Text>
-              </Pressable>
-            );
-          })}
+        <View style={styles.sectionHeader}>
+          <Text style={styles.sectionHeaderTitle}>Tempo</Text>
+          {midiClockActive && (
+            <View style={styles.midiClockBadge}>
+              <SymbolView name="link" size={12} tintColor="#ff6600" />
+              <Text style={styles.midiClockText}>MIDI</Text>
+            </View>
+          )}
         </View>
+        {midiClockActive ? (
+          <View style={styles.midiClockInfo}>
+            <Text style={styles.midiClockBpm}>{Math.round(externalBpm)}</Text>
+            <Text style={styles.midiClockLabel}>BPM from {connectedDeviceName}</Text>
+          </View>
+        ) : (
+          <>
+            <ParameterSlider
+              label="BPM"
+              min={30}
+              max={300}
+              value={bpm}
+              onChange={setBPM}
+              formatValue={(v) => String(Math.round(v))}
+            />
+            <View style={styles.segmentedControl}>
+              {COMMON_BPMS.map((tempo) => {
+                const isSelected = Math.round(bpm) === tempo;
+                return (
+                  <Pressable
+                    key={tempo}
+                    style={[
+                      styles.segment,
+                      isSelected && styles.segmentSelected,
+                    ]}
+                    onPress={() => setBPM(tempo)}
+                  >
+                    <Text
+                      style={[
+                        styles.segmentText,
+                        isSelected && styles.segmentTextSelected,
+                      ]}
+                    >
+                      {tempo}
+                    </Text>
+                  </Pressable>
+                );
+              })}
+            </View>
+          </>
+        )}
       </View>
 
       <View style={styles.section}>
@@ -140,6 +162,20 @@ export default function SettingsScreen() {
         </View>
         <View style={[styles.settingRow, { marginTop: 16 }]}>
           <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Show fills when editing</Text>
+            <Text style={styles.settingDescription}>
+              Keep waveform fill areas visible when adjusting depth
+            </Text>
+          </View>
+          <Switch
+            value={showFillsWhenEditing}
+            onValueChange={setShowFillsWhenEditing}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
+          <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Reset LFO on change</Text>
             <Text style={styles.settingDescription}>
               Restart LFO from beginning when parameters change
@@ -156,7 +192,7 @@ export default function SettingsScreen() {
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Show fade envelope</Text>
             <Text style={styles.settingDescription}>
-              Display fade envelope curves on the waveform visualization
+              Display dashed fade envelope curve on the visualization
             </Text>
           </View>
           <Switch
@@ -222,7 +258,7 @@ export default function SettingsScreen() {
         <Text style={styles.sectionTitle}>Experimental</Text>
         <Pressable
           style={styles.linkRow}
-          onPress={() => router.push('./midi')}
+          onPress={() => router.push('/midi')}
         >
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>MIDI Sync</Text>
@@ -422,5 +458,34 @@ const styles = StyleSheet.create({
     height: 1,
     backgroundColor: '#2a2a2a',
     marginVertical: 8,
+  },
+  midiClockBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
+    backgroundColor: '#2a2a2a',
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    borderRadius: 4,
+  },
+  midiClockText: {
+    color: '#ff6600',
+    fontSize: 11,
+    fontWeight: '600',
+  },
+  midiClockInfo: {
+    alignItems: 'center',
+    paddingVertical: 24,
+  },
+  midiClockBpm: {
+    color: '#ff6600',
+    fontSize: 48,
+    fontWeight: '700',
+    fontVariant: ['tabular-nums'],
+  },
+  midiClockLabel: {
+    color: '#888899',
+    fontSize: 13,
+    marginTop: 4,
   },
 });

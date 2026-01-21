@@ -1,7 +1,6 @@
-import { Stack, Link } from 'expo-router';
-import { Pressable } from 'react-native';
-import { SymbolView } from 'expo-symbols';
+import { Stack, router } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
+import { MidiStatusButton } from '@/src/components/navigation/MidiStatusButton';
 
 export default function HomeLayout() {
   const { preset } = usePreset();
@@ -26,23 +25,19 @@ export default function HomeLayout() {
         name="index"
         options={{
           title: preset?.name || 'LFO',
-          headerLeft: () => (
-            <Link href="/presets" asChild>
-              <Pressable
-                style={{
-                  paddingHorizontal: 8,
-                  paddingVertical: 6,
-                }}
-                hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-              >
-                <SymbolView
-                  name="list.bullet"
-                  size={22}
-                  tintColor="#ff6600"
-                />
-              </Pressable>
-            </Link>
-          ),
+          unstable_headerLeftItems: () => [{
+            type: 'button',
+            label: 'Presets',
+            icon: { type: 'sfSymbol', name: 'list.bullet' },
+            tintColor: '#ff6600',
+            onPress: () => router.push('/presets'),
+            hidesSharedBackground: true,
+          }],
+          unstable_headerRightItems: () => [{
+            type: 'custom',
+            element: <MidiStatusButton />,
+            hidesSharedBackground: true,
+          }],
         }}
       />
       <Stack.Screen

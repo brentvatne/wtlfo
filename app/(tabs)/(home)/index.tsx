@@ -30,9 +30,10 @@ const METER_WIDTH = 52;
 export default function HomeScreen() {
   const {
     currentConfig,
-    bpm,
+    effectiveBpm,
     isEditing,
     hideValuesWhileEditing,
+    showFillsWhenEditing,
     fadeInOnOpen,
     fadeInDuration,
     editFadeOutDuration,
@@ -191,7 +192,7 @@ export default function HomeScreen() {
                 mode={currentConfig.mode as TriggerMode}
                 depth={currentConfig.depth}
                 fade={currentConfig.fade}
-                bpm={bpm}
+                bpm={effectiveBpm}
                 cycleTimeMs={timingInfo.cycleTimeMs}
                 noteValue={timingInfo.noteValue}
                 steps={timingInfo.steps}
@@ -203,6 +204,7 @@ export default function HomeScreen() {
                 showOutput={false}
                 isEditing={isEditing}
                 hideValuesWhileEditing={hideValuesWhileEditing}
+                showFillsWhenEditing={showFillsWhenEditing}
                 editFadeOutDuration={editFadeOutDuration}
                 editFadeInDuration={editFadeInDuration}
                 strokeWidth={2.5}
@@ -217,7 +219,7 @@ export default function HomeScreen() {
           {/* Timing info outside pressable - tapping here won't pause */}
           <View style={[styles.timingContainer, { width: visualizerWidth }]}>
             <TimingInfo
-              bpm={bpm}
+              bpm={effectiveBpm}
               cycleTimeMs={timingInfo.cycleTimeMs}
               noteValue={timingInfo.noteValue}
               steps={timingInfo.steps}
@@ -257,6 +259,7 @@ export default function HomeScreen() {
             showValue={hasDestination}
             isEditing={isEditing}
             hideValuesWhileEditing={hideValuesWhileEditing}
+            showFillsWhenEditing={showFillsWhenEditing}
             editFadeOutDuration={editFadeOutDuration}
             editFadeInDuration={editFadeInDuration}
             isPaused={isPaused}

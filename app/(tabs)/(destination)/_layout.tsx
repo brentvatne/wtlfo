@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { MidiStatusButton } from '@/src/components/navigation/MidiStatusButton';
 
 export default function DestinationLayout() {
   return (
@@ -21,6 +22,11 @@ export default function DestinationLayout() {
         name="index"
         options={{
           title: 'Destination',
+          unstable_headerRightItems: () => [{
+            type: 'custom',
+            element: <MidiStatusButton />,
+            hidesSharedBackground: true,
+          }],
         }}
       />
     </Stack>

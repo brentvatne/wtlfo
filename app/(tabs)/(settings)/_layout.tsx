@@ -1,4 +1,5 @@
 import { Stack } from 'expo-router';
+import { MidiStatusButton } from '@/src/components/navigation/MidiStatusButton';
 
 export default function SettingsLayout() {
   return (
@@ -21,13 +22,11 @@ export default function SettingsLayout() {
         name="index"
         options={{
           title: 'Settings',
-        }}
-      />
-      <Stack.Screen
-        name="midi"
-        options={{
-          title: 'MIDI Sync',
-          presentation: 'modal',
+          unstable_headerRightItems: () => [{
+            type: 'custom',
+            element: <MidiStatusButton />,
+            hidesSharedBackground: true,
+          }],
         }}
       />
       <Stack.Screen

@@ -14,7 +14,8 @@
       "bundleIdentifier": "com.brents.wtlfo",
       "infoPlist": {
         "ITSAppUsesNonExemptEncryption": false
-      }
+      },
+      "appleTeamId": "GQ4S96SE9Z"
     },
     "android": {
       "adaptiveIcon": {
