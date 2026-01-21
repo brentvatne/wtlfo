@@ -91,9 +91,6 @@ export default function DeveloperScreen() {
               {isRunning ? 'Running...' : `Run ${selectedSuite === 'all' ? 'All Tests' : testSuites[selectedSuite].name}`}
             </Text>
           </Pressable>
-          {!connected && (
-            <Text style={styles.connectHint}>Connect MIDI first</Text>
-          )}
         </View>
 
         {/* Log Output */}
@@ -207,12 +204,6 @@ const styles = StyleSheet.create({
     color: '#ffffff',
     fontSize: 14,
     fontWeight: '600',
-  },
-  connectHint: {
-    color: '#888899',
-    fontSize: 12,
-    textAlign: 'center',
-    marginTop: 8,
   },
   logSection: {
     flex: 1,
