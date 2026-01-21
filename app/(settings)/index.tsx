@@ -171,16 +171,26 @@ export default function SettingsScreen() {
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderTitle}>Animation Timing</Text>
-          <Pressable
-            onPress={() => {
-              setFadeInDuration(800);
-              setEditFadeOutDuration(50);
-              setEditFadeInDuration(100);
-            }}
-            style={styles.resetButton}
-          >
-            <Text style={styles.resetButtonText}>Reset</Text>
-          </Pressable>
+          {(() => {
+            const hasNonDefaultTiming =
+              Math.round(fadeInDuration) !== 800 ||
+              Math.round(editFadeOutDuration) !== 50 ||
+              Math.round(editFadeInDuration) !== 100;
+            return (
+              <Pressable
+                onPress={() => {
+                  setFadeInDuration(800);
+                  setEditFadeOutDuration(50);
+                  setEditFadeInDuration(100);
+                }}
+                style={styles.resetButton}
+              >
+                <Text style={[styles.resetButtonText, hasNonDefaultTiming && styles.resetButtonTextActive]}>
+                  Reset
+                </Text>
+              </Pressable>
+            );
+          })()}
         </View>
         <ParameterSlider
           label="Open fade-in duration"
@@ -220,6 +230,19 @@ export default function SettingsScreen() {
               {connected
                 ? `${connectedDeviceName}${externalBpm > 0 ? ` • ${Math.round(externalBpm)} BPM` : ''}`
                 : 'Connect to external MIDI device'}
+            </Text>
+          </View>
+          <Text style={styles.chevron}>›</Text>
+        </Pressable>
+        <View style={styles.divider} />
+        <Pressable
+          style={styles.linkRow}
+          onPress={() => router.push('./developer')}
+        >
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Developer Tools</Text>
+            <Text style={styles.settingDescription}>
+              E2E verification tests for LFO behavior
             </Text>
           </View>
           <Text style={styles.chevron}>›</Text>
@@ -306,6 +329,9 @@ const styles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '500',
   },
+  resetButtonTextActive: {
+    color: '#ff6600',
+  },
   settingRow: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -391,5 +417,10 @@ const styles = StyleSheet.create({
   updateIdText: {
     fontSize: 12,
     color: '#888',
+  },
+  divider: {
+    height: 1,
+    backgroundColor: '#2a2a2a',
+    marginVertical: 8,
   },
 });
