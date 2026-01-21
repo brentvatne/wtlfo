@@ -473,7 +473,12 @@ export function DestinationMeter({
       </Canvas>
 
       {/* Value display - tappable to cycle through VALUE/MIN/MAX */}
-      <Pressable style={styles.valueContainer} onPress={handleDisplayModePress}>
+      {/* Added padding and hitSlop to prevent accidental taps from visualization above */}
+      <Pressable
+        style={styles.valueContainer}
+        onPress={handleDisplayModePress}
+        hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
+      >
         <Text style={[styles.valueText, !showValue && styles.valueHidden]}>
           {displayMode === 'VALUE'
             ? (shouldHideValue ? Math.round(centerValue) : currentValue)
@@ -496,7 +501,7 @@ const styles = StyleSheet.create({
   },
   valueContainer: {
     alignItems: 'center',
-    paddingVertical: 8,
+    paddingVertical: 12,
     backgroundColor: '#000000',
   },
   valueText: {

@@ -143,7 +143,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
       {bpm !== undefined && (
-        <Pressable onPress={handleBpmPress} style={styles.item}>
+        <Pressable onPress={handleBpmPress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
           <Animated.Text style={[styles.value, { color: theme.text }, bpmAnimatedStyle]}>
             {bpm}
           </Animated.Text>
@@ -154,7 +154,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       )}
 
       {cycleTimeMs !== undefined && (
-        <Pressable onPress={handleCyclePress} style={styles.item}>
+        <Pressable onPress={handleCyclePress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
           <Text style={[styles.value, styles.cycleValue, { color: theme.text }]}>
             {showElapsedTime ? formatTime(elapsedTimeMs) : formatTime(cycleTimeMs)}
           </Text>
@@ -172,7 +172,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       )}
 
       {steps !== undefined && steps > 0 && (
-        <Pressable onPress={handleStepsPress} style={styles.item}>
+        <Pressable onPress={handleStepsPress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
           <Text style={[styles.value, styles.stepsValue, { color: theme.text }]}>
             {showCurrentStep ? currentStep : formatSteps(steps)}
           </Text>
@@ -189,7 +189,7 @@ const styles = StyleSheet.create({
   container: {
     flexDirection: 'row',
     justifyContent: 'space-around',
-    paddingVertical: 8,
+    paddingVertical: 12,
     paddingHorizontal: 16,
     borderTopWidth: 1,
   },
