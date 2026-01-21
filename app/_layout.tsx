@@ -1,9 +1,17 @@
 import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import { PresetProvider } from '@/src/context/preset-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { Platform } from 'react-native';
+
+// TODO: Fix underlying Reanimated strict mode violations and re-enable warnings
+// See background investigation for details on what's causing the warnings
+configureReanimatedLogger({
+  level: ReanimatedLogLevel.warn,
+  strict: false,
+});
 
 const isLegacyIOS =
   Platform.OS === 'ios' && parseInt(String(Platform.Version), 10) < 26;

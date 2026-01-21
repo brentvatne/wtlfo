@@ -47,3 +47,33 @@
 ### EAS Updates with appVersion Policy
 **Decision**: Use `runtimeVersion.policy: "appVersion"` for EAS Updates
 **Rationale**: Native changes (like MIDI module) require new builds. Bump app.json version when native code changes.
+
+## Technical Debt
+
+### Reanimated Strict Mode Disabled
+**Status**: Temporarily disabled in `app/_layout.tsx`
+**Issue**: SharedValues are being read/written from the JS thread instead of from worklets.
+
+**Violations found:**
+1. `preset-context.tsx` (lines 503-513, 532-541, 584-591, 626-634, 673-683) - `.value` writes in `requestAnimationFrame` loop
+2. `TimingInfo.tsx` (lines 34, 52, 72, 99) - `.value` reads in `setInterval` callbacks
+3. `DestinationMeter.tsx` (lines 168-169) - `.value` reads in `setInterval`
+4. `LFOVisualizer.tsx` (lines 72, 78) - `.value` writes in `useEffect`
+
+**Note:** `.get()` does NOT fix the warnings - it's only for React Compiler compatibility. Both `.value` and `.get()` trigger the same strict mode warning.
+
+**Proper fixes:**
+- Use `useAnimatedReaction` with `runOnJS` to bridge SharedValue reads to JS state
+- Keep all SharedValue reads inside worklets (`useAnimatedStyle`, `useDerivedValue`)
+- For TimingInfo/DestinationMeter: replace `setInterval` polling with `useAnimatedReaction`
+
+**Architectural issue:**
+The LFO engine runs on JS thread via `requestAnimationFrame` and writes to SharedValues. Options:
+1. Accept current pattern (works correctly, strict mode disabled)
+2. Port LFO to UI thread using `useFrameCallback` (requires worklet-compatible engine)
+3. Use `useAnimatedReaction` to bridge UI→JS for components that need JS-side values
+
+**Sources:**
+- [Reanimated useSharedValue docs](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/)
+- [Reanimated logger configuration](https://docs.swmansion.com/react-native-reanimated/docs/debugging/logger-configuration/)
+- [GitHub Issue #6998](https://github.com/software-mansion/react-native-reanimated/issues/6998)

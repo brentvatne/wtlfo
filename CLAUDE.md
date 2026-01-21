@@ -11,3 +11,7 @@ wtlfo is an Expo app that visualizes Elektron Digitakt II LFO behavior. It uses 
 ## Related Projects
 
 - `elektron-lfo` package: `/Users/brent/code/elektron-lfo`
+
+## Project Plans
+
+- `.claude/e2e-verification-plan.md` - Plan for end-to-end LFO verification against real Digitakt II hardware via MIDI CC
