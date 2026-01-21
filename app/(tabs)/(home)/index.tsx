@@ -253,7 +253,7 @@ export default function HomeScreen() {
             startPhase={currentConfig.startPhase}
             width={METER_WIDTH}
             height={METER_HEIGHT}
-            showValue={hasDestination}
+            showValue
             isEditing={isEditing}
             hideValuesWhileEditing={hideValuesWhileEditing}
             showFillsWhenEditing={showFillsWhenEditing}

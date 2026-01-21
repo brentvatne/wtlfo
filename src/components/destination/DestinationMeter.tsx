@@ -480,7 +480,7 @@ export function DestinationMeter({
         hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
       >
         <Text style={styles.valueText}>
-          {!showValue || depth === 0
+          {!showValue
             ? '—'
             : displayMode === 'VALUE'
               ? (shouldHideValue ? Math.round(centerValue) : currentValue)
