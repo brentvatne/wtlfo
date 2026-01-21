@@ -25,10 +25,20 @@ class MidiManager {
     var onDisconnect: (() -> Void)?
     var onCcReceived: ((UInt8, UInt8, UInt8, Double) -> Void)?  // (channel, cc, value, timestampMs)
 
-    // BPM calculation state
-    private var lastClockTime: CFTimeInterval = 0
-    private var clockIntervals: [Double] = []
+    // BPM calculation state - uses packet timestamps for accuracy
+    // We measure full beat durations (24 ticks) instead of individual tick intervals
+    // to average out per-tick jitter
+    private var lastBeatTimestamp: UInt64 = 0  // Host ticks (from packet.timeStamp)
+    private var beatDurations: [Double] = []   // Beat durations in ms
+    private var ticksInCurrentBeat: UInt64 = 0
     private var lastReportedBpm: Double = 0
+
+    // For converting host ticks to milliseconds
+    private var timebaseInfo: mach_timebase_info_data_t = {
+        var info = mach_timebase_info_data_t()
+        mach_timebase_info(&info)
+        return info
+    }()
 
     func setup() throws {
         var status = MIDIClientCreateWithBlock("wtlfo" as CFString, &midiClient) { [weak self] notification in
@@ -131,8 +141,9 @@ class MidiManager {
         isTransportRunning = false
         clockTickCount = 0
         bpm = 0
-        clockIntervals.removeAll()
-        lastClockTime = 0
+        beatDurations.removeAll()
+        lastBeatTimestamp = 0
+        ticksInCurrentBeat = 0
         lastReportedBpm = 0
     }
 
@@ -161,14 +172,16 @@ class MidiManager {
                         switch status {
                         case 0xF8: // Clock
                             clockTickCount += 1
-                            calculateBpm()
+                            // Use packet timestamp for accurate timing
+                            calculateBpm(packetTimestamp: packet.timeStamp)
                             if let newBpm = checkBpmChange() {
                                 bpmChanged = newBpm
                             }
                         case 0xFA: // Start
                             clockTickCount = 0
-                            clockIntervals.removeAll()
-                            lastClockTime = 0
+                            beatDurations.removeAll()
+                            lastBeatTimestamp = 0
+                            ticksInCurrentBeat = 0
                             isTransportRunning = true
                             transportMessage = "start"
                         case 0xFB: // Continue
@@ -222,47 +235,64 @@ class MidiManager {
         }
     }
 
-    private func calculateBpm() {
-        let now = CACurrentMediaTime()
-        if lastClockTime > 0 {
-            let intervalMs = (now - lastClockTime) * 1000.0
+    /// Calculate BPM using packet timestamps and full-beat measurement
+    /// This approach:
+    /// 1. Uses packet.timeStamp (host ticks) instead of CACurrentMediaTime for accuracy
+    /// 2. Measures full beat durations (24 ticks) to average out per-tick jitter
+    /// 3. Snaps to common BPM values to avoid display flicker
+    private func calculateBpm(packetTimestamp: MIDITimeStamp) {
+        ticksInCurrentBeat += 1
 
-            // Outlier rejection: skip if interval is wildly off
-            if clockIntervals.count > 0 {
-                let avgInterval = clockIntervals.reduce(0, +) / Double(clockIntervals.count)
-                if intervalMs < avgInterval * 0.5 || intervalMs > avgInterval * 2.0 {
-                    lastClockTime = now
-                    return // Skip this tick
+        // Every 24 ticks = 1 beat
+        if ticksInCurrentBeat >= 24 {
+            if lastBeatTimestamp > 0 {
+                // Calculate beat duration in milliseconds using packet timestamps
+                let tickDelta = packetTimestamp - lastBeatTimestamp
+                let nanos = tickDelta * UInt64(timebaseInfo.numer) / UInt64(timebaseInfo.denom)
+                let beatDurationMs = Double(nanos) / 1_000_000.0
+
+                // Outlier rejection: skip if duration is wildly off (< 100ms or > 3000ms = 20-600 BPM)
+                if beatDurationMs >= 100 && beatDurationMs <= 3000 {
+                    beatDurations.append(beatDurationMs)
+
+                    // Keep last 8 beats for averaging (covers ~4 bars at typical tempos)
+                    if beatDurations.count > 8 {
+                        beatDurations.removeFirst()
+                    }
+
+                    // Need at least 2 beats for stable calculation
+                    if beatDurations.count >= 2 {
+                        // Use median for jitter resistance
+                        let sorted = beatDurations.sorted()
+                        let mid = sorted.count / 2
+                        let medianBeatMs: Double
+                        if sorted.count % 2 == 0 {
+                            medianBeatMs = (sorted[mid - 1] + sorted[mid]) / 2.0
+                        } else {
+                            medianBeatMs = sorted[mid]
+                        }
+
+                        // BPM = 60000ms / beatDurationMs
+                        let rawBpm = 60000.0 / medianBeatMs
+
+                        // Snap to nearest integer BPM if within 0.5
+                        let roundedBpm = rawBpm.rounded()
+                        let snappedBpm = abs(rawBpm - roundedBpm) < 0.5 ? roundedBpm : rawBpm
+
+                        bpm = max(20, min(300, snappedBpm))
+                    }
                 }
             }
 
-            clockIntervals.append(intervalMs)
-            if clockIntervals.count > 96 {
-                clockIntervals.removeFirst()
-            }
-            if clockIntervals.count >= 24 {
-                // Use proper median for jitter resistance
-                // For even-sized arrays, average the two middle elements
-                let sorted = clockIntervals.sorted()
-                let mid = sorted.count / 2
-                let medianInterval: Double
-                if sorted.count % 2 == 0 {
-                    medianInterval = (sorted[mid - 1] + sorted[mid]) / 2.0
-                } else {
-                    medianInterval = sorted[mid]
-                }
-                let ticksPerMinute = 60000.0 / medianInterval
-                let rawBpm = ticksPerMinute / 24.0
-                // Round to nearest integer BPM
-                bpm = max(20, min(300, rawBpm.rounded()))
-            }
+            lastBeatTimestamp = packetTimestamp
+            ticksInCurrentBeat = 0
         }
-        lastClockTime = now
     }
 
     private func checkBpmChange() -> Double? {
-        // Hysteresis: only report if BPM changed by > 1.0 to avoid jitter-induced flicker
-        if abs(bpm - lastReportedBpm) > 1.0 {
+        // Hysteresis: only report if BPM changed by >= 1.5 to avoid jitter-induced flicker
+        // Also report on first valid BPM (when lastReportedBpm is 0)
+        if lastReportedBpm == 0 || abs(bpm - lastReportedBpm) >= 1.5 {
             lastReportedBpm = bpm
             return bpm
         }
