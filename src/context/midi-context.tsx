@@ -38,7 +38,7 @@ interface MidiContextType {
 const MidiContext = createContext<MidiContextType | null>(null);
 
 export function MidiProvider({ children }: { children: ReactNode }) {
-  const { devices } = useMidiDevices();
+  const { devices, refresh: refreshDevices } = useMidiDevices();
   const { running: transportRunning, bpm: externalBpm, connected: nativeConnected } = useTransportState();
 
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
@@ -96,6 +96,20 @@ export function MidiProvider({ children }: { children: ReactNode }) {
       });
     }
   }, [autoConnect, digitakt, connectedDeviceName, connecting]);
+
+  // Poll for devices when waiting to auto-connect (fallback if native events miss)
+  useEffect(() => {
+    if (!autoConnect || connectedDeviceName !== null || digitaktAvailable) {
+      return;
+    }
+
+    // Poll every 2 seconds while waiting for device
+    const interval = setInterval(() => {
+      refreshDevices();
+    }, 2000);
+
+    return () => clearInterval(interval);
+  }, [autoConnect, connectedDeviceName, digitaktAvailable, refreshDevices]);
 
   // Disconnect when auto-connect is disabled
   useEffect(() => {

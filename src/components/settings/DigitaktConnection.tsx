@@ -12,41 +12,44 @@ export function DigitaktConnection() {
     setAutoConnect,
   } = useMidi();
 
+  const statusLabel = connected
+    ? 'Connected'
+    : digitaktAvailable
+      ? 'Available'
+      : 'Not detected';
+
   return (
     <View style={styles.container}>
       <View style={styles.header}>
-        <Text style={styles.headerTitle}>Elektron Digitakt II</Text>
-        {connecting && <ActivityIndicator size="small" color="#ff6600" />}
+        <Text style={styles.headerTitle}>Digitakt II</Text>
+        <View style={styles.headerRight}>
+          {connecting ? (
+            <ActivityIndicator size="small" color="#ff6600" />
+          ) : (
+            <View style={styles.statusBadge}>
+              <View style={[
+                styles.statusDot,
+                connected ? styles.statusConnected :
+                digitaktAvailable ? styles.statusAvailable :
+                styles.statusUnavailable
+              ]} />
+              <Text style={styles.statusBadgeText}>{statusLabel}</Text>
+            </View>
+          )}
+        </View>
       </View>
 
       <View style={styles.content}>
-        {/* Connection status */}
-        <View style={styles.statusRow}>
-          <View style={[
-            styles.statusDot,
-            connected ? styles.statusConnected :
-            digitaktAvailable ? styles.statusAvailable :
-            styles.statusUnavailable
-          ]} />
-          <Text style={styles.statusText}>
-            {connected
-              ? `Connected${connectedDeviceName ? ` to ${connectedDeviceName}` : ''}`
-              : digitaktAvailable
-                ? 'Available'
-                : 'Not detected'}
-          </Text>
-        </View>
-
         {/* Auto-connect toggle */}
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Auto-connect</Text>
             <Text style={styles.settingDescription}>
               {connected
-                ? 'Connected and syncing'
-                : digitaktAvailable
-                  ? 'Will connect when enabled'
-                  : 'Will connect when device is available'}
+                ? 'Syncing transport and clock'
+                : autoConnect
+                  ? 'Waiting for device...'
+                  : 'Enable to connect automatically'}
             </Text>
           </View>
           <Switch
@@ -82,19 +85,26 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
   },
-  content: {
-    padding: 16,
-    gap: 16,
-  },
-  statusRow: {
+  headerRight: {
     flexDirection: 'row',
     alignItems: 'center',
-    gap: 10,
+  },
+  statusBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+  },
+  statusBadgeText: {
+    fontSize: 12,
+    color: '#888899',
+  },
+  content: {
+    padding: 16,
   },
   statusDot: {
-    width: 10,
-    height: 10,
-    borderRadius: 5,
+    width: 8,
+    height: 8,
+    borderRadius: 4,
   },
   statusConnected: {
     backgroundColor: '#22c55e',
@@ -104,10 +114,6 @@ const styles = StyleSheet.create({
   },
   statusUnavailable: {
     backgroundColor: '#666',
-  },
-  statusText: {
-    color: '#888899',
-    fontSize: 14,
   },
   settingRow: {
     flexDirection: 'row',

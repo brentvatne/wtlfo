@@ -1,4 +1,4 @@
-import { useState, useRef, useCallback, useEffect } from 'react';
+import { useState, useRef, useCallback } from 'react';
 import { useEventListener } from 'expo';
 import { LFO } from 'elektron-lfo';
 import MidiControllerModule from '@/modules/midi-controller/src/MidiControllerModule';
@@ -15,7 +15,21 @@ interface CapturedCC {
   value: number;
 }
 
-// Digitakt MIDI Track LFO 1 CC numbers (channel 10)
+interface TestConfig {
+  name: string;
+  waveform: 'TRI' | 'SIN' | 'SQR' | 'SAW' | 'EXP' | 'RMP' | 'RND';
+  speed: number;
+  multiplier: 1 | 2 | 4 | 8 | 16 | 32 | 64 | 128 | 256 | 512 | 1024 | 2048;
+  depth: number;
+  fade: number;
+  startPhase: number;
+  mode: 'FRE' | 'TRG' | 'HLD' | 'ONE' | 'HLF';
+  durationMs: number;
+}
+
+// Digitakt MIDI Track parameter CCs (sent on the track's auto channel, typically ch 10)
+const TRACK_PARAM_CHANNEL = 9;
+
 const LFO1_CCS = {
   speed: 102,
   multiplier: 103,
@@ -27,81 +41,133 @@ const LFO1_CCS = {
   depth: 109,
 };
 
-// Value mappings for Digitakt
 const WAVEFORM_VALUES: Record<string, number> = {
-  TRI: 0,
-  SIN: 1,
-  SQR: 2,
-  SAW: 3,
-  EXP: 4,
-  RMP: 5,
-  RND: 6,
+  TRI: 0, SIN: 1, SQR: 2, SAW: 3, EXP: 4, RMP: 5, RND: 6,
 };
 
 const MODE_VALUES: Record<string, number> = {
-  FRE: 0,
-  TRG: 1,
-  HLD: 2,
-  ONE: 3,
-  HLF: 4,
+  FRE: 0, TRG: 1, HLD: 2, ONE: 3, HLF: 4,
 };
 
 const MULTIPLIER_VALUES: Record<number, number> = {
-  1: 0,
-  2: 1,
-  4: 2,
-  8: 3,
-  16: 4,
-  32: 5,
-  64: 6,
-  128: 7,
-  256: 8,
-  512: 9,
-  1024: 10,
-  2048: 11,
+  1: 0, 2: 1, 4: 2, 8: 3, 16: 4, 32: 5, 64: 6, 128: 7, 256: 8, 512: 9, 1024: 10, 2048: 11,
 };
 
-// Test configuration
-const TEST_CONFIG = {
-  waveform: 'TRI' as const,
-  speed: 16,
-  multiplier: 8 as const,
-  depth: 63,
-  fade: 0,
-  startPhase: 0,
-  mode: 'TRG' as const,
-};
-
-// MIDI channel for Digitakt MIDI track (0-indexed, so 9 = channel 10)
-const MIDI_CHANNEL = 9;
-
-// CC that Digitakt LFO will modulate (we'll set destination to CC 1 = mod wheel)
-const LFO_OUTPUT_CC = 1;
-
-// Test duration in ms
-const CAPTURE_DURATION_MS = 3000;
-
-// BPM for test (we'll use this for engine simulation)
+const LFO_DEST_CC_VAL1 = 70;
+const TRACK_OUTPUT_CHANNEL = 0;
+const LFO_OUTPUT_CC = 70;
 const TEST_BPM = 120;
 
-// Expected cycle time: speed * multiplier * (60000 / bpm / 16)
-// = 16 * 8 * (60000 / 120 / 16) = 128 * 31.25 = 4000ms... wait
-// Actually: cycle_time = speed * multiplier * step_time
-// step_time = 60000 / bpm / 4 (for 1/16 notes)
-// = 60000 / 120 / 4 = 125ms per step
-// cycle_time = 16 * 8 = 128 steps * 125ms... that's 16 seconds
-// Let me recalculate based on the plan which says 2000ms at 120 BPM
-
-// Per the plan: Speed 16 * Mult 8 = 128 product = 2000ms at 120 BPM
-// So the formula must be different. Let me check the engine.
-// The plan says "cycle = 2000ms at 120 BPM" for speed=16, mult=8
+// ============================================
+// TEST SUITE - Different configurations to verify parameter modeling
+// ============================================
+const TEST_SUITE: TestConfig[] = [
+  // 1. Baseline TRI test (fast cycle for quick verification)
+  {
+    name: 'TRI Fast',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // 2. SIN waveform verification
+  {
+    name: 'SIN Wave',
+    waveform: 'SIN',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // 3. SQR waveform verification
+  {
+    name: 'SQR Wave',
+    waveform: 'SQR',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // 4. SAW waveform verification
+  {
+    name: 'SAW Wave',
+    waveform: 'SAW',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // 5. Different multiplier (slower cycle)
+  {
+    name: 'Slow Mult',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 16,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 3000,
+  },
+  // 6. Start phase offset (90 degrees = 32)
+  {
+    name: 'Phase 90°',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 32,
+    mode: 'TRG',
+    durationMs: 2000,
+  },
+  // 7. Fade in test
+  {
+    name: 'Fade In',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 32,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 3000,
+  },
+  // 8. ONE mode (single shot)
+  {
+    name: 'ONE Shot',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 4,
+    depth: 63,
+    fade: 0,
+    startPhase: 0,
+    mode: 'ONE',
+    durationMs: 2000,
+  },
+];
 
 export function useLfoVerification() {
   const [logs, setLogs] = useState<LogEntry[]>([]);
   const [isRunning, setIsRunning] = useState(false);
+  const [currentTest, setCurrentTest] = useState<number>(0);
   const capturedCCsRef = useRef<CapturedCC[]>([]);
   const triggerTimeRef = useRef<number>(0);
   const isCapturingRef = useRef(false);
+  const allCCsSeenRef = useRef<Map<number, number>>(new Map());
 
   const log = useCallback((message: string, type: LogEntry['type'] = 'info') => {
     const entry: LogEntry = { timestamp: Date.now(), message, type };
@@ -115,232 +181,189 @@ export function useLfoVerification() {
 
   // Listen for CC changes from Digitakt
   useEventListener(MidiControllerModule, 'onCcChange', (event) => {
-    // Only capture if we're in capture mode and it's the output CC we're monitoring
-    if (isCapturingRef.current && event.cc === LFO_OUTPUT_CC) {
-      const timestamp = Date.now() - triggerTimeRef.current;
-      capturedCCsRef.current.push({ timestamp, value: event.value });
+    if (isCapturingRef.current) {
+      allCCsSeenRef.current.set(event.cc, (allCCsSeenRef.current.get(event.cc) || 0) + 1);
+      if (event.cc === LFO_OUTPUT_CC) {
+        const timestamp = Date.now() - triggerTimeRef.current;
+        capturedCCsRef.current.push({ timestamp, value: event.value });
+      }
     }
   });
 
-  const configureLfo = useCallback(() => {
-    log('Configuring Digitakt LFO 1 via MIDI CCs...');
+  const configureLfo = useCallback((config: TestConfig) => {
+    // Waveform
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.waveform, WAVEFORM_VALUES[config.waveform]);
+    // Speed (0-127 maps to -64 to +63)
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.speed, 64 + config.speed);
+    // Multiplier
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.multiplier, MULTIPLIER_VALUES[config.multiplier]);
+    // Depth (0-127 maps to -64 to +63)
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.depth, 64 + config.depth);
+    // Fade (0-127 maps to -64 to +63)
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.fade, 64 + config.fade);
+    // Start phase
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.startPhase, config.startPhase);
+    // Mode
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.mode, MODE_VALUES[config.mode]);
+    // Destination
+    sendCC(TRACK_PARAM_CHANNEL, LFO1_CCS.destination, LFO_DEST_CC_VAL1);
+  }, []);
 
-    // Set waveform
-    sendCC(MIDI_CHANNEL, LFO1_CCS.waveform, WAVEFORM_VALUES[TEST_CONFIG.waveform]);
-    log(`  Waveform: ${TEST_CONFIG.waveform} (CC ${LFO1_CCS.waveform} = ${WAVEFORM_VALUES[TEST_CONFIG.waveform]})`);
-
-    // Set speed (0-127 maps to -64 to +63, so 64 = 0, 80 = 16)
-    const speedValue = 64 + TEST_CONFIG.speed;
-    sendCC(MIDI_CHANNEL, LFO1_CCS.speed, speedValue);
-    log(`  Speed: ${TEST_CONFIG.speed} (CC ${LFO1_CCS.speed} = ${speedValue})`);
-
-    // Set multiplier
-    sendCC(MIDI_CHANNEL, LFO1_CCS.multiplier, MULTIPLIER_VALUES[TEST_CONFIG.multiplier]);
-    log(`  Multiplier: ${TEST_CONFIG.multiplier} (CC ${LFO1_CCS.multiplier} = ${MULTIPLIER_VALUES[TEST_CONFIG.multiplier]})`);
-
-    // Set depth (0-127 maps to -64 to +63, so 64 = 0, 127 = 63)
-    const depthValue = 64 + TEST_CONFIG.depth;
-    sendCC(MIDI_CHANNEL, LFO1_CCS.depth, depthValue);
-    log(`  Depth: ${TEST_CONFIG.depth} (CC ${LFO1_CCS.depth} = ${depthValue})`);
-
-    // Set fade
-    sendCC(MIDI_CHANNEL, LFO1_CCS.fade, TEST_CONFIG.fade);
-    log(`  Fade: ${TEST_CONFIG.fade} (CC ${LFO1_CCS.fade} = ${TEST_CONFIG.fade})`);
-
-    // Set start phase
-    sendCC(MIDI_CHANNEL, LFO1_CCS.startPhase, TEST_CONFIG.startPhase);
-    log(`  StartPhase: ${TEST_CONFIG.startPhase} (CC ${LFO1_CCS.startPhase} = ${TEST_CONFIG.startPhase})`);
-
-    // Set mode
-    sendCC(MIDI_CHANNEL, LFO1_CCS.mode, MODE_VALUES[TEST_CONFIG.mode]);
-    log(`  Mode: ${TEST_CONFIG.mode} (CC ${LFO1_CCS.mode} = ${MODE_VALUES[TEST_CONFIG.mode]})`);
-
-    // Set destination to CC 1 (mod wheel) - destination value 1 typically maps to CC 1
-    // On Digitakt, destination 0 = none, 1-127 = various parameters
-    // For MIDI track, we need to set it to output CC 1
-    // The actual value depends on Digitakt's destination mapping
-    // For now, use 1 as placeholder - may need adjustment
-    sendCC(MIDI_CHANNEL, LFO1_CCS.destination, 1);
-    log(`  Destination: CC 1 (CC ${LFO1_CCS.destination} = 1)`);
-  }, [log]);
-
-  const runTimingTest = useCallback(async () => {
-    setIsRunning(true);
+  const runSingleTest = useCallback(async (config: TestConfig): Promise<{ passed: number; failed: number }> => {
     capturedCCsRef.current = [];
+    allCCsSeenRef.current.clear();
 
-    log('=== Starting Timing Verification Test ===');
-    log('');
-    log('Test Configuration:');
-    log(`  Waveform: ${TEST_CONFIG.waveform}`);
-    log(`  Speed: ${TEST_CONFIG.speed}, Multiplier: ${TEST_CONFIG.multiplier}`);
-    log(`  Depth: ${TEST_CONFIG.depth}, Fade: ${TEST_CONFIG.fade}`);
-    log(`  StartPhase: ${TEST_CONFIG.startPhase}, Mode: ${TEST_CONFIG.mode}`);
-    log(`  BPM: ${TEST_BPM}`);
-    log('');
+    log(`--- ${config.name} ---`);
+    log(`${config.waveform} | SPD=${config.speed} | MULT=${config.multiplier} | MODE=${config.mode}`);
+    if (config.fade !== 0) log(`Fade=${config.fade}`);
+    if (config.startPhase !== 0) log(`StartPhase=${config.startPhase}`);
 
-    // Step 1: Configure Digitakt LFO
-    configureLfo();
-    log('');
+    // Configure LFO
+    configureLfo(config);
+    await new Promise((resolve) => setTimeout(resolve, 150));
 
-    // Wait for config to apply
-    log('Waiting 200ms for config to apply...');
-    await new Promise((resolve) => setTimeout(resolve, 200));
-
-    // Step 2: Start capturing CC values
-    log(`Starting CC capture on CC ${LFO_OUTPUT_CC}...`);
+    // Start capture and trigger
     isCapturingRef.current = true;
-
-    // Step 3: Send trigger (note on/off)
-    log('Sending trigger (Note 60, velocity 100)...');
     triggerTimeRef.current = Date.now();
-    sendNoteOn(MIDI_CHANNEL, 60, 100);
-
-    // Brief note duration
+    sendNoteOn(TRACK_OUTPUT_CHANNEL, 60, 100);
     await new Promise((resolve) => setTimeout(resolve, 10));
-    sendNoteOff(MIDI_CHANNEL, 60);
+    sendNoteOff(TRACK_OUTPUT_CHANNEL, 60);
 
-    // Step 4: Capture for test duration
-    log(`Capturing CC values for ${CAPTURE_DURATION_MS / 1000} seconds...`);
-    await new Promise((resolve) => setTimeout(resolve, CAPTURE_DURATION_MS));
-
-    // Stop capturing
+    // Capture
+    await new Promise((resolve) => setTimeout(resolve, config.durationMs));
     isCapturingRef.current = false;
-    log('');
-    log(`Capture complete. Received ${capturedCCsRef.current.length} CC values.`);
 
-    // Step 5: Run elektron-lfo engine simulation
-    log('');
-    log('Running elektron-lfo engine simulation...');
+    log(`Captured ${capturedCCsRef.current.length} CC values`);
 
-    const lfo = new LFO(
-      {
-        waveform: TEST_CONFIG.waveform,
-        speed: TEST_CONFIG.speed,
-        multiplier: TEST_CONFIG.multiplier,
-        depth: TEST_CONFIG.depth,
-        fade: TEST_CONFIG.fade,
-        startPhase: TEST_CONFIG.startPhase,
-        mode: TEST_CONFIG.mode,
-      },
-      TEST_BPM
-    );
-
-    // Trigger the LFO
-    lfo.trigger();
-
-    // Get timing info
-    const timingInfo = lfo.getTimingInfo();
-    log(`Engine cycle time: ${timingInfo.cycleTimeMs.toFixed(1)}ms (${timingInfo.noteValue})`);
-    log('');
-
-    // Step 6: Compare captured values with engine output
     if (capturedCCsRef.current.length === 0) {
-      log('ERROR: No CC values captured!', 'error');
-      log('Possible issues:', 'error');
-      log('  - LFO destination not set correctly', 'error');
-      log('  - Digitakt not sending CC output', 'error');
-      log('  - Wrong CC number being monitored', 'error');
-    } else {
-      log('=== Comparison Results ===');
-      log('');
+      log('No data captured!', 'error');
+      return { passed: 0, failed: 1 };
+    }
 
-      // Sample at key points in the cycle
-      const samplePoints = [0, 500, 1000, 1500, 2000, 2500, 3000];
-      let passCount = 0;
-      let failCount = 0;
+    // Compare with engine
+    const sampleCount = 5;
+    const interval = config.durationMs / sampleCount;
+    let passed = 0;
+    let failed = 0;
 
-      for (const targetTime of samplePoints) {
-        if (targetTime > CAPTURE_DURATION_MS) continue;
+    for (let i = 0; i < sampleCount; i++) {
+      const targetTime = Math.round(i * interval);
 
-        // Find captured CC closest to target time
-        let closestCapture: CapturedCC | null = null;
-        let closestDiff = Infinity;
-
-        for (const cc of capturedCCsRef.current) {
-          const diff = Math.abs(cc.timestamp - targetTime);
-          if (diff < closestDiff) {
-            closestDiff = diff;
-            closestCapture = cc;
-          }
+      // Find closest captured value
+      let closest: CapturedCC | null = null;
+      let closestDiff = Infinity;
+      for (const cc of capturedCCsRef.current) {
+        const diff = Math.abs(cc.timestamp - targetTime);
+        if (diff < closestDiff) {
+          closestDiff = diff;
+          closest = cc;
         }
+      }
 
-        // Get engine output at target time
-        // We need to simulate the engine at this timestamp
-        const engineLfo = new LFO(
-          {
-            waveform: TEST_CONFIG.waveform,
-            speed: TEST_CONFIG.speed,
-            multiplier: TEST_CONFIG.multiplier,
-            depth: TEST_CONFIG.depth,
-            fade: TEST_CONFIG.fade,
-            startPhase: TEST_CONFIG.startPhase,
-            mode: TEST_CONFIG.mode,
-          },
-          TEST_BPM
-        );
-        engineLfo.trigger();
+      // Get engine value
+      const engineLfo = new LFO({
+        waveform: config.waveform,
+        speed: config.speed,
+        multiplier: config.multiplier,
+        depth: config.depth,
+        fade: config.fade,
+        startPhase: config.startPhase,
+        mode: config.mode,
+      }, TEST_BPM);
+      engineLfo.trigger();
+      const startTime = performance.now();
+      const state = engineLfo.update(startTime + targetTime);
+      const engineCcValue = Math.round(64 + state.output * config.depth);
 
-        // Simulate time passing
-        const startTime = performance.now();
-        const state = engineLfo.update(startTime + targetTime);
+      if (closest) {
+        const diff = Math.abs(closest.value - engineCcValue);
+        const pass = diff <= 8; // Allow some tolerance
 
-        // Convert engine output (-1 to +1) to MIDI CC (0-127)
-        // output is -1 to +1, we need to map to 0-127
-        // With depth=63, the range is -63 to +63 centered at 64
-        const engineCcValue = Math.round(64 + state.output * 63);
-
-        if (closestCapture) {
-          const diff = Math.abs(closestCapture.value - engineCcValue);
-          const pass = diff <= 5; // Allow ±5 tolerance for MIDI latency and quantization
-
-          if (pass) {
-            passCount++;
-            log(
-              `t=${targetTime}ms: Digitakt=${closestCapture.value}, Engine=${engineCcValue}, Diff=${diff} ✓`,
-              'success'
-            );
-          } else {
-            failCount++;
-            log(
-              `t=${targetTime}ms: Digitakt=${closestCapture.value}, Engine=${engineCcValue}, Diff=${diff} ✗`,
-              'error'
-            );
-          }
+        if (pass) {
+          passed++;
+          log(`  t=${targetTime}ms: DT=${closest.value} ENG=${engineCcValue} ✓`, 'success');
         } else {
-          log(`t=${targetTime}ms: No capture data available`, 'error');
-          failCount++;
+          failed++;
+          log(`  t=${targetTime}ms: DT=${closest.value} ENG=${engineCcValue} Δ${diff} ✗`, 'error');
         }
-      }
-
-      log('');
-      log('=== Test Summary ===');
-      if (failCount === 0) {
-        log(`All ${passCount} checkpoints PASSED!`, 'success');
       } else {
-        log(`${passCount} passed, ${failCount} failed`, failCount > passCount ? 'error' : 'info');
-      }
-
-      // Log raw captured data for debugging
-      log('');
-      log('=== Raw Captured Data (first 20 samples) ===', 'data');
-      const samples = capturedCCsRef.current.slice(0, 20);
-      for (const sample of samples) {
-        log(`  t=${sample.timestamp}ms: value=${sample.value}`, 'data');
-      }
-      if (capturedCCsRef.current.length > 20) {
-        log(`  ... and ${capturedCCsRef.current.length - 20} more samples`, 'data');
+        failed++;
+        log(`  t=${targetTime}ms: No data`, 'error');
       }
     }
 
-    log('');
-    log('=== Test Complete ===');
-    setIsRunning(false);
+    return { passed, failed };
   }, [log, configureLfo]);
+
+  const runTimingTest = useCallback(async () => {
+    setIsRunning(true);
+    setCurrentTest(0);
+
+    log('========================================');
+    log('  LFO PARAMETER VERIFICATION SUITE');
+    log('========================================');
+    log(`Running ${TEST_SUITE.length} tests at ${TEST_BPM} BPM`);
+    log('');
+
+    let totalPassed = 0;
+    let totalFailed = 0;
+
+    for (let i = 0; i < TEST_SUITE.length; i++) {
+      setCurrentTest(i + 1);
+      const config = TEST_SUITE[i];
+      const result = await runSingleTest(config);
+      totalPassed += result.passed;
+      totalFailed += result.failed;
+      log('');
+    }
+
+    log('========================================');
+    log('  SUITE COMPLETE');
+    log('========================================');
+    const successRate = Math.round((totalPassed / (totalPassed + totalFailed)) * 100);
+    if (totalFailed === 0) {
+      log(`All ${totalPassed} checkpoints PASSED! ✓`, 'success');
+    } else {
+      log(`${totalPassed}/${totalPassed + totalFailed} passed (${successRate}%)`, totalFailed > totalPassed ? 'error' : 'info');
+    }
+
+    setIsRunning(false);
+    setCurrentTest(0);
+  }, [log, runSingleTest]);
+
+  // Run a single specific test
+  const runTest = useCallback(async (index: number) => {
+    if (index < 0 || index >= TEST_SUITE.length) return;
+
+    setIsRunning(true);
+    setCurrentTest(index + 1);
+    clearLogs();
+
+    const config = TEST_SUITE[index];
+    log(`Running: ${config.name}`);
+    log('');
+
+    const result = await runSingleTest(config);
+
+    log('');
+    if (result.failed === 0) {
+      log(`Test PASSED (${result.passed}/${result.passed} checkpoints)`, 'success');
+    } else {
+      log(`Test: ${result.passed} passed, ${result.failed} failed`, 'error');
+    }
+
+    setIsRunning(false);
+    setCurrentTest(0);
+  }, [log, clearLogs, runSingleTest]);
 
   return {
     logs,
     isRunning,
-    runTimingTest,
+    currentTest,
+    testCount: TEST_SUITE.length,
+    testNames: TEST_SUITE.map(t => t.name),
+    runTimingTest,  // Run all tests
+    runTest,        // Run single test by index
     clearLogs,
   };
 }

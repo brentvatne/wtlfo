@@ -7,7 +7,7 @@ import { DigitaktConnection } from '@/src/components/settings/DigitaktConnection
 import { useLfoVerification } from '@/src/hooks/useLfoVerification';
 
 export default function DeveloperScreen() {
-  const { connected, connectedDeviceName } = useMidi();
+  const { connected } = useMidi();
   const { logs, isRunning, runTimingTest, clearLogs } = useLfoVerification();
   const scrollViewRef = useRef<ScrollView>(null);
 
@@ -40,22 +40,17 @@ export default function DeveloperScreen() {
       />
       <View style={styles.container}>
         {/* MIDI Connection */}
-        <View style={styles.midiSection}>
+        <View style={styles.section}>
           <DigitaktConnection />
-          {connected && connectedDeviceName && (
-            <Text style={styles.connectedText}>
-              Connected: {connectedDeviceName}
-            </Text>
-          )}
         </View>
 
         {/* Test Card */}
         <View style={styles.testCard}>
           <Text style={styles.testTitle}>LFO Timing Verification</Text>
           <Text style={styles.testDescription}>
-            Compares Digitakt LFO output with elektron-lfo engine.{'\n'}
-            TRI | SPD=16 | MULT=8 | 120 BPM{'\n'}
-            Monitors CC 1 output for 3 seconds.
+            Setup: MIDI track, CC SEL1=1, CC VAL1=64{'\n'}
+            Test: TRI | SPD=16 | MULT=8 | LFO→CC1{'\n'}
+            Monitors CC 70 for 3 sec at 120 BPM.
           </Text>
           <Pressable
             style={[styles.runButton, (!connected || isRunning) && styles.runButtonDisabled]}
@@ -84,12 +79,13 @@ export default function DeveloperScreen() {
           >
             {logs.length === 0 ? (
               <Text style={styles.logPlaceholder}>
-                Connect to Digitakt and run the test.{'\n\n'}
-                The test will:{'\n'}
-                1. Configure LFO 1 on MIDI track{'\n'}
-                2. Send a trigger note{'\n'}
-                3. Capture CC output for 3 seconds{'\n'}
-                4. Compare with engine simulation
+                Digitakt setup required:{'\n'}
+                • Select a track, set to MIDI machine{'\n'}
+                • CC SEL page: SEL1 = 1{'\n'}
+                • CC VAL page: VAL1 = 64{'\n'}
+                • LFO page: DEST = CC1{'\n\n'}
+                Test will configure LFO, send trigger,{'\n'}
+                and compare CC output with engine.
               </Text>
             ) : (
               logs.map((entry, index) => (
@@ -120,14 +116,8 @@ const styles = StyleSheet.create({
     backgroundColor: '#0a0a0a',
     padding: 16,
   },
-  midiSection: {
+  section: {
     marginBottom: 16,
-  },
-  connectedText: {
-    color: '#4ade80',
-    fontSize: 12,
-    marginTop: 8,
-    fontFamily: 'Menlo',
   },
   testCard: {
     backgroundColor: '#1a1a1a',
