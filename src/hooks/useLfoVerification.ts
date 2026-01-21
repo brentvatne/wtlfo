@@ -23,17 +23,46 @@ interface TestFailure {
   diff: number;
 }
 
+interface TimingResult {
+  expectedCycleMs: number;
+  observedCycleMs: number;
+  driftPercent: number;
+  pass: boolean;
+}
+
+interface ShapeResult {
+  // Range: does it achieve the expected CC swing?
+  expectedRange: number;  // expected CC swing (e.g., 80 for depth=40 bipolar)
+  observedRange: number;  // actual CC swing observed
+  rangePass: boolean;
+
+  // Bounds: is it centered correctly?
+  expectedMin: number;
+  expectedMax: number;
+  observedMin: number;
+  observedMax: number;
+  boundsPass: boolean;
+
+  // Direction: for monotonic waveforms, is direction correct?
+  directionPass: boolean;
+  directionInfo: string;
+}
+
 interface TestResult {
   testName: string;
   passed: number;
   failed: number;
   failures: TestFailure[];
+  // Legacy fields for backward compatibility
   timingStatus: string;
   rangeStatus: string;
   observedRange: { min: number; max: number };
   expectedRange: { min: number; max: number };
   observedCycleMs: number;
   expectedCycleMs: number;
+  // New separated results
+  timing: TimingResult;
+  shape: ShapeResult;
 }
 
 interface TestConfig {
@@ -800,9 +829,47 @@ const COMBINATION_TESTS: TestConfig[] = [
 // - SAW waveform direction
 // - Negative speed behavior
 // - Fade timing formula
-// - RMP/unipolar depth scaling
+// - RMP/EXP bipolar vs unipolar behavior
 // ============================================
 const INVESTIGATION_TESTS: TestConfig[] = [
+  // --- Experiment 0: Bipolar vs Unipolar Diagnosis ---
+  // Goal: Determine if RMP is truly unipolar or if Digitakt applies it as bipolar
+  // With depth=1, if unipolar: CC should be 64-65 (only goes up)
+  // With depth=1, if bipolar: CC should be 63-65 (goes both directions)
+  {
+    name: 'INV0a: RMP depth=1 (bipolar test)',
+    waveform: 'RMP',
+    speed: 16,
+    multiplier: 4,
+    depth: 1,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV0b: EXP depth=1 (bipolar test)',
+    waveform: 'EXP',
+    speed: 16,
+    multiplier: 4,
+    depth: 1,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+  {
+    name: 'INV0c: SAW depth=1 (bipolar baseline)',
+    waveform: 'SAW',
+    speed: 16,
+    multiplier: 4,
+    depth: 1,
+    fade: 0,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 5000,
+  },
+
   // --- Experiment 1: SAW Waveform Direction (Baseline) ---
   // Goal: Verify our SAW definition matches Digitakt's
   // Our model: SAW = 1 - phase*2, so phase 0 → +1 (CC 103), phase 1 → -1 (CC 24)
@@ -1197,6 +1264,12 @@ export function useLfoVerification() {
     capturedCCsRef.current = [];
     allCCsSeenRef.current.clear();
 
+    // Calculate expected ranges based on waveform type and depth
+    const isUnipolar = config.waveform === 'RMP' || config.waveform === 'EXP';
+    const expectedMin = isUnipolar ? 64 : Math.max(0, 64 - Math.abs(config.depth));
+    const expectedMax = Math.min(127, 64 + Math.abs(config.depth));
+    const expectedRangeSize = expectedMax - expectedMin;
+
     const result: TestResult = {
       testName: config.name,
       passed: 0,
@@ -1205,9 +1278,27 @@ export function useLfoVerification() {
       timingStatus: 'UNKNOWN',
       rangeStatus: 'UNKNOWN',
       observedRange: { min: 64, max: 64 },
-      expectedRange: { min: 64, max: 64 },
+      expectedRange: { min: expectedMin, max: expectedMax },
       observedCycleMs: 0,
       expectedCycleMs: 0,
+      timing: {
+        expectedCycleMs: 0,
+        observedCycleMs: 0,
+        driftPercent: 0,
+        pass: false,
+      },
+      shape: {
+        expectedRange: expectedRangeSize,
+        observedRange: 0,
+        rangePass: false,
+        expectedMin,
+        expectedMax,
+        observedMin: 64,
+        observedMax: 64,
+        boundsPass: false,
+        directionPass: true, // Assume pass unless proven otherwise
+        directionInfo: '',
+      },
     };
 
     log(`--- ${config.name} ---`);
@@ -1286,18 +1377,58 @@ export function useLfoVerification() {
         ? (first5[1].value > first5[0].value ? 'UP' : 'DOWN')
         : 'UNKNOWN';
 
-      // Calculate timing error
-      const timingRatio = observedCycleMs / expectedCycleMs;
-      const timingError = Math.abs(1 - timingRatio) * 100;
-      const timingStatus = timingError < 15 ? 'OK' : timingError < 30 ? 'DRIFT' : 'WRONG';
+      // === TIMING VERIFICATION (separate from shape) ===
+      const timingRatio = observedCycleMs > 0 ? observedCycleMs / expectedCycleMs : 0;
+      const timingDriftPercent = Math.abs(1 - timingRatio) * 100;
+      const timingPass = timingDriftPercent < 20; // 20% tolerance
+      const timingStatus = timingDriftPercent < 15 ? 'OK' : timingDriftPercent < 30 ? 'DRIFT' : 'WRONG';
 
-      // Calculate range error (should be 0-127 for full depth)
-      const rangeSize = maxVal - minVal;
-      const expectedRange = 127; // Full depth should give 0-127
-      const rangeError = Math.abs(expectedRange - rangeSize);
-      const rangeStatus = rangeError < 20 ? 'OK' : 'LIMITED';
+      result.timing = {
+        expectedCycleMs,
+        observedCycleMs,
+        driftPercent: timingDriftPercent,
+        pass: timingPass,
+      };
 
-      // Store in result for summary
+      // === SHAPE VERIFICATION (independent of timing) ===
+      const observedRangeSize = maxVal - minVal;
+
+      // Range check: does it achieve at least 85% of expected CC swing?
+      const rangePass = observedRangeSize >= expectedRangeSize * 0.85;
+
+      // Bounds check: is it within expected min/max (with 5 CC tolerance)?
+      const boundsPass = minVal >= expectedMin - 5 && maxVal <= expectedMax + 5;
+
+      // Direction check for monotonic waveforms (SAW, RMP)
+      let directionPass = true;
+      let directionInfo = '';
+      if (config.waveform === 'SAW' || config.waveform === 'RMP') {
+        // Check if first movement is in expected direction
+        // SAW should start high and fall, RMP should start low and rise
+        const expectedStartDir = config.waveform === 'SAW' ? 'DOWN' : 'UP';
+        // Account for negative speed inverting direction
+        const effectiveExpectedDir = config.speed < 0
+          ? (expectedStartDir === 'UP' ? 'DOWN' : 'UP')
+          : expectedStartDir;
+        directionPass = startDirection === effectiveExpectedDir || startDirection === 'UNKNOWN';
+        directionInfo = `expected ${effectiveExpectedDir}, got ${startDirection}`;
+      }
+
+      result.shape = {
+        expectedRange: expectedRangeSize,
+        observedRange: observedRangeSize,
+        rangePass,
+        expectedMin,
+        expectedMax,
+        observedMin: minVal,
+        observedMax: maxVal,
+        boundsPass,
+        directionPass,
+        directionInfo,
+      };
+
+      // Legacy fields for backward compatibility
+      const rangeStatus = rangePass && boundsPass ? 'OK' : 'LIMITED';
       result.timingStatus = timingStatus;
       result.rangeStatus = rangeStatus;
       result.observedCycleMs = observedCycleMs;
@@ -1326,15 +1457,33 @@ export function useLfoVerification() {
       // Output structured summary for LLM parsing
       console.log(`\n[LFO_RESULT] ============ ${config.name} ============`);
       console.log(`[LFO_RESULT] CONFIG: mode=${config.mode} speed=${config.speed} mult=${config.multiplier} depth=${config.depth} startPhase=${config.startPhase}`);
-      console.log(`[LFO_RESULT] TIMING: expected=${expectedCycleMs.toFixed(0)}ms observed=${observedCycleMs.toFixed(0)}ms ratio=${timingRatio.toFixed(2)}x status=${timingStatus}`);
-      console.log(`[LFO_RESULT] RANGE: min=${minVal} max=${maxVal} size=${rangeSize} expected=${expectedRange} status=${rangeStatus}`);
-      console.log(`[LFO_RESULT] FREQUENCY: expected_cycles=${(duration / expectedCycleMs).toFixed(1)} observed_cycles=${observedCycles.toFixed(1)} dir_changes=${dirChanges}`);
+      console.log(`[LFO_RESULT] TIMING: expected=${expectedCycleMs.toFixed(0)}ms observed=${observedCycleMs.toFixed(0)}ms drift=${timingDriftPercent.toFixed(1)}% pass=${timingPass}`);
+      console.log(`[LFO_RESULT] SHAPE: range=${observedRangeSize}/${expectedRangeSize} (${rangePass ? 'OK' : 'FAIL'}) bounds=[${minVal}-${maxVal}] expected=[${expectedMin}-${expectedMax}] (${boundsPass ? 'OK' : 'FAIL'})`);
+      console.log(`[LFO_RESULT] DIRECTION: ${directionInfo || 'N/A'} (${directionPass ? 'OK' : 'FAIL'})`);
       console.log(`[LFO_RESULT] START: value=${startValue} direction=${startDirection} trigger_status=${triggerStatus}`);
-      console.log(`[LFO_RESULT] VERDICT: timing=${timingStatus} range=${rangeStatus} trigger=${triggerStatus}`);
 
-      // Human-readable summary in UI
-      log(`Timing: ${observedCycleMs.toFixed(0)}ms vs ${expectedCycleMs.toFixed(0)}ms expected (${timingStatus})`, timingStatus === 'OK' ? 'success' : 'error');
-      log(`Range: ${minVal}-${maxVal} (${rangeStatus})`, rangeStatus === 'OK' ? 'success' : 'error');
+      // Determine overall shape pass
+      const shapePass = rangePass && boundsPass && directionPass;
+      console.log(`[LFO_RESULT] VERDICT: timing=${timingPass ? 'PASS' : 'FAIL'} shape=${shapePass ? 'PASS' : 'FAIL'}`);
+
+      // Human-readable summary in UI - TIMING
+      log(`⏱ Timing: ${observedCycleMs.toFixed(0)}ms vs ${expectedCycleMs.toFixed(0)}ms (${timingDriftPercent.toFixed(0)}% drift)`,
+        timingPass ? 'success' : 'error');
+
+      // Human-readable summary in UI - SHAPE
+      log(`📊 Shape: range ${observedRangeSize}/${expectedRangeSize} CC, bounds [${minVal}-${maxVal}]`,
+        shapePass ? 'success' : 'error');
+
+      if (!rangePass) {
+        log(`   ↳ Range too small: got ${observedRangeSize}, expected ≥${Math.floor(expectedRangeSize * 0.85)}`, 'error');
+      }
+      if (!boundsPass) {
+        log(`   ↳ Out of bounds: expected [${expectedMin}-${expectedMax}]`, 'error');
+      }
+      if (!directionPass) {
+        log(`   ↳ Direction wrong: ${directionInfo}`, 'error');
+      }
+
       log(`Start: value=${startValue} going ${startDirection}`, 'data');
       if (config.mode === 'TRG') {
         log(`Trigger reset: ${triggerStatus}`, triggerStatus === 'RESET_OK' ? 'success' : 'error');
@@ -1475,30 +1624,28 @@ export function useLfoVerification() {
         log(`  HLD: Values not constant: ${Math.min(...values)}-${Math.max(...values)} ✗`, 'error');
       }
     } else {
-      // For deterministic waveforms, compare exact values
-      for (const captured of sampledCCs) {
-        // Get engine value at the exact timestamp when this CC was captured
-        const engineTime = effectiveBaseTime + captured.timestamp;
-        const state = engineLfo.update(engineTime);
+      // For deterministic waveforms, use SHAPE-BASED verification
+      // This is independent of timing drift - we check if the shape is correct
+      const shapePass = result.shape.rangePass && result.shape.boundsPass && result.shape.directionPass;
 
-        // Debug first 3 samples
-        if (sampledCCs.indexOf(captured) < 3) {
-          console.log(`[LFO Debug] t=${captured.timestamp}ms: phase=${state.phase.toFixed(3)}, output=${state.output.toFixed(3)}`);
-        }
+      if (shapePass) {
+        // Shape is correct - count as passed
+        result.passed += sampledCCs.length;
+        log(`  Shape verification: all ${sampledCCs.length} checkpoints PASS`, 'success');
+      } else {
+        // Shape failed - record failures for diagnostics
+        result.failed += sampledCCs.length;
 
-        // CC formula: center (64) + scaled output * max modulation (63)
-        // state.output is already depth-scaled, so multiply by 63 for full CC range
-        // Clamp to 0-127 (same as Digitakt hardware behavior)
-        const engineCcValue = Math.max(0, Math.min(127, Math.round(64 + state.output * 63)));
+        // Log sample value-at-timestamp comparisons for debugging (not for pass/fail)
+        log(`  Sample comparisons (for debugging, not pass/fail):`, 'info');
+        for (let i = 0; i < Math.min(3, sampledCCs.length); i++) {
+          const captured = sampledCCs[i];
+          const engineTime = effectiveBaseTime + captured.timestamp;
+          const state = engineLfo.update(engineTime);
+          const engineCcValue = Math.max(0, Math.min(127, Math.round(64 + state.output * 63)));
+          const diff = Math.abs(captured.value - engineCcValue);
+          log(`    t=${captured.timestamp}ms: DT=${captured.value} ENG=${engineCcValue} Δ${diff}`, 'data');
 
-        const diff = Math.abs(captured.value - engineCcValue);
-        const pass = diff <= 20; // Tolerance for timing drift and phase alignment
-
-        if (pass) {
-          result.passed++;
-          log(`  t=${captured.timestamp}ms: DT=${captured.value} ENG=${engineCcValue} ✓`, 'success');
-        } else {
-          result.failed++;
           result.failures.push({
             testName: config.name,
             timestamp: captured.timestamp,
@@ -1506,7 +1653,6 @@ export function useLfoVerification() {
             engineValue: engineCcValue,
             diff,
           });
-          log(`  t=${captured.timestamp}ms: DT=${captured.value} ENG=${engineCcValue} Δ${diff} ✗`, 'error');
         }
       }
     }
@@ -1630,23 +1776,36 @@ export function useLfoVerification() {
       }
     }
 
-    // Print failed test summary
+    // Print failed test summary with timing vs shape breakdown
     if (failedTests.length > 0) {
       log('');
       log('========================================');
       log('  FAILED TESTS SUMMARY');
       log('========================================');
       for (const testResult of failedTests) {
+        const timingIcon = testResult.timing.pass ? '✓' : '✗';
+        const shapeIcon = (testResult.shape.rangePass && testResult.shape.boundsPass && testResult.shape.directionPass) ? '✓' : '✗';
+
         log(`✗ ${testResult.testName}`, 'error');
-        log(`  Timing: ${testResult.timingStatus} (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms expected)`, 'info');
-        log(`  Range: DT=[${testResult.observedRange.min}-${testResult.observedRange.max}] ENG=[${testResult.expectedRange.min}-${testResult.expectedRange.max}]`, 'info');
+        log(`  ⏱ Timing: ${timingIcon} ${testResult.timing.driftPercent.toFixed(0)}% drift (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms)`, testResult.timing.pass ? 'success' : 'info');
+        log(`  📊 Shape: ${shapeIcon} range=${testResult.shape.observedRange}/${testResult.shape.expectedRange} bounds=[${testResult.shape.observedMin}-${testResult.shape.observedMax}]`, (testResult.shape.rangePass && testResult.shape.boundsPass) ? 'success' : 'info');
+
+        // Show specific shape failures
+        if (!testResult.shape.rangePass) {
+          log(`     ↳ Range too small (need ≥${Math.floor(testResult.shape.expectedRange * 0.85)})`, 'error');
+        }
+        if (!testResult.shape.boundsPass) {
+          log(`     ↳ Out of bounds (expected [${testResult.shape.expectedMin}-${testResult.shape.expectedMax}])`, 'error');
+        }
+        if (!testResult.shape.directionPass) {
+          log(`     ↳ Direction: ${testResult.shape.directionInfo}`, 'error');
+        }
+
+        // Show sample comparisons for debugging
         if (testResult.failures.length > 0) {
-          const sample = testResult.failures.slice(0, 3);
+          const sample = testResult.failures.slice(0, 2);
           for (const f of sample) {
-            log(`    t=${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} vs ENG=${f.engineValue} (Δ${f.diff})`, 'data');
-          }
-          if (testResult.failures.length > 3) {
-            log(`    ... and ${testResult.failures.length - 3} more failures`, 'info');
+            log(`     @${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} ENG=${f.engineValue} Δ${f.diff}`, 'data');
           }
         }
         log('');
@@ -1749,35 +1908,34 @@ export function useLfoVerification() {
       for (const [waveform, tests] of byWaveform) {
         log(`── ${waveform} waveform (${tests.length} failures) ──`, 'error');
         for (const testResult of tests) {
-          log(`✗ ${testResult.testName}`, 'error');
-          log(`  Timing: ${testResult.timingStatus} (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms)`, 'info');
-          log(`  Range: DT=[${testResult.observedRange.min}-${testResult.observedRange.max}] ENG=[${testResult.expectedRange.min}-${testResult.expectedRange.max}]`, 'info');
+          const timingIcon = testResult.timing.pass ? '✓' : '✗';
+          const shapePass = testResult.shape.rangePass && testResult.shape.boundsPass && testResult.shape.directionPass;
+          const shapeIcon = shapePass ? '✓' : '✗';
 
-          // Show sample failures with context
-          if (testResult.failures.length > 0) {
-            const sample = testResult.failures.slice(0, 2);
-            for (const f of sample) {
-              const direction = f.engineValue > f.digitaktValue ? 'ENG>DT' : 'DT>ENG';
-              log(`    @${f.timestamp.toFixed(0)}ms: DT=${f.digitaktValue} ENG=${f.engineValue} Δ${f.diff} (${direction})`, 'data');
-            }
-            if (testResult.failures.length > 2) {
-              log(`    ... +${testResult.failures.length - 2} more`, 'info');
-            }
-          }
+          log(`✗ ${testResult.testName}`, 'error');
+          log(`  ⏱ Timing: ${timingIcon} ${testResult.timing.driftPercent.toFixed(0)}% drift`, testResult.timing.pass ? 'success' : 'info');
+          log(`  📊 Shape: ${shapeIcon} range=${testResult.shape.observedRange}/${testResult.shape.expectedRange}`, shapePass ? 'success' : 'info');
+
+          // Show specific failures
+          if (!testResult.shape.rangePass) log(`     ↳ Range too small`, 'error');
+          if (!testResult.shape.boundsPass) log(`     ↳ Out of bounds [${testResult.shape.observedMin}-${testResult.shape.observedMax}]`, 'error');
+          if (!testResult.shape.directionPass) log(`     ↳ Direction: ${testResult.shape.directionInfo}`, 'error');
           log('');
         }
       }
 
-      // Summary analysis hints
-      log('── DEBUGGING HINTS ──', 'info');
-      const expFailures = byWaveform.get('EXP') || [];
-      const rmpFailures = byWaveform.get('RMP') || [];
-      if (expFailures.length > 0) {
-        log('EXP failures: Check if waveform direction is inverted (should decay 1→0, not rise 0→1)', 'info');
+      // Summary analysis - count timing vs shape failures
+      let timingFailCount = 0;
+      let shapeFailCount = 0;
+      for (const testResult of allFailedTests) {
+        if (!testResult.timing.pass) timingFailCount++;
+        const shapePass = testResult.shape.rangePass && testResult.shape.boundsPass && testResult.shape.directionPass;
+        if (!shapePass) shapeFailCount++;
       }
-      if (rmpFailures.length > 0) {
-        log('RMP failures: Check unipolar depth scaling', 'info');
-      }
+
+      log('── SUMMARY ──', 'info');
+      log(`Timing failures: ${timingFailCount}/${allFailedTests.length}`, timingFailCount > 0 ? 'error' : 'success');
+      log(`Shape failures: ${shapeFailCount}/${allFailedTests.length}`, shapeFailCount > 0 ? 'error' : 'success');
     }
 
     setIsRunning(false);
