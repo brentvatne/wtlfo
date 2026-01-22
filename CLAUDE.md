@@ -11,6 +11,7 @@ wtlfo is an Expo app that visualizes Elektron Digitakt II LFO behavior. It uses 
 ## Related Projects
 
 - `elektron-lfo` package: `/Users/brent/code/elektron-lfo`
+- Nixienoise Elektron LFO Calculator: https://nixienoise.com/tools/elektron-lfo/
 
 ## Updating elektron-lfo
 
