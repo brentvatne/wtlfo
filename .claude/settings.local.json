@@ -97,7 +97,12 @@
       "mcp__expo-mcp__collect_app_logs",
       "WebFetch(domain:devnotes.kymatica.com)",
       "Bash(xcodebuild:*)",
-      "WebFetch(domain:nixienoise.com)"
+      "WebFetch(domain:nixienoise.com)",
+      "WebFetch(domain:www.notion.so)",
+      "Bash(git check-ignore:*)",
+      "Bash(npx expo-doctor:*)",
+      "Bash(npx expo prebuild:*)",
+      "Bash(npx expo run:ios)"
     ]
   }
 }

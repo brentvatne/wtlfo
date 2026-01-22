@@ -1,4 +1,4 @@
-import { NativeTabs, Icon, Label } from 'expo-router/unstable-native-tabs';
+import { NativeTabs } from 'expo-router/unstable-native-tabs';
 import { Platform } from 'react-native';
 
 const isLegacyIOS =
@@ -14,16 +14,16 @@ export default function TabsLayout() {
       })}
     >
       <NativeTabs.Trigger name="(home)">
-        <Icon sf={{ default: 'waveform', selected: 'waveform' }} />
-        <Label>Editor</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'waveform', selected: 'waveform' }} />
+        <NativeTabs.Trigger.Label>Editor</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(learn)">
-        <Icon sf={{ default: 'book', selected: 'book.fill' }} />
-        <Label>Learn</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'book', selected: 'book.fill' }} />
+        <NativeTabs.Trigger.Label>Learn</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
       <NativeTabs.Trigger name="(settings)">
-        <Icon sf={{ default: 'gear', selected: 'gear' }} />
-        <Label>Settings</Label>
+        <NativeTabs.Trigger.Icon sf={{ default: 'gear', selected: 'gear' }} />
+        <NativeTabs.Trigger.Label>Settings</NativeTabs.Trigger.Label>
       </NativeTabs.Trigger>
     </NativeTabs>
   );
