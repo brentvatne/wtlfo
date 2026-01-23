@@ -22,7 +22,6 @@ export default function SettingsScreen() {
     editFadeOutDuration, setEditFadeOutDuration,
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
-    depthAnimationDuration, setDepthAnimationDuration,
   } = usePreset();
   const {
     currentlyRunning,
@@ -212,15 +211,13 @@ export default function SettingsScreen() {
             const hasNonDefaultTiming =
               Math.round(fadeInDuration) !== 800 ||
               Math.round(editFadeOutDuration) !== 0 ||
-              Math.round(editFadeInDuration) !== 100 ||
-              Math.round(depthAnimationDuration) !== 60;
+              Math.round(editFadeInDuration) !== 100;
             return (
               <Pressable
                 onPress={() => {
                   setFadeInDuration(800);
                   setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
-                  setDepthAnimationDuration(60);
                 }}
                 style={styles.resetButton}
               >
@@ -254,14 +251,6 @@ export default function SettingsScreen() {
           value={editFadeInDuration}
           onChange={setEditFadeInDuration}
           formatValue={(v) => `${Math.round(v)}ms`}
-        />
-        <ParameterSlider
-          label="Depth animation"
-          min={0}
-          max={200}
-          value={depthAnimationDuration}
-          onChange={setDepthAnimationDuration}
-          formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
       </View>
 

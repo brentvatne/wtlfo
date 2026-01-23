@@ -86,9 +86,6 @@ export interface LFOVisualizerProps {
   /** When true, shows placeholder values instead of live data (during parameter editing) */
   isEditing?: boolean;
 
-  /** SharedValue for editing state - avoids re-renders when editing state changes */
-  isEditingShared?: SharedValue<boolean>;
-
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
 
@@ -100,9 +97,6 @@ export interface LFOVisualizerProps {
 
   /** Duration in ms for fade-in when editing ends (default 350) */
   editFadeInDuration?: number;
-
-  /** Duration in ms for depth animation (0 = instant, default 60) */
-  depthAnimationDuration?: number;
 
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: number;
@@ -147,14 +141,10 @@ export interface WaveformDisplayProps {
   speed?: number;
   /** Start phase offset (0-127) to shift waveform display */
   startPhase?: number;
-  /** When true, hides the fill (while actively editing depth) - use isEditingShared for better performance */
+  /** When true, hides the fill (while actively editing depth) */
   isEditing?: boolean;
-  /** SharedValue for editing state - avoids re-renders when editing state changes */
-  isEditingShared?: SharedValue<boolean>;
   /** Duration in ms for fade-in when editing ends (default 350) */
   editFadeInDuration?: number;
-  /** Duration in ms for depth animation (0 = instant, default 60) */
-  depthAnimationDuration?: number;
 }
 
 /**

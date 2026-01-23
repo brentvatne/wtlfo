@@ -39,12 +39,10 @@ export function LFOVisualizer({
   showPhaseIndicator = true,
   strokeWidth = 2,
   isEditing = false,
-  isEditingShared,
   hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
   editFadeOutDuration = 100,
   editFadeInDuration = 350,
-  depthAnimationDuration,
   fadeMultiplier,
   randomSamples,
   showFadeEnvelope = true,
@@ -167,9 +165,7 @@ export function LFOVisualizer({
               speed={speed}
               startPhase={startPhase}
               isEditing={shouldHideFill}
-              isEditingShared={!showFillsWhenEditing ? isEditingShared : undefined}
               editFadeInDuration={editFadeInDuration}
-              depthAnimationDuration={depthAnimationDuration}
             />
           ) : (
             <WaveformDisplay
@@ -184,9 +180,7 @@ export function LFOVisualizer({
               speed={speed}
               startPhase={startPhase}
               isEditing={shouldHideFill}
-              isEditingShared={!showFillsWhenEditing ? isEditingShared : undefined}
               editFadeInDuration={editFadeInDuration}
-              depthAnimationDuration={depthAnimationDuration}
             />
           )}
 

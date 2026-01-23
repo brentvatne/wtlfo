@@ -1,9 +1,8 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
-import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
+import { useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 import { LFO } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 import { useMidi } from '@/src/context/midi-context';
@@ -21,12 +20,10 @@ const FADE_IN_DURATION_KEY = 'fadeInDuration';
 const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
 const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
-const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
 const DEFAULT_EDIT_FADE_OUT = 0; // ms
 const DEFAULT_EDIT_FADE_IN = 100; // ms
-const DEFAULT_DEPTH_ANIM_DURATION = 60; // ms
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -195,22 +192,6 @@ function getInitialShowFadeEnvelope(): boolean {
   return true; // Default to showing fade envelope
 }
 
-// Load initial depth animation duration synchronously
-function getInitialDepthAnimDuration(): number {
-  try {
-    const saved = Storage.getItemSync(DEPTH_ANIM_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 200) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load depth animation duration setting');
-  }
-  return DEFAULT_DEPTH_ANIM_DURATION;
-}
-
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -226,8 +207,8 @@ interface PresetContextValue {
   currentConfig: LFOPresetConfig;
   /** Debounced config - updates 100ms after last change, use for engine creation */
   debouncedConfig: LFOPresetConfig;
-  /** SharedValue for editing state - use with useAnimatedReaction for UI-thread animations */
-  isEditingShared: SharedValue<boolean>;
+  /** True while user is actively interacting with a control */
+  isEditing: boolean;
   /** Set editing state - call with true when interaction starts, false when it ends */
   setIsEditing: (editing: boolean) => void;
   updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
@@ -279,8 +260,6 @@ interface PresetContextValue {
   // Visualization settings
   showFadeEnvelope: boolean;
   setShowFadeEnvelope: (show: boolean) => void;
-  depthAnimationDuration: number;
-  setDepthAnimationDuration: (duration: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -298,7 +277,6 @@ const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
 const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
-const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
 
 // Check if auto-connect is enabled - if so, start LFO paused
 // (waiting for MIDI transport start or user tap)
@@ -331,8 +309,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
   // Effective BPM: use external MIDI clock when enabled and available
   const effectiveBpm = receiveClock && externalBpm > 0 ? Math.round(externalBpm) : bpm;
-  // Editing state as SharedValue to avoid re-renders - components use useAnimatedReaction
-  const isEditingShared = useSharedValue(false);
+  const [isEditing, setIsEditing] = useState(false);
   const [isPaused, setIsPaused] = useState(INITIAL_PAUSED);
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
   const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
@@ -342,7 +319,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [editFadeOutDuration, setEditFadeOutDurationState] = useState(INITIAL_EDIT_FADE_OUT);
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
-  const [depthAnimationDuration, setDepthAnimationDurationState] = useState(INITIAL_DEPTH_ANIM_DURATION);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -550,20 +526,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  const setDepthAnimationDuration = useCallback((duration: number) => {
-    setDepthAnimationDurationState(duration);
-    try {
-      Storage.setItemSync(DEPTH_ANIM_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save depth animation duration setting');
-    }
-  }, []);
-
-  // Callback to update editing state SharedValue
-  const setIsEditing = useCallback((editing: boolean) => {
-    isEditingShared.value = editing;
-  }, [isEditingShared]);
-
   // Sync currentConfig when activePreset changes
   // Skip on first render - config is already initialized to match activePreset
   const isFirstPresetSync = useRef(true);
@@ -600,10 +562,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Ref for fade-out timeout
   const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
-  // JS-thread handler for editing start (called via runOnJS from useAnimatedReaction)
-  const handleEditingStarted = useCallback(() => {
-    isEditingRef.current = true;
-    if (hideValuesWhileEditing) {
+  // Coordinate LFO stop/start with editing fade animations
+  // Flow: fade out → stop LFO → (editing happens) → reset LFO → start LFO → fade in
+  useEffect(() => {
+    isEditingRef.current = isEditing;
+
+    if (isEditing && hideValuesWhileEditing) {
       // Editing started: wait for fade-out to complete, then stop LFO
       fadeOutTimeoutRef.current = setTimeout(() => {
         // Stop the animation loop after fade-out completes
@@ -612,87 +576,60 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
           animationRef.current = 0;
         }
       }, editFadeOutDuration);
-    }
-  }, [hideValuesWhileEditing, editFadeOutDuration]);
-
-  // JS-thread handler for editing ended (called via runOnJS from useAnimatedReaction)
-  const handleEditingEnded = useCallback(() => {
-    isEditingRef.current = false;
-    if (!hideValuesWhileEditing) return;
-
-    // Clear any pending fade-out timeout
-    if (fadeOutTimeoutRef.current) {
-      clearTimeout(fadeOutTimeoutRef.current);
-      fadeOutTimeoutRef.current = null;
-    }
-
-    // Clear any pending debounce - we're going to apply the config immediately
-    if (debounceRef.current) {
-      clearTimeout(debounceRef.current);
-      debounceRef.current = null;
-    }
-
-    // CRITICAL: Recreate the LFO synchronously with currentConfig BEFORE restarting
-    // the animation loop. This ensures the LFO engine uses the same config as the
-    // visualizers. If we use setDebouncedConfig (async), there's a timing gap where
-    // the animation runs with the old LFO before React re-renders.
-    lfoRef.current = new LFO(currentConfig, effectiveBpm);
-
-    // Reset and get the correct initial state
-    if (resetLFOOnChange) {
-      // Trigger resets to startPhase
-      lfoRef.current.trigger();
-      // Get the actual initial state from the new LFO
-      const initialState = lfoRef.current.update(performance.now());
-      lfoPhase.value = initialState.phase;
-      lfoOutput.value = initialState.output;
-      lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
-    }
-
-    // Sync debouncedConfig to prevent the recreation effect from running again
-    setDebouncedConfig({ ...currentConfig });
-
-    // Restart animation loop if it was stopped
-    if (animationRef.current === 0 && hasMainLoopStarted.current && !isPausedRef.current) {
-      const animate = (timestamp: number) => {
-        if (lfoRef.current) {
-          const state = lfoRef.current.update(timestamp);
-          lfoPhase.value = state.phase;
-          lfoOutput.value = state.output;
-          lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-        }
-        animationRef.current = requestAnimationFrame(animate);
-      };
-      animationRef.current = requestAnimationFrame(animate);
-    }
-  }, [hideValuesWhileEditing, resetLFOOnChange, currentConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier]);
-
-  // React to editing state changes on UI thread, dispatch to JS thread
-  // This avoids React re-renders when isEditing changes
-  useAnimatedReaction(
-    () => isEditingShared.value,
-    (isEditing, prevIsEditing) => {
-      'worklet';
-      // Skip initial reaction (when prevIsEditing is null/undefined)
-      if (prevIsEditing === null || prevIsEditing === undefined) return;
-
-      if (isEditing && !prevIsEditing) {
-        scheduleOnRN(handleEditingStarted);
-      } else if (!isEditing && prevIsEditing) {
-        scheduleOnRN(handleEditingEnded);
+    } else if (!isEditing && hideValuesWhileEditing) {
+      // Editing ended: flush debounce, recreate LFO synchronously, restart animation
+      if (fadeOutTimeoutRef.current) {
+        clearTimeout(fadeOutTimeoutRef.current);
+        fadeOutTimeoutRef.current = null;
       }
-    },
-    [handleEditingStarted, handleEditingEnded]
-  );
 
-  // Cleanup timeouts on unmount
-  useEffect(() => {
+      // Clear any pending debounce - we're going to apply the config immediately
+      if (debounceRef.current) {
+        clearTimeout(debounceRef.current);
+        debounceRef.current = null;
+      }
+
+      // CRITICAL: Recreate the LFO synchronously with currentConfig BEFORE restarting
+      // the animation loop. This ensures the LFO engine uses the same config as the
+      // visualizers. If we use setDebouncedConfig (async), there's a timing gap where
+      // the animation runs with the old LFO before React re-renders.
+      lfoRef.current = new LFO(currentConfig, effectiveBpm);
+
+      // Reset and get the correct initial state
+      if (resetLFOOnChange) {
+        // Trigger resets to startPhase
+        lfoRef.current.trigger();
+        // Get the actual initial state from the new LFO
+        const initialState = lfoRef.current.update(performance.now());
+        lfoPhase.value = initialState.phase;
+        lfoOutput.value = initialState.output;
+        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+      }
+
+      // Sync debouncedConfig to prevent the recreation effect from running again
+      setDebouncedConfig({ ...currentConfig });
+
+      // Restart animation loop if it was stopped
+      if (animationRef.current === 0 && hasMainLoopStarted.current && !isPausedRef.current) {
+        const animate = (timestamp: number) => {
+          if (lfoRef.current) {
+            const state = lfoRef.current.update(timestamp);
+            lfoPhase.value = state.phase;
+            lfoOutput.value = state.output;
+            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+          }
+          animationRef.current = requestAnimationFrame(animate);
+        };
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    }
+
     return () => {
       if (fadeOutTimeoutRef.current) {
         clearTimeout(fadeOutTimeoutRef.current);
       }
     };
-  }, []);
+  }, [isEditing, hideValuesWhileEditing, editFadeOutDuration, resetLFOOnChange, currentConfig.startPhase, currentConfig.mode, lfoPhase, lfoOutput]);
 
   // Restart animation loop when user unpauses after returning from background
   // This handles the case where:
@@ -921,7 +858,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     presets: PRESETS,
     currentConfig,
     debouncedConfig,
-    isEditingShared,
+    isEditing,
     setIsEditing,
     updateParameter,
     resetToPreset,
@@ -962,8 +899,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Visualization settings
     showFadeEnvelope,
     setShowFadeEnvelope,
-    depthAnimationDuration,
-    setDepthAnimationDuration,
   };
 
   return (

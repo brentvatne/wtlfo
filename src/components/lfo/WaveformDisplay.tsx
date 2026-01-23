@@ -1,11 +1,11 @@
 import React, { useEffect } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
-import { useSharedValue, withTiming, useDerivedValue, useAnimatedReaction, Easing } from 'react-native-reanimated';
+import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 import type { WaveformDisplayProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEFAULT_DEPTH_ANIMATION_DURATION = 60;
+const DEPTH_ANIMATION_DURATION = 60;
 
 export function WaveformDisplay({
   waveform,
@@ -19,27 +19,21 @@ export function WaveformDisplay({
   speed,
   startPhase,
   isEditing = false,
-  isEditingShared,
   editFadeInDuration = 350,
-  depthAnimationDuration = DEFAULT_DEPTH_ANIMATION_DURATION,
 }: WaveformDisplayProps) {
   const padding = 8;
 
   // Animated depth scale (-1 to 1, where depth/63 gives the scale factor)
   const depthScale = useSharedValue(depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1);
 
-  // Animate depth changes (or set instantly if duration is 0)
+  // Animate depth changes
   useEffect(() => {
     const targetScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
-    if (depthAnimationDuration === 0) {
-      depthScale.value = targetScale;
-    } else {
-      depthScale.value = withTiming(targetScale, {
-        duration: depthAnimationDuration,
-        easing: Easing.out(Easing.ease),
-      });
-    }
-  }, [depth, depthScale, depthAnimationDuration]);
+    depthScale.value = withTiming(targetScale, {
+      duration: DEPTH_ANIMATION_DURATION,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [depth, depthScale]);
 
   // Pre-compute static values
   const drawWidth = width - padding * 2;
@@ -139,34 +133,7 @@ export function WaveformDisplay({
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);
 
-  // React to isEditingShared changes on UI thread (preferred, avoids re-renders)
-  useAnimatedReaction(
-    () => isEditingShared?.value,
-    (editing, prevEditing) => {
-      'worklet';
-      // Only react if isEditingShared is provided and value actually changed
-      if (isEditingShared === undefined || prevEditing === undefined) return;
-      if (editing === prevEditing) return;
-
-      if (editing) {
-        // Instantly hide when editing starts
-        fillOpacity.value = 0;
-      } else {
-        // Fade in when editing ends
-        fillOpacity.value = withTiming(BASE_FILL_OPACITY, {
-          duration: editFadeInDuration,
-          easing: Easing.out(Easing.ease),
-        });
-      }
-    },
-    [isEditingShared, editFadeInDuration]
-  );
-
-  // Fallback: React to isEditing prop changes (for backwards compatibility when isEditingShared not provided)
   useEffect(() => {
-    // Skip if using SharedValue
-    if (isEditingShared !== undefined) return;
-
     if (isEditing) {
       // Instantly hide when editing starts
       fillOpacity.value = 0;
@@ -177,7 +144,7 @@ export function WaveformDisplay({
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [isEditing, editFadeInDuration, fillOpacity, isEditingShared]);
+  }, [isEditing, editFadeInDuration, fillOpacity]);
 
   return (
     <>
