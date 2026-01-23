@@ -25,7 +25,6 @@ export default function DestinationLayout() {
           unstable_headerRightItems: () => [{
             type: 'custom',
             element: <MidiStatusButton />,
-            hidesSharedBackground: true,
           }],
         }}
       />

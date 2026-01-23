@@ -31,12 +31,10 @@ export default function HomeLayout() {
             icon: { type: 'sfSymbol', name: 'list.bullet' },
             tintColor: '#ff6600',
             onPress: () => router.push('/presets'),
-            hidesSharedBackground: true,
           }],
           unstable_headerRightItems: () => [{
             type: 'custom',
             element: <MidiStatusButton />,
-            hidesSharedBackground: true,
           }],
         }}
       />
