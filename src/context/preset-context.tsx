@@ -22,7 +22,7 @@ const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
-const DEFAULT_EDIT_FADE_OUT = 50; // ms
+const DEFAULT_EDIT_FADE_OUT = 0; // ms
 const DEFAULT_EDIT_FADE_IN = 100; // ms
 
 // Load initial preset synchronously
@@ -153,7 +153,7 @@ function getInitialEditFadeOut(): number {
     const saved = Storage.getItemSync(EDIT_FADE_OUT_KEY);
     if (saved !== null) {
       const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 50 && value <= 500) {
+      if (!isNaN(value) && value >= 0 && value <= 500) {
         return value;
       }
     }

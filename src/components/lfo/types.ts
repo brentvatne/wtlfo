@@ -137,6 +137,8 @@ export interface WaveformDisplayProps {
   resolution?: number;
   /** Depth value (-64 to +63) to scale/invert the waveform */
   depth?: number;
+  /** Speed value (-64 to +63). Negative speed inverts the output (separate from depth inversion). */
+  speed?: number;
   /** Start phase offset (0-127) to shift waveform display */
   startPhase?: number;
   /** When true, hides the fill (while actively editing depth) */
@@ -165,6 +167,8 @@ export interface PhaseIndicatorProps {
   waveform?: WaveformType;
   /** Depth value (-64 to +63) */
   depth?: number;
+  /** Speed value. Negative speed inverts the output. */
+  speed?: number;
   /** Fade value (-64 to +63) */
   fade?: number;
   /** Trigger mode - fade doesn't apply in FRE mode */

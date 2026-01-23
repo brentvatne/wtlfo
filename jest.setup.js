@@ -20,6 +20,28 @@ jest.mock('react-native-reanimated', () => {
   return Reanimated;
 });
 
+// Mock @shopify/react-native-skia
+jest.mock('@shopify/react-native-skia', () => {
+  // Create a mock path object that tracks calls for testing
+  const createMockPath = () => {
+    const commands = [];
+    return {
+      moveTo: (x, y) => commands.push({ type: 'moveTo', x, y }),
+      lineTo: (x, y) => commands.push({ type: 'lineTo', x, y }),
+      close: () => commands.push({ type: 'close' }),
+      getCommands: () => commands,
+    };
+  };
+
+  return {
+    Skia: {
+      Path: {
+        Make: () => createMockPath(),
+      },
+    },
+  };
+});
+
 // Silence console warnings during tests
 global.console = {
   ...console,

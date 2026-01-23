@@ -10,6 +10,8 @@ interface FadeEnvelopeProps {
   color: string;
   resolution?: number;
   depth?: number;
+  /** Speed value. Negative speed inverts the output (separate from depth inversion). */
+  speed?: number;
   fade?: number;
   strokeWidth?: number;
   /** Start phase offset (0-127) to shift waveform display */
@@ -32,6 +34,7 @@ export function FadeEnvelope({
   color,
   resolution = 128,
   depth,
+  speed,
   fade,
   strokeWidth = 2,
   startPhase,
@@ -40,6 +43,8 @@ export function FadeEnvelope({
   const padding = 8;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
+  // Negative speed inverts the output (separate from depth inversion)
+  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
   const startPhaseNormalized = (startPhase || 0) / 128;
 
   // Create the path for the trajectory with fade applied
@@ -55,6 +60,9 @@ export function FadeEnvelope({
       // Shift phase for waveform sampling (same as WaveformDisplay)
       const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
       let value = sampleWaveformWorklet(waveform, waveformPhase);
+
+      // Apply speed inversion (negative speed inverts raw output)
+      value = value * speedInvert;
 
       // Apply depth scaling
       value = value * depthScale;
@@ -94,7 +102,7 @@ export function FadeEnvelope({
     }
 
     return p;
-  }, [waveform, width, height, resolution, depthScale, fade, startPhaseNormalized]);
+  }, [waveform, width, height, resolution, depthScale, speedInvert, fade, startPhaseNormalized]);
 
   return (
     <Path

@@ -17,6 +17,7 @@ export function WaveformDisplay({
   fillColor,
   resolution = 128,
   depth,
+  speed,
   startPhase,
   isEditing = false,
   editFadeInDuration = 350,
@@ -51,8 +52,8 @@ export function WaveformDisplay({
   }, [depth, isEditing]);
 
   // Generate paths using throttled depth value
-  const strokePath = useWaveformPath(waveform, width, height, resolution, 8, pathDepth, startPhase, false);
-  const fillPath = useWaveformPath(waveform, width, height, resolution, 8, pathDepth, startPhase, true);
+  const strokePath = useWaveformPath(waveform, width, height, resolution, 8, pathDepth, speed, startPhase, false);
+  const fillPath = useWaveformPath(waveform, width, height, resolution, 8, pathDepth, speed, startPhase, true);
 
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);

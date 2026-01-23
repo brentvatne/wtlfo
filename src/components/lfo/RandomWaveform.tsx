@@ -12,6 +12,8 @@ interface RandomWaveformProps {
   strokeWidth: number;
   fillColor?: string;
   depth?: number;
+  /** Speed value. Negative speed inverts the output (separate from depth inversion). */
+  speed?: number;
   /** Start phase offset (0-127) to shift display position */
   startPhase?: number;
   /** When true, hides the fill (while actively editing depth) */
@@ -32,6 +34,7 @@ export function RandomWaveform({
   strokeWidth,
   fillColor,
   depth,
+  speed,
   startPhase,
   isEditing = false,
   editFadeInDuration = 350,
@@ -55,6 +58,8 @@ export function RandomWaveform({
   const padding = 8;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
+  // Negative speed inverts the output (separate from depth inversion)
+  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
   const startPhaseNormalized = (startPhase || 0) / 128;
 
   const { strokePath, fillPath } = useMemo(() => {
@@ -86,7 +91,8 @@ export function RandomWaveform({
     for (let i = 0; i < shiftedSamples.length; i++) {
       const sample = shiftedSamples[i];
       const x = padding + sample.displayPhase * drawWidth;
-      const scaledValue = sample.value * depthScale;
+      // Apply speed inversion first, then depth scaling (matches engine order)
+      const scaledValue = sample.value * speedInvert * depthScale;
       const y = centerY + scaledValue * scaleY;
 
       if (i === 0) {
@@ -97,7 +103,7 @@ export function RandomWaveform({
         fill.lineTo(x, y);
       } else {
         // Horizontal line to this sample's x position at previous y
-        const prevY = centerY + shiftedSamples[i - 1].value * depthScale * scaleY;
+        const prevY = centerY + shiftedSamples[i - 1].value * speedInvert * depthScale * scaleY;
         stroke.lineTo(x, prevY);
         stroke.lineTo(x, y);
         fill.lineTo(x, prevY);
@@ -108,7 +114,7 @@ export function RandomWaveform({
     // Extend to right edge if we have samples
     if (shiftedSamples.length > 0) {
       const lastSample = shiftedSamples[shiftedSamples.length - 1];
-      const lastY = centerY + lastSample.value * depthScale * scaleY;
+      const lastY = centerY + lastSample.value * speedInvert * depthScale * scaleY;
       stroke.lineTo(endX, lastY);
       fill.lineTo(endX, lastY);
 
@@ -119,7 +125,7 @@ export function RandomWaveform({
     }
 
     return { strokePath: stroke, fillPath: fill };
-  }, [samples, width, height, depthScale, startPhaseNormalized]);
+  }, [samples, width, height, depthScale, speedInvert, startPhaseNormalized]);
 
   if (samples.length === 0) {
     return null;

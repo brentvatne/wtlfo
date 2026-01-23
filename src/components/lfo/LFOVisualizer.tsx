@@ -162,6 +162,7 @@ export function LFOVisualizer({
               strokeWidth={strokeWidth}
               fillColor={resolvedTheme.waveformFill}
               depth={depth}
+              speed={speed}
               startPhase={startPhase}
               isEditing={shouldHideFill}
               editFadeInDuration={editFadeInDuration}
@@ -176,6 +177,7 @@ export function LFOVisualizer({
               fillColor={resolvedTheme.waveformFill}
               resolution={128}
               depth={depth}
+              speed={speed}
               startPhase={startPhase}
               isEditing={shouldHideFill}
               editFadeInDuration={editFadeInDuration}
@@ -205,6 +207,7 @@ export function LFOVisualizer({
               height={canvasHeight}
               color={resolvedTheme.fadeCurve}
               depth={depth}
+              speed={speed}
               fade={fade}
               strokeWidth={strokeWidth}
               resolution={128}
@@ -227,6 +230,7 @@ export function LFOVisualizer({
               opacity={phaseIndicatorOpacity}
               waveform={waveform}
               depth={depth}
+              speed={speed}
               fade={fade}
               mode={mode}
               fadeMultiplier={fadeMultiplier}

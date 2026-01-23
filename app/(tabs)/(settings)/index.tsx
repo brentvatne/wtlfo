@@ -210,13 +210,13 @@ export default function SettingsScreen() {
           {(() => {
             const hasNonDefaultTiming =
               Math.round(fadeInDuration) !== 800 ||
-              Math.round(editFadeOutDuration) !== 50 ||
+              Math.round(editFadeOutDuration) !== 0 ||
               Math.round(editFadeInDuration) !== 100;
             return (
               <Pressable
                 onPress={() => {
                   setFadeInDuration(800);
-                  setEditFadeOutDuration(50);
+                  setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
                 }}
                 style={styles.resetButton}
@@ -238,7 +238,7 @@ export default function SettingsScreen() {
         />
         <ParameterSlider
           label="Edit start fade-out"
-          min={50}
+          min={0}
           max={500}
           value={editFadeOutDuration}
           onChange={setEditFadeOutDuration}

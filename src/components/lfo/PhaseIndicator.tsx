@@ -16,6 +16,7 @@ export function PhaseIndicator({
   opacity: opacityProp,
   waveform,
   depth,
+  speed,
   fade,
   mode,
   fadeMultiplier,
@@ -34,6 +35,8 @@ export function PhaseIndicator({
   const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
+  // Negative speed inverts the output (separate from depth inversion)
+  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
   // Check if fade applies (only when fade is set and mode is not FRE)
   const fadeApplies = fade !== undefined && fade !== 0 && mode !== 'FRE';
   const fadeValue = fade ?? 0;
@@ -70,6 +73,9 @@ export function PhaseIndicator({
         ? sampleWaveformWithSlew(waveform, waveformPhase, slewValue)
         : sampleWaveformWorklet(waveform, waveformPhase);
 
+      // Apply speed inversion (negative speed inverts raw output)
+      value = value * speedInvert;
+
       // Apply depth scaling
       value = value * depthScale;
 
@@ -101,7 +107,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, speedInvert, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {
