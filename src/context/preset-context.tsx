@@ -1,8 +1,9 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
-import { useSharedValue, useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useSharedValue, useAnimatedReaction } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { LFO } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 import { useMidi } from '@/src/context/midi-context';
@@ -676,9 +677,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       if (prevIsEditing === null || prevIsEditing === undefined) return;
 
       if (isEditing && !prevIsEditing) {
-        runOnJS(handleEditingStarted)();
+        scheduleOnRN(handleEditingStarted);
       } else if (!isEditing && prevIsEditing) {
-        runOnJS(handleEditingEnded)();
+        scheduleOnRN(handleEditingEnded);
       }
     },
     [handleEditingStarted, handleEditingEnded]

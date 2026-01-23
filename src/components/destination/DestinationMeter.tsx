@@ -1,8 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
-import { useDerivedValue, useSharedValue, withTiming, withSequence, useAnimatedReaction, Easing, cancelAnimation, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, withSequence, useAnimatedReaction, Easing, cancelAnimation } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
 import { sampleWaveformWorklet } from '@/src/components/lfo/worklets';
@@ -88,8 +89,8 @@ export function DestinationMeter({
       if (editing === prevEditing) return;
 
       // Update local state for text rendering (needs React re-render)
-      const newShouldHide = editing && hideValuesWhileEditing;
-      runOnJS(setShouldHideValueState)(newShouldHide);
+      // Pass function reference + args separately (required by scheduleOnRN)
+      scheduleOnRN(setShouldHideValueState, editing && hideValuesWhileEditing);
 
       // Handle animations directly on UI thread
       if (newShouldHide) {
