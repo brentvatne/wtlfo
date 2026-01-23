@@ -106,6 +106,9 @@ export interface LFOVisualizerProps {
 
   /** Whether to show the fade envelope curves (default true) */
   showFadeEnvelope?: boolean;
+
+  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  depthAnimationDuration?: number;
 }
 
 export interface LFOTheme {
@@ -145,6 +148,8 @@ export interface WaveformDisplayProps {
   isEditing?: boolean;
   /** Duration in ms for fade-in when editing ends (default 350) */
   editFadeInDuration?: number;
+  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  depthAnimationDuration?: number;
 }
 
 /**

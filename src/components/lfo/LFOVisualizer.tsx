@@ -46,6 +46,7 @@ export function LFOVisualizer({
   fadeMultiplier,
   randomSamples,
   showFadeEnvelope = true,
+  depthAnimationDuration = 60,
 }: LFOVisualizerProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;
@@ -166,6 +167,7 @@ export function LFOVisualizer({
               startPhase={startPhase}
               isEditing={shouldHideFill}
               editFadeInDuration={editFadeInDuration}
+              depthAnimationDuration={depthAnimationDuration}
             />
           ) : (
             <WaveformDisplay
@@ -181,6 +183,7 @@ export function LFOVisualizer({
               startPhase={startPhase}
               isEditing={shouldHideFill}
               editFadeInDuration={editFadeInDuration}
+              depthAnimationDuration={depthAnimationDuration}
             />
           )}
 

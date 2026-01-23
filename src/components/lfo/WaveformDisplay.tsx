@@ -5,7 +5,7 @@ import type { WaveformDisplayProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEPTH_ANIMATION_DURATION = 60;
+const DEFAULT_DEPTH_ANIMATION_DURATION = 60;
 
 export function WaveformDisplay({
   waveform,
@@ -20,20 +20,25 @@ export function WaveformDisplay({
   startPhase,
   isEditing = false,
   editFadeInDuration = 350,
+  depthAnimationDuration = DEFAULT_DEPTH_ANIMATION_DURATION,
 }: WaveformDisplayProps) {
   const padding = 8;
 
   // Animated depth scale (-1 to 1, where depth/63 gives the scale factor)
   const depthScale = useSharedValue(depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1);
 
-  // Animate depth changes
+  // Animate depth changes (or set instantly if duration is 0)
   useEffect(() => {
     const targetScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
-    depthScale.value = withTiming(targetScale, {
-      duration: DEPTH_ANIMATION_DURATION,
-      easing: Easing.out(Easing.ease),
-    });
-  }, [depth, depthScale]);
+    if (depthAnimationDuration === 0) {
+      depthScale.value = targetScale;
+    } else {
+      depthScale.value = withTiming(targetScale, {
+        duration: depthAnimationDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [depth, depthScale, depthAnimationDuration]);
 
   // Pre-compute static values
   const drawWidth = width - padding * 2;

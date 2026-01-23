@@ -3,7 +3,7 @@ import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEPTH_ANIMATION_DURATION = 60;
+const DEFAULT_DEPTH_ANIMATION_DURATION = 60;
 
 interface RandomWaveformProps {
   samples: Array<{ phase: number; value: number }>;
@@ -21,6 +21,8 @@ interface RandomWaveformProps {
   isEditing?: boolean;
   /** Duration in ms for fade-in when editing ends (default 350) */
   editFadeInDuration?: number;
+  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  depthAnimationDuration?: number;
 }
 
 /**
@@ -39,6 +41,7 @@ export function RandomWaveform({
   startPhase,
   isEditing = false,
   editFadeInDuration = 350,
+  depthAnimationDuration = DEFAULT_DEPTH_ANIMATION_DURATION,
 }: RandomWaveformProps) {
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);
@@ -67,14 +70,18 @@ export function RandomWaveform({
   // Animated depth scale (-1 to 1, where depth/63 gives the scale factor)
   const depthScale = useSharedValue(depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1);
 
-  // Animate depth changes
+  // Animate depth changes (or set instantly if duration is 0)
   useEffect(() => {
     const targetScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
-    depthScale.value = withTiming(targetScale, {
-      duration: DEPTH_ANIMATION_DURATION,
-      easing: Easing.out(Easing.ease),
-    });
-  }, [depth, depthScale]);
+    if (depthAnimationDuration === 0) {
+      depthScale.value = targetScale;
+    } else {
+      depthScale.value = withTiming(targetScale, {
+        duration: depthAnimationDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [depth, depthScale, depthAnimationDuration]);
 
   // Convert samples to shared value for worklet access
   const samplesData = useSharedValue(samples.map(s => ({ phase: s.phase, value: s.value })));
