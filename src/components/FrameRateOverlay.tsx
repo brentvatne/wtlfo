@@ -3,21 +3,17 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useFrameRate } from '@/src/context/frame-rate-context';
 
 /**
- * Displays current JS thread frame rate in the bottom right corner.
- * Uses absolute positioning (won't appear above form sheets without native code).
- *
- * UI thread fps would require native module integration.
- * This JS-only implementation allows OTA updates.
+ * Custom hook to measure JS thread frame rate.
+ * Returns current fps value when enabled.
  */
-export function FrameRateOverlay() {
-  const { showOverlay, setShowOverlay } = useFrameRate();
+function useJsFps(enabled: boolean) {
   const [jsFps, setJsFps] = useState(0);
   const frameTimesRef = useRef<number[]>([]);
   const lastTimeRef = useRef(performance.now());
   const rafIdRef = useRef<number>(0);
 
   useEffect(() => {
-    if (!showOverlay) {
+    if (!enabled) {
       return;
     }
 
@@ -50,17 +46,53 @@ export function FrameRateOverlay() {
       }
       frameTimesRef.current = [];
     };
-  }, [showOverlay]);
+  }, [enabled]);
+
+  return jsFps;
+}
+
+function getFpsColor(fps: number) {
+  if (fps >= 55) return '#4ade80'; // Green
+  if (fps >= 45) return '#facc15'; // Yellow
+  return '#f87171'; // Red
+}
+
+/**
+ * Compact frame rate display for navigation header.
+ * Tap to disable the overlay.
+ */
+export function HeaderFrameRate() {
+  const { showOverlay, setShowOverlay } = useFrameRate();
+  const jsFps = useJsFps(showOverlay);
 
   if (!showOverlay) {
     return null;
   }
 
-  const getFpsColor = (fps: number) => {
-    if (fps >= 55) return '#4ade80'; // Green
-    if (fps >= 45) return '#facc15'; // Yellow
-    return '#f87171'; // Red
-  };
+  return (
+    <Pressable style={styles.headerContainer} onPress={() => setShowOverlay(false)}>
+      <Text style={styles.headerLabel}>JS</Text>
+      <Text style={[styles.headerValue, { color: getFpsColor(jsFps) }]}>{jsFps}</Text>
+    </Pressable>
+  );
+}
+
+/**
+ * Displays current JS thread frame rate in the bottom right corner.
+ * Uses absolute positioning (won't appear above form sheets without native code).
+ *
+ * UI thread fps would require native module integration.
+ * This JS-only implementation allows OTA updates.
+ *
+ * @deprecated Use HeaderFrameRate instead for better form sheet visibility
+ */
+export function FrameRateOverlay() {
+  const { showOverlay, setShowOverlay } = useFrameRate();
+  const jsFps = useJsFps(showOverlay);
+
+  if (!showOverlay) {
+    return null;
+  }
 
   return (
     <Pressable style={styles.container} onPress={() => setShowOverlay(false)}>
@@ -73,6 +105,28 @@ export function FrameRateOverlay() {
 }
 
 const styles = StyleSheet.create({
+  // Header variant styles
+  headerContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.6)',
+    borderRadius: 6,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+    gap: 4,
+  },
+  headerLabel: {
+    color: '#888899',
+    fontSize: 10,
+    fontWeight: '600',
+    fontFamily: 'Menlo',
+  },
+  headerValue: {
+    fontSize: 12,
+    fontWeight: '700',
+    fontFamily: 'Menlo',
+  },
+  // Floating overlay styles (deprecated)
   container: {
     position: 'absolute',
     bottom: 100,

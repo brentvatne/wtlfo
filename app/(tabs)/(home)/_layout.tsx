@@ -1,6 +1,17 @@
+import { View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
 import { MidiStatusButton } from '@/src/components/navigation/MidiStatusButton';
+import { HeaderFrameRate } from '@/src/components/FrameRateOverlay';
+
+function HeaderRightItems() {
+  return (
+    <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
+      <HeaderFrameRate />
+      <MidiStatusButton />
+    </View>
+  );
+}
 
 export default function HomeLayout() {
   const { preset } = usePreset();
@@ -34,7 +45,7 @@ export default function HomeLayout() {
           }],
           unstable_headerRightItems: () => [{
             type: 'custom',
-            element: <MidiStatusButton />,
+            element: <HeaderRightItems />,
           }],
         }}
       />

@@ -1,5 +1,4 @@
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
-import { FrameRateOverlay } from '@/src/components/FrameRateOverlay';
 import { FrameRateProvider } from '@/src/context/frame-rate-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
@@ -42,7 +41,6 @@ export default function RootLayout() {
                   }}
                 />
               </Stack>
-              <FrameRateOverlay />
             </ModulationProvider>
           </PresetProvider>
         </MidiProvider>

@@ -60,6 +60,30 @@
 **Decision**: Use `runtimeVersion.policy: "appVersion"` for EAS Updates
 **Rationale**: Native changes (like MIDI module) require new builds. Bump app.json version when native code changes.
 
+## 2026-01-23
+
+### Waveform Depth Animation Strategy
+**Decision**: Use Skia Group transform with `withTiming` for animated depth scaling
+**Rationale**: Path regeneration happens on JS thread via `useMemo`. Animating the path regeneration would cause excessive JS work. Instead:
+- Generate paths at full scale (depth=63)
+- Apply depth as a Y-axis scale transform around center line
+- Animate the transform value with `withTiming(120ms)`
+
+**Trade-off**: Transform also scales stroke width (thinner at lower depth). Deemed acceptable.
+
+**Performance benchmarks** (all pass):
+- Path generation: <1ms avg at 128 resolution
+- Per-waveform comparison: All waveform types within budget
+- Slider drag simulation: Sustained 60fps during interaction
+
+### Frame Rate Overlay
+**Decision**: Display JS fps in navigation header instead of floating overlay
+**Rationale**: Floating overlay (even with zIndex) doesn't appear above form sheets. Header placement is always visible.
+**Implementation**: `HeaderFrameRate` component conditionally rendered in home layout header.
+
+### Center Value vs Depth Animation
+**Observation**: Center value slider uses `withTiming` in `DestinationMeter` for smooth visual transitions. Depth slider now matches this behavior using Group transforms.
+
 ## Technical Debt
 
 ### Reanimated Strict Mode Disabled
