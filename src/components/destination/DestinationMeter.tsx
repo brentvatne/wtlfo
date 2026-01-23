@@ -1,13 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native';
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
-
-type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
-import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, withSequence, useAnimatedReaction, Easing, cancelAnimation } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
 import { sampleWaveformWorklet } from '@/src/components/lfo/worklets';
+
+type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
 
 // Unipolar waveforms only output 0 to 1 (not -1 to +1)
 const UNIPOLAR_WAVEFORMS: WaveformType[] = ['EXP', 'RMP'];
@@ -30,8 +31,10 @@ interface DestinationMeterProps {
   height?: number;
   style?: ViewStyle;
   showValue?: boolean;
-  /** When true, hides the current value line and shows center value instead */
+  /** When true, hides the current value line and shows center value instead - use isEditingShared for better performance */
   isEditing?: boolean;
+  /** SharedValue for editing state - avoids re-renders when editing state changes */
+  isEditingShared?: SharedValue<boolean>;
   /** When false, disables hiding values while editing */
   hideValuesWhileEditing?: boolean;
   /** When true, keeps fill areas visible while editing (default true) */
@@ -59,16 +62,64 @@ export function DestinationMeter({
   style,
   showValue = false,
   isEditing = false,
+  isEditingShared,
   hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
   editFadeOutDuration = 100,
   editFadeInDuration = 350,
   isPaused = false,
 }: DestinationMeterProps) {
+  // Local state for shouldHideValue - updated via scheduleOnRN when using SharedValue
+  const [shouldHideValueState, setShouldHideValueState] = useState(isEditing && hideValuesWhileEditing);
+
   // Only apply editing fade if setting is enabled
-  const shouldHideValue = isEditing && hideValuesWhileEditing;
+  // Use local state when isEditingShared is provided, otherwise use prop directly
+  const shouldHideValue = isEditingShared ? shouldHideValueState : (isEditing && hideValuesWhileEditing);
   // Only hide fills if editing AND the setting says to hide them
-  const shouldHideFill = isEditing && !showFillsWhenEditing;
+  const shouldHideFill = isEditingShared ? (shouldHideValueState && !showFillsWhenEditing) : (isEditing && !showFillsWhenEditing);
+
+  // React to isEditingShared changes on UI thread (preferred, avoids re-renders for animations)
+  // Updates local state via scheduleOnRN for text rendering that needs React re-render
+  useAnimatedReaction(
+    () => isEditingShared?.value,
+    (editing, prevEditing) => {
+      'worklet';
+      // Only react if isEditingShared is provided and value actually changed
+      if (isEditingShared === undefined || prevEditing === undefined) return;
+      if (editing === prevEditing) return;
+
+      // Update local state for text rendering (needs React re-render)
+      const newShouldHide = editing && hideValuesWhileEditing;
+      scheduleOnRN(() => setShouldHideValueState(newShouldHide));
+
+      // Handle animations directly on UI thread
+      if (newShouldHide) {
+        // Editing with hide enabled: fade out quickly
+        currentValueOpacity.value = withTiming(0, {
+          duration: editFadeOutDuration,
+          easing: Easing.inOut(Easing.ease),
+        });
+      } else {
+        // Not editing: fade back in
+        currentValueOpacity.value = withTiming(1, {
+          duration: editFadeInDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+
+      // Handle modulation range fill opacity
+      const newShouldHideFill = editing && !showFillsWhenEditing;
+      if (newShouldHideFill) {
+        modulationRangeOpacity.value = 0;
+      } else {
+        modulationRangeOpacity.value = withTiming(0.2, {
+          duration: editFadeInDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+    },
+    [isEditingShared, hideValuesWhileEditing, showFillsWhenEditing, editFadeOutDuration, editFadeInDuration]
+  );
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
   const max = destination?.max ?? 127;
@@ -116,9 +167,12 @@ export function DestinationMeter({
   // Animated opacity for modulation range fill (orange area)
   const modulationRangeOpacity = useSharedValue(shouldHideFill ? 0 : 0.2);
 
-  // Effect for current value line opacity
+  // Effect for current value line opacity (fallback when isEditingShared not provided)
   // Handles: editing state changes, waveform changes, and their combinations
   useEffect(() => {
+    // Skip if using SharedValue - handled by useAnimatedReaction above
+    if (isEditingShared !== undefined) return;
+
     // Check if waveform changed since last render
     const waveformChanged = prevWaveformRef.current !== waveform;
     if (waveformChanged) {
@@ -144,10 +198,13 @@ export function DestinationMeter({
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [shouldHideValue, waveform, currentValueOpacity, editFadeOutDuration, editFadeInDuration]);
+  }, [shouldHideValue, waveform, currentValueOpacity, editFadeOutDuration, editFadeInDuration, isEditingShared]);
 
-  // Separate effect for modulation range fill opacity (controlled by showFillsWhenEditing)
+  // Separate effect for modulation range fill opacity (fallback when isEditingShared not provided)
   useEffect(() => {
+    // Skip if using SharedValue - handled by useAnimatedReaction above
+    if (isEditingShared !== undefined) return;
+
     if (shouldHideFill) {
       // Instantly hide modulation range when editing starts
       modulationRangeOpacity.value = 0;
@@ -158,7 +215,7 @@ export function DestinationMeter({
         easing: Easing.out(Easing.ease),
       });
     }
-  }, [shouldHideFill, modulationRangeOpacity, editFadeInDuration]);
+  }, [shouldHideFill, modulationRangeOpacity, editFadeInDuration, isEditingShared]);
 
   // Animate bounds smoothly to match waveform path interpolation (60ms)
   // Uses withTiming instead of direct assignment for cohesive visual transitions

@@ -31,7 +31,7 @@ export default function HomeScreen() {
   const {
     currentConfig,
     effectiveBpm,
-    isEditing,
+    isEditingShared,
     hideValuesWhileEditing,
     showFillsWhenEditing,
     fadeInOnOpen,
@@ -39,6 +39,7 @@ export default function HomeScreen() {
     editFadeOutDuration,
     editFadeInDuration,
     showFadeEnvelope,
+    depthAnimationDuration,
     lfoPhase,
     lfoOutput,
     timingInfo,
@@ -202,11 +203,12 @@ export default function HomeScreen() {
                 showParameters={false}
                 showTiming={false}
                 showOutput={false}
-                isEditing={isEditing}
+                isEditingShared={isEditingShared}
                 hideValuesWhileEditing={hideValuesWhileEditing}
                 showFillsWhenEditing={showFillsWhenEditing}
                 editFadeOutDuration={editFadeOutDuration}
                 editFadeInDuration={editFadeInDuration}
+                depthAnimationDuration={depthAnimationDuration}
                 strokeWidth={2.5}
                 showFadeEnvelope={showFadeEnvelope}
               />
@@ -254,7 +256,7 @@ export default function HomeScreen() {
             width={METER_WIDTH}
             height={METER_HEIGHT}
             showValue
-            isEditing={isEditing}
+            isEditingShared={isEditingShared}
             hideValuesWhileEditing={hideValuesWhileEditing}
             showFillsWhenEditing={showFillsWhenEditing}
             editFadeOutDuration={editFadeOutDuration}
