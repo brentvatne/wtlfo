@@ -78,6 +78,14 @@ export function DestinationMeter({
   // Only hide fills if editing AND the setting says to hide them
   const shouldHideFill = isEditingShared ? (shouldHideValueState && !showFillsWhenEditing) : (isEditing && !showFillsWhenEditing);
 
+  // Animated opacity for current value line (fades out when editing or waveform changing)
+  // Must be defined BEFORE useAnimatedReaction that uses it
+  const currentValueOpacity = useSharedValue(shouldHideValue ? 0 : 1);
+  const prevWaveformRef = useRef(waveform);
+
+  // Animated opacity for modulation range fill (orange area)
+  const modulationRangeOpacity = useSharedValue(shouldHideFill ? 0 : 0.2);
+
   // React to isEditingShared changes on UI thread (preferred, avoids re-renders for animations)
   // Updates local state via scheduleOnRN for text rendering that needs React re-render
   useAnimatedReaction(
@@ -162,13 +170,6 @@ export function DestinationMeter({
   const animatedCenterValue = useSharedValue(centerValue);
   const animatedLowerBound = useSharedValue(targetLowerBound);
   const animatedUpperBound = useSharedValue(targetUpperBound);
-
-  // Animated opacity for current value line (fades out when editing or waveform changing)
-  const currentValueOpacity = useSharedValue(shouldHideValue ? 0 : 1);
-  const prevWaveformRef = useRef(waveform);
-
-  // Animated opacity for modulation range fill (orange area)
-  const modulationRangeOpacity = useSharedValue(shouldHideFill ? 0 : 0.2);
 
   // Effect for current value line opacity (fallback when isEditingShared not provided)
   // Handles: editing state changes, waveform changes, and their combinations
