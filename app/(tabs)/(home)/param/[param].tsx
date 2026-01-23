@@ -177,14 +177,17 @@ export default function EditParamScreen() {
   const handleSlidingEnd = () => setIsEditing(false);
 
   // Brief editing pulse for non-slider controls (segmented controls, pickers)
-  // Sets isEditing true, then false after fade-out duration to trigger fade-in
-  const triggerEditPulse = useCallback(() => {
+  // Flow: fade-out → apply change → fade-in (with LFO restart)
+  const triggerEditPulse = useCallback((applyChange: () => void) => {
     // Clear any pending timeout
     if (editTimeoutRef.current) {
       clearTimeout(editTimeoutRef.current);
     }
     setIsEditing(true);
     editTimeoutRef.current = setTimeout(() => {
+      // Apply the parameter change after fade-out completes
+      applyChange();
+      // Then trigger fade-in (preset-context handles LFO restart)
       setIsEditing(false);
       editTimeoutRef.current = null;
     }, editFadeOutDuration);
@@ -246,8 +249,7 @@ export default function EditParamScreen() {
             options={WAVEFORMS}
             value={currentConfig.waveform}
             onChange={(value) => {
-              triggerEditPulse();
-              updateParameter('waveform', value);
+              triggerEditPulse(() => updateParameter('waveform', value));
             }}
           />
         );
@@ -259,8 +261,7 @@ export default function EditParamScreen() {
             options={MODES}
             value={currentConfig.mode}
             onChange={(value) => {
-              triggerEditPulse();
-              updateParameter('mode', value);
+              triggerEditPulse(() => updateParameter('mode', value));
             }}
           />
         );
@@ -273,8 +274,7 @@ export default function EditParamScreen() {
               options={MULTIPLIERS}
               value={currentConfig.multiplier}
               onChange={(value) => {
-                triggerEditPulse();
-                updateParameter('multiplier', value);
+                triggerEditPulse(() => updateParameter('multiplier', value));
               }}
               formatOption={formatMultiplier}
             />
@@ -284,8 +284,7 @@ export default function EditParamScreen() {
               options={['BPM', '120'] as const}
               value={currentConfig.useFixedBPM ? '120' : 'BPM'}
               onChange={(value) => {
-                triggerEditPulse();
-                updateParameter('useFixedBPM', value === '120');
+                triggerEditPulse(() => updateParameter('useFixedBPM', value === '120'));
               }}
             />
           </View>

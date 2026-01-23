@@ -10,7 +10,8 @@ import {
 import type { DestinationId } from '@/src/types/destination';
 
 interface DestinationPickerInlineProps {
-  onSelectionChange?: () => void;
+  // Callback that wraps the change - receives a function to execute after fade-out
+  onSelectionChange?: (applyChange: () => void) => void;
 }
 
 export function DestinationPickerInline({ onSelectionChange }: DestinationPickerInlineProps) {
@@ -18,12 +19,15 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
 
   const handleSelect = (id: DestinationId) => {
     Haptics.selectionAsync();
-    onSelectionChange?.();
     // Toggle: if already selected, deselect (set to 'none')
-    if (id === activeDestinationId) {
-      setActiveDestinationId('none');
+    const newId = id === activeDestinationId ? 'none' : id;
+
+    if (onSelectionChange) {
+      // Wrap the change in the fade animation
+      onSelectionChange(() => setActiveDestinationId(newId));
     } else {
-      setActiveDestinationId(id);
+      // No animation wrapper, apply immediately
+      setActiveDestinationId(newId);
     }
   };
 
