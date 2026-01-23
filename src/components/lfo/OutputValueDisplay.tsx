@@ -1,8 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { useAnimatedReaction } from 'react-native-reanimated';
+import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
 import type { OutputValueDisplayProps } from './types';
 
 interface ExtendedOutputValueDisplayProps extends OutputValueDisplayProps {
@@ -30,7 +29,7 @@ export function OutputValueDisplay({ output, theme, isEditing, isEditingShared }
     () => output.value,
     (currentValue) => {
       'worklet';
-      scheduleOnRN(() => updateDisplay(currentValue));
+      runOnJS(updateDisplay)(currentValue);
     },
     [output, updateDisplay]
   );
@@ -42,7 +41,7 @@ export function OutputValueDisplay({ output, theme, isEditing, isEditingShared }
       'worklet';
       if (isEditingShared === undefined || prevEditing === undefined) return;
       if (editing === prevEditing) return;
-      scheduleOnRN(() => setIsEditingState(editing));
+      runOnJS(setIsEditingState)(editing);
     },
     [isEditingShared]
   );
