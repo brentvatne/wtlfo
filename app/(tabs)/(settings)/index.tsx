@@ -278,7 +278,7 @@ export default function SettingsScreen() {
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Developer Tools</Text>
             <Text style={styles.settingDescription}>
-              E2E verification tests for LFO behavior
+              Frame rate monitor, performance tests, MIDI verification
             </Text>
           </View>
           <Text style={styles.chevron}>›</Text>
