@@ -1,10 +1,10 @@
 import React, { useEffect, useState, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable, Modal } from 'react-native';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { useFrameRate } from '@/src/context/frame-rate-context';
 
 /**
  * Displays current JS thread frame rate in the bottom right corner.
- * Uses a transparent Modal to ensure it appears above form sheets.
+ * Uses absolute positioning (won't appear above form sheets without native code).
  *
  * UI thread fps would require native module integration.
  * This JS-only implementation allows OTA updates.
@@ -52,6 +52,10 @@ export function FrameRateOverlay() {
     };
   }, [showOverlay]);
 
+  if (!showOverlay) {
+    return null;
+  }
+
   const getFpsColor = (fps: number) => {
     if (fps >= 55) return '#4ade80'; // Green
     if (fps >= 45) return '#facc15'; // Yellow
@@ -59,39 +63,26 @@ export function FrameRateOverlay() {
   };
 
   return (
-    <Modal
-      visible={showOverlay}
-      transparent
-      animationType="none"
-      statusBarTranslucent
-      pointerEvents="box-none"
-    >
-      <View style={styles.modalContainer} pointerEvents="box-none">
-        <Pressable style={styles.container} onPress={() => setShowOverlay(false)}>
-          <View style={styles.row}>
-            <Text style={styles.label}>JS</Text>
-            <Text style={[styles.value, { color: getFpsColor(jsFps) }]}>{jsFps}</Text>
-          </View>
-        </Pressable>
+    <Pressable style={styles.container} onPress={() => setShowOverlay(false)}>
+      <View style={styles.row}>
+        <Text style={styles.label}>JS</Text>
+        <Text style={[styles.value, { color: getFpsColor(jsFps) }]}>{jsFps}</Text>
       </View>
-    </Modal>
+    </Pressable>
   );
 }
 
 const styles = StyleSheet.create({
-  modalContainer: {
-    flex: 1,
-    justifyContent: 'flex-end',
-    alignItems: 'flex-end',
-    paddingBottom: 100,
-    paddingRight: 16,
-  },
   container: {
+    position: 'absolute',
+    bottom: 100,
+    right: 16,
     backgroundColor: 'rgba(0, 0, 0, 0.8)',
     borderRadius: 8,
     padding: 8,
     paddingHorizontal: 12,
     minWidth: 60,
+    zIndex: 9999,
   },
   row: {
     flexDirection: 'row',
