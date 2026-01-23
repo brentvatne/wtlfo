@@ -88,9 +88,12 @@ export function DestinationMeter({
       if (isEditingShared === undefined || prevEditing === undefined) return;
       if (editing === prevEditing) return;
 
+      // Calculate whether to hide based on editing state and setting
+      const newShouldHide = (editing ?? false) && hideValuesWhileEditing;
+
       // Update local state for text rendering (needs React re-render)
       // Pass function reference + args separately (required by scheduleOnRN)
-      scheduleOnRN(setShouldHideValueState, editing && hideValuesWhileEditing);
+      scheduleOnRN(setShouldHideValueState, newShouldHide);
 
       // Handle animations directly on UI thread
       if (newShouldHide) {

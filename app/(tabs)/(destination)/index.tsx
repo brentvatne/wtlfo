@@ -22,7 +22,7 @@ export default function DestinationScreen() {
     lfoPhase,
     lfoOutput,
     timingInfo,
-    isEditing,
+    isEditingShared,
   } = usePreset();
 
   const {
@@ -104,7 +104,7 @@ export default function DestinationScreen() {
             showParameters={false}
             showTiming={false}
             showOutput={false}
-            isEditing={isEditing}
+            isEditingShared={isEditingShared}
             strokeWidth={2}
           />
         </View>

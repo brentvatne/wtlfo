@@ -42,7 +42,7 @@ export function OutputValueDisplay({ output, theme, isEditing, isEditingShared }
       'worklet';
       if (isEditingShared === undefined || prevEditing === undefined) return;
       if (editing === prevEditing) return;
-      scheduleOnRN(setIsEditingState, editing);
+      scheduleOnRN(setIsEditingState, editing ?? false);
     },
     [isEditingShared]
   );
