@@ -129,7 +129,7 @@ export function DestinationMeter({
         });
       }
     },
-    [isEditingShared, hideValuesWhileEditing, showFillsWhenEditing, editFadeOutDuration, editFadeInDuration]
+    [isEditingShared, hideValuesWhileEditing, showFillsWhenEditing, editFadeOutDuration, editFadeInDuration, currentValueOpacity, modulationRangeOpacity]
   );
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
