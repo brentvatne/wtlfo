@@ -5,7 +5,7 @@ import type { WaveformDisplayProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEPTH_ANIMATION_DURATION = 120;
+const DEPTH_ANIMATION_DURATION = 60;
 
 export function WaveformDisplay({
   waveform,

@@ -3,7 +3,7 @@ import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEPTH_ANIMATION_DURATION = 120;
+const DEPTH_ANIMATION_DURATION = 60;
 
 interface RandomWaveformProps {
   samples: Array<{ phase: number; value: number }>;
