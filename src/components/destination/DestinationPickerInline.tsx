@@ -9,11 +9,16 @@ import {
 } from '@/src/data/destinations';
 import type { DestinationId } from '@/src/types/destination';
 
-export function DestinationPickerInline() {
+interface DestinationPickerInlineProps {
+  onSelectionChange?: () => void;
+}
+
+export function DestinationPickerInline({ onSelectionChange }: DestinationPickerInlineProps) {
   const { activeDestinationId, setActiveDestinationId } = useModulation();
 
   const handleSelect = (id: DestinationId) => {
     Haptics.selectionAsync();
+    onSelectionChange?.();
     // Toggle: if already selected, deselect (set to 'none')
     if (id === activeDestinationId) {
       setActiveDestinationId('none');

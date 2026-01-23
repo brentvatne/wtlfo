@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, ScrollView, Pressable } from 'react-native';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
@@ -168,16 +168,34 @@ function NavButton({ direction, label, onPress }: { direction: 'prev' | 'next'; 
 
 export default function EditParamScreen() {
   const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
-  const { currentConfig, updateParameter, setIsEditing } = usePreset();
+  const { currentConfig, updateParameter, setIsEditing, editFadeOutDuration } = usePreset();
   const router = useRouter();
+  const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Callbacks for slider interaction tracking
   const handleSlidingStart = () => setIsEditing(true);
   const handleSlidingEnd = () => setIsEditing(false);
 
+  // Brief editing pulse for non-slider controls (segmented controls, pickers)
+  // Sets isEditing true, then false after fade-out duration to trigger fade-in
+  const triggerEditPulse = useCallback(() => {
+    // Clear any pending timeout
+    if (editTimeoutRef.current) {
+      clearTimeout(editTimeoutRef.current);
+    }
+    setIsEditing(true);
+    editTimeoutRef.current = setTimeout(() => {
+      setIsEditing(false);
+      editTimeoutRef.current = null;
+    }, editFadeOutDuration);
+  }, [setIsEditing, editFadeOutDuration]);
+
   // Reset isEditing on unmount to prevent stuck state if user navigates while sliding
   useEffect(() => {
     return () => {
+      if (editTimeoutRef.current) {
+        clearTimeout(editTimeoutRef.current);
+      }
       setIsEditing(false);
     };
   }, [setIsEditing]);
@@ -227,7 +245,10 @@ export default function EditParamScreen() {
             label=""
             options={WAVEFORMS}
             value={currentConfig.waveform}
-            onChange={(value) => updateParameter('waveform', value)}
+            onChange={(value) => {
+              triggerEditPulse();
+              updateParameter('waveform', value);
+            }}
           />
         );
 
@@ -237,7 +258,10 @@ export default function EditParamScreen() {
             label=""
             options={MODES}
             value={currentConfig.mode}
-            onChange={(value) => updateParameter('mode', value)}
+            onChange={(value) => {
+              triggerEditPulse();
+              updateParameter('mode', value);
+            }}
           />
         );
 
@@ -248,7 +272,10 @@ export default function EditParamScreen() {
               label=""
               options={MULTIPLIERS}
               value={currentConfig.multiplier}
-              onChange={(value) => updateParameter('multiplier', value)}
+              onChange={(value) => {
+                triggerEditPulse();
+                updateParameter('multiplier', value);
+              }}
               formatOption={formatMultiplier}
             />
             <View style={styles.spacer} />
@@ -256,7 +283,10 @@ export default function EditParamScreen() {
               label="Tempo Sync"
               options={['BPM', '120'] as const}
               value={currentConfig.useFixedBPM ? '120' : 'BPM'}
-              onChange={(value) => updateParameter('useFixedBPM', value === '120')}
+              onChange={(value) => {
+                triggerEditPulse();
+                updateParameter('useFixedBPM', value === '120');
+              }}
             />
           </View>
         );
@@ -326,7 +356,7 @@ export default function EditParamScreen() {
         );
 
       case 'destination':
-        return <DestinationPickerInline />;
+        return <DestinationPickerInline onSelectionChange={triggerEditPulse} />;
 
       default:
         return null;
