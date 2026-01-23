@@ -1,10 +1,20 @@
 import { View } from 'react-native';
 import { Stack, router } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
+import { useMidi } from '@/src/context/midi-context';
+import { useFrameRate } from '@/src/context/frame-rate-context';
 import { MidiStatusButton } from '@/src/components/navigation/MidiStatusButton';
 import { HeaderFrameRate } from '@/src/components/FrameRateOverlay';
 
 function HeaderRightItems() {
+  const { autoConnect } = useMidi();
+  const { showOverlay } = useFrameRate();
+
+  // Don't render anything if neither button should show
+  if (!autoConnect && !showOverlay) {
+    return null;
+  }
+
   return (
     <View style={{ flexDirection: 'row', alignItems: 'center', gap: 8 }}>
       <HeaderFrameRate />
@@ -13,8 +23,25 @@ function HeaderRightItems() {
   );
 }
 
+function useHeaderRightItems() {
+  const { autoConnect } = useMidi();
+  const { showOverlay } = useFrameRate();
+  const hasContent = autoConnect || showOverlay;
+
+  if (!hasContent) {
+    return () => [];
+  }
+
+  return () => [{
+    type: 'custom' as const,
+    element: <HeaderRightItems />,
+    separateBackground: true,
+  }];
+}
+
 export default function HomeLayout() {
   const { preset } = usePreset();
+  const headerRightItems = useHeaderRightItems();
 
   return (
     <Stack
@@ -44,11 +71,7 @@ export default function HomeLayout() {
             onPress: () => router.push('/presets'),
             separateBackground: true,
           }],
-          unstable_headerRightItems: () => [{
-            type: 'custom',
-            element: <HeaderRightItems />,
-            separateBackground: true,
-          }],
+          unstable_headerRightItems: headerRightItems,
         }}
       />
       <Stack.Screen
