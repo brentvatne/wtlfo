@@ -54,7 +54,6 @@ export default function HomeLayout() {
           presentation: 'formSheet',
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.35, 0.5],
-          sheetLargestUndimmedDetentIndex: 'last',
           contentStyle: { backgroundColor: '#0a0a0a' },
         }}
       />
