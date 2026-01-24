@@ -1,4 +1,4 @@
-import React, { useRef, useCallback, useEffect } from 'react';
+import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
@@ -61,6 +61,8 @@ export default function HomeScreen() {
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
+  // Track whether app is backgrounded to hide phase indicator
+  const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
   const navigation = useNavigation();
 
@@ -133,32 +135,32 @@ export default function HomeScreen() {
       const isComingFromBackground =
         (appStateRef.current === 'background' || appStateRef.current === 'inactive') && isNowActive;
 
-      // Going to background: immediately hide content (no time for animations)
+      // Going to background: set values synchronously (no time for animations)
       // LFO pause is handled by preset-context
       if (isGoingToBackground) {
-        // Set values synchronously - app suspension gives no time for animations
-        if (fadeInVisualization) {
-          visualizerOpacity.value = 0;
-        }
+        setIsBackgrounded(true);
+        // Fade to tabSwitchFadeOpacity - same as tab switch
         if (fadeInOnOpen) {
           screenOpacity.value = tabSwitchFadeOpacity;
+        }
+        if (fadeInVisualization) {
+          visualizerOpacity.value = tabSwitchFadeOpacity;
         }
       }
 
       // Coming back from background: fade screen and visualization back in
       // LFO resume is handled by preset-context
       if (isComingFromBackground) {
-        // Fade screen back in
+        setIsBackgrounded(false);
+        // Fade screen back in from tabSwitchFadeOpacity
         if (fadeInOnOpen) {
           screenOpacity.value = withTiming(1, {
             duration: fadeInDuration,
             easing: Easing.out(Easing.ease),
           });
         }
-
-        // Visualization fade-in (hides any position discontinuity)
+        // Fade visualization back in from tabSwitchFadeOpacity
         if (fadeInVisualization) {
-          visualizerOpacity.value = 0;
           visualizerOpacity.value = withTiming(1, {
             duration: visualizationFadeDuration,
             easing: Easing.out(Easing.ease),
@@ -314,6 +316,7 @@ export default function HomeScreen() {
                 strokeWidth={2.5}
                 showFadeEnvelope={showFadeEnvelope}
                 depthAnimationDuration={depthAnimationDuration}
+                showPhaseIndicator={!isBackgrounded}
               />
             </Pressable>
             {/* Timing info outside pressable - tapping here won't pause */}
