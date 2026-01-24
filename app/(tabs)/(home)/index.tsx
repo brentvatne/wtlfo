@@ -1,6 +1,7 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
-import { useFocusEffect, usePathname } from 'expo-router';
+import { usePathname } from 'expo-router';
+import { useIsFocused } from '@react-navigation/native';
 import Animated, { useDerivedValue, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
@@ -32,7 +33,9 @@ export default function HomeScreen() {
     hideValuesWhileEditing,
     showFillsWhenEditing,
     fadeInOnOpen,
+    fadeInOnBackground,
     fadeInDuration,
+    backgroundFadeDuration,
     editFadeOutDuration,
     editFadeInDuration,
     showFadeEnvelope,
@@ -52,7 +55,9 @@ export default function HomeScreen() {
   const visualizerOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
   const wasInModalRef = useRef(false);
   const hasInitializedRef = useRef(false);
+  const wasFocusedRef = useRef(false);
   const pathname = usePathname();
+  const isFocused = useIsFocused();
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
@@ -61,15 +66,14 @@ export default function HomeScreen() {
     }
   }, [pathname]);
 
-  useFocusEffect(
-    useCallback(() => {
+  // Trigger fade-in when tab becomes focused
+  useEffect(() => {
+    // Detect focus gained (was not focused, now is focused)
+    if (isFocused && !wasFocusedRef.current) {
       // Skip fade-in if returning from a modal within the same stack
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
-        return;
-      }
-
-      if (fadeInOnOpen) {
+      } else if (fadeInOnOpen) {
         // Reset to transparent and fade in
         visualizerOpacity.value = 0;
         visualizerOpacity.value = withTiming(1, {
@@ -80,8 +84,9 @@ export default function HomeScreen() {
         visualizerOpacity.value = 1;
       }
       hasInitializedRef.current = true;
-    }, [fadeInOnOpen, fadeInDuration, visualizerOpacity])
-  );
+    }
+    wasFocusedRef.current = isFocused;
+  }, [isFocused, fadeInOnOpen, fadeInDuration, visualizerOpacity]);
 
   // Fade-in animation when app returns from background
   const appStateRef = useRef(AppState.currentState);
@@ -91,11 +96,11 @@ export default function HomeScreen() {
       if (
         (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
         nextAppState === 'active' &&
-        fadeInOnOpen
+        fadeInOnBackground
       ) {
         visualizerOpacity.value = 0;
         visualizerOpacity.value = withTiming(1, {
-          duration: fadeInDuration,
+          duration: backgroundFadeDuration,
           easing: Easing.out(Easing.ease),
         });
       }
@@ -103,7 +108,7 @@ export default function HomeScreen() {
     });
 
     return () => subscription.remove();
-  }, [fadeInOnOpen, fadeInDuration, visualizerOpacity]);
+  }, [fadeInOnBackground, backgroundFadeDuration, visualizerOpacity]);
 
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
   const { width: screenWidth } = useWindowDimensions();

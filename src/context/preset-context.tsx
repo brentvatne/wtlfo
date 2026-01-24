@@ -15,8 +15,10 @@ const BPM_STORAGE_KEY = 'bpm';
 const HIDE_VALUES_KEY = 'hideValuesWhileEditing';
 const SHOW_FILLS_KEY = 'showFillsWhenEditing';
 const FADE_IN_KEY = 'fadeInOnOpen';
+const BACKGROUND_FADE_KEY = 'fadeInOnBackground';
 const RESET_LFO_KEY = 'resetLFOOnChange';
 const FADE_IN_DURATION_KEY = 'fadeInDuration';
+const BACKGROUND_FADE_DURATION_KEY = 'backgroundFadeDuration';
 const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
 const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
@@ -24,6 +26,7 @@ const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
 const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
+const DEFAULT_BACKGROUND_FADE_DURATION = 400; // ms
 const DEFAULT_EDIT_FADE_OUT = 0; // ms
 const DEFAULT_EDIT_FADE_IN = 100; // ms
 const DEFAULT_DEPTH_ANIM_DURATION = 60; // ms
@@ -119,7 +122,20 @@ function getInitialFadeIn(): boolean {
   } catch {
     console.warn('Failed to load fade-in setting');
   }
-  return true; // Default to fading in on open
+  return true; // Default to fading in on tab switch
+}
+
+// Load initial background fade setting synchronously
+function getInitialBackgroundFade(): boolean {
+  try {
+    const saved = Storage.getItemSync(BACKGROUND_FADE_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load background fade setting');
+  }
+  return true; // Default to fading in on background restore
 }
 
 // Load initial reset LFO setting synchronously
@@ -149,6 +165,22 @@ function getInitialFadeInDuration(): number {
     console.warn('Failed to load fade-in duration setting');
   }
   return DEFAULT_FADE_IN_DURATION;
+}
+
+// Load initial background fade duration synchronously
+function getInitialBackgroundFadeDuration(): number {
+  try {
+    const saved = Storage.getItemSync(BACKGROUND_FADE_DURATION_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 100 && value <= 2000) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load background fade duration setting');
+  }
+  return DEFAULT_BACKGROUND_FADE_DURATION;
 }
 
 // Load initial edit fade-out duration synchronously
@@ -282,12 +314,16 @@ interface PresetContextValue {
   setShowFillsWhenEditing: (show: boolean) => void;
   fadeInOnOpen: boolean;
   setFadeInOnOpen: (fade: boolean) => void;
+  fadeInOnBackground: boolean;
+  setFadeInOnBackground: (fade: boolean) => void;
   resetLFOOnChange: boolean;
   setResetLFOOnChange: (reset: boolean) => void;
 
   // Animation timing settings
   fadeInDuration: number;
   setFadeInDuration: (duration: number) => void;
+  backgroundFadeDuration: number;
+  setBackgroundFadeDuration: (duration: number) => void;
   editFadeOutDuration: number;
   setEditFadeOutDuration: (duration: number) => void;
   editFadeInDuration: number;
@@ -312,8 +348,10 @@ const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
 const INITIAL_HIDE_VALUES = getInitialHideValues();
 const INITIAL_SHOW_FILLS = getInitialShowFills();
 const INITIAL_FADE_IN = getInitialFadeIn();
+const INITIAL_BACKGROUND_FADE = getInitialBackgroundFade();
 const INITIAL_RESET_LFO = getInitialResetLFO();
 const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
+const INITIAL_BACKGROUND_FADE_DURATION = getInitialBackgroundFadeDuration();
 const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
@@ -356,8 +394,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
   const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
+  const [fadeInOnBackground, setFadeInOnBackgroundState] = useState(INITIAL_BACKGROUND_FADE);
   const [resetLFOOnChange, setResetLFOOnChangeState] = useState(INITIAL_RESET_LFO);
   const [fadeInDuration, setFadeInDurationState] = useState(INITIAL_FADE_IN_DURATION);
+  const [backgroundFadeDuration, setBackgroundFadeDurationState] = useState(INITIAL_BACKGROUND_FADE_DURATION);
   const [editFadeOutDuration, setEditFadeOutDurationState] = useState(INITIAL_EDIT_FADE_OUT);
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
@@ -525,6 +565,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setFadeInOnBackground = useCallback((fade: boolean) => {
+    setFadeInOnBackgroundState(fade);
+    try {
+      Storage.setItemSync(BACKGROUND_FADE_KEY, String(fade));
+    } catch {
+      console.warn('Failed to save background fade setting');
+    }
+  }, []);
+
   const setResetLFOOnChange = useCallback((reset: boolean) => {
     setResetLFOOnChangeState(reset);
     try {
@@ -540,6 +589,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(FADE_IN_DURATION_KEY, String(duration));
     } catch {
       console.warn('Failed to save fade-in duration setting');
+    }
+  }, []);
+
+  const setBackgroundFadeDuration = useCallback((duration: number) => {
+    setBackgroundFadeDurationState(duration);
+    try {
+      Storage.setItemSync(BACKGROUND_FADE_DURATION_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save background fade duration setting');
     }
   }, []);
 
@@ -949,11 +1007,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setShowFillsWhenEditing,
     fadeInOnOpen,
     setFadeInOnOpen,
+    fadeInOnBackground,
+    setFadeInOnBackground,
     resetLFOOnChange,
     setResetLFOOnChange,
     // Animation timing settings
     fadeInDuration,
     setFadeInDuration,
+    backgroundFadeDuration,
+    setBackgroundFadeDuration,
     editFadeOutDuration,
     setEditFadeOutDuration,
     editFadeInDuration,

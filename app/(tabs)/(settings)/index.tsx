@@ -17,8 +17,10 @@ export default function SettingsScreen() {
     hideValuesWhileEditing, setHideValuesWhileEditing,
     showFillsWhenEditing, setShowFillsWhenEditing,
     fadeInOnOpen, setFadeInOnOpen,
+    fadeInOnBackground, setFadeInOnBackground,
     resetLFOOnChange, setResetLFOOnChange,
     fadeInDuration, setFadeInDuration,
+    backgroundFadeDuration, setBackgroundFadeDuration,
     editFadeOutDuration, setEditFadeOutDuration,
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
@@ -138,12 +140,26 @@ export default function SettingsScreen() {
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
             <Text style={styles.settingDescription}>
-              Fade in visualization when switching tabs or restoring from background
+              Fade in visualization when switching to the Editor tab
             </Text>
           </View>
           <Switch
             value={fadeInOnOpen}
             onValueChange={setFadeInOnOpen}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Fade in from background</Text>
+            <Text style={styles.settingDescription}>
+              Fade in visualization when returning from background
+            </Text>
+          </View>
+          <Switch
+            value={fadeInOnBackground}
+            onValueChange={setFadeInOnBackground}
             trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
             thumbColor="#ffffff"
           />
@@ -212,6 +228,7 @@ export default function SettingsScreen() {
           {(() => {
             const hasNonDefaultTiming =
               Math.round(fadeInDuration) !== 800 ||
+              Math.round(backgroundFadeDuration) !== 400 ||
               Math.round(editFadeOutDuration) !== 0 ||
               Math.round(editFadeInDuration) !== 100 ||
               Math.round(depthAnimationDuration) !== 60 ||
@@ -220,6 +237,7 @@ export default function SettingsScreen() {
               <Pressable
                 onPress={() => {
                   setFadeInDuration(800);
+                  setBackgroundFadeDuration(400);
                   setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
                   setDepthAnimationDuration(60);
@@ -240,6 +258,14 @@ export default function SettingsScreen() {
           max={2000}
           value={fadeInDuration}
           onChange={setFadeInDuration}
+          formatValue={(v) => `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
+          label="Background fade-in"
+          min={100}
+          max={2000}
+          value={backgroundFadeDuration}
+          onChange={setBackgroundFadeDuration}
           formatValue={(v) => `${Math.round(v)}ms`}
         />
         <ParameterSlider
