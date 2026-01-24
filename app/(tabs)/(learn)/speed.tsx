@@ -80,7 +80,8 @@ export default function SpeedScreen() {
         </Text>
         <Text style={styles.paragraph}>
           <Text style={styles.bold}>Positive values</Text> run the waveform forward.{'\n'}
-          <Text style={styles.bold}>Negative values</Text> run it backward.
+          <Text style={styles.bold}>Negative values</Text> run it backward.{'\n'}
+          <Text style={styles.bold}>Zero</Text> freezes the LFO (infinite cycle time).
         </Text>
       </Section>
 
@@ -133,6 +134,18 @@ export default function SpeedScreen() {
         </Text>
         <Text style={[styles.expandedText, { marginTop: 8 }]}>
           This is different from negative depth, which inverts the output but keeps the direction the same.
+        </Text>
+      </ExpandableSection>
+
+      <ExpandableSection title="Speed = 0: Static LFO">
+        <Text style={styles.expandedText}>
+          When SPD is set to 0, the LFO becomes completely static—it doesn't move at all.
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          <Text style={styles.bold}>Why?</Text> The timing formula divides by |SPD| × MULT. When SPD=0, this results in division by zero → infinite cycle time.
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          <Text style={styles.bold}>Use case:</Text> Combined with Start Phase, you can use SPD=0 to create a fixed offset. Set SPH to position the "frozen" output wherever you want on the waveform.
         </Text>
       </ExpandableSection>
 

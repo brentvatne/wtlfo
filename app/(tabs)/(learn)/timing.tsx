@@ -16,6 +16,7 @@ const TIMING_REFERENCE: TimingReference[] = [
   { noteValue: '2 bars', product: 64 },
   { noteValue: '4 bars', product: 32 },
   { noteValue: '8 bars', product: 16 },
+  { noteValue: '∞ (frozen)', product: 0 },
 ];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
@@ -107,6 +108,7 @@ export default function TimingScreen() {
         <Text style={[styles.formulaLabel, { marginTop: 16 }]}>Time in Milliseconds:</Text>
         <View style={styles.codeBlock}>
           <Text style={styles.code}>cycle_ms = (60000 / BPM) × 4 × (128 / product)</Text>
+          <Text style={styles.codeComment}>(when product = 0, cycle = ∞)</Text>
         </View>
 
         <Text style={[styles.formulaLabel, { marginTop: 16 }]}>Phase to Degrees:</Text>
@@ -158,9 +160,12 @@ export default function TimingScreen() {
       </ExpandableSection>
 
       <View style={styles.verifiedBox}>
-        <Text style={styles.verifiedTitle}>✓ Hardware Verified</Text>
+        <Text style={styles.verifiedTitle}>✓ Verified</Text>
         <Text style={styles.verifiedText}>
-          The timing formula above has been verified against real Digitakt II hardware via MIDI CC capture. Engine and hardware produce matching cycle times and direction changes.
+          Timing formulas verified against:{'\n'}
+          • Real Digitakt II hardware via MIDI CC capture{'\n'}
+          • Nixienoise LFO calculator source code{'\n'}
+          Engine and calculator produce identical cycle times.
         </Text>
       </View>
 
@@ -168,6 +173,16 @@ export default function TimingScreen() {
         <Text style={styles.tipTitle}>Quick Tip</Text>
         <Text style={styles.tipText}>
           For musical timing, remember: Product of 128 = 1 bar. Double the product = half the time. Halve the product = double the time.
+        </Text>
+      </View>
+
+      <View style={styles.sourceBox}>
+        <Text style={styles.sourceTitle}>Source</Text>
+        <Text style={styles.sourceText}>
+          Core formula: 30,720,000 ÷ (BPM × |SPD| × MULT) ms
+        </Text>
+        <Text style={[styles.sourceText, { marginTop: 4 }]}>
+          Cross-referenced with nixienoise.com/tools/elektron-lfo
         </Text>
       </View>
     </ScrollView>
@@ -333,5 +348,23 @@ const styles = StyleSheet.create({
     color: '#aaccee',
     fontSize: 14,
     lineHeight: 20,
+  },
+  sourceBox: {
+    marginTop: 24,
+    paddingTop: 16,
+    borderTopWidth: 1,
+    borderTopColor: '#222222',
+  },
+  sourceTitle: {
+    color: '#666677',
+    fontSize: 11,
+    fontWeight: '600',
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+    marginBottom: 4,
+  },
+  sourceText: {
+    color: '#555566',
+    fontSize: 12,
   },
 });
