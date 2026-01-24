@@ -5,6 +5,7 @@ import { ModulationProvider } from '@/src/context/modulation-context';
 import { PresetProvider } from '@/src/context/preset-context';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import { Storage } from 'expo-sqlite/kv-store';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import * as Sentry from '@sentry/react-native';
 
@@ -14,8 +15,24 @@ Sentry.init({
   enableLogs: true,
 });
 
+// Read splash fade duration from storage before React renders
+function getSplashFadeDuration(): number {
+  try {
+    const saved = Storage.getItemSync('splashFadeDuration');
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 0 && value <= 1000) {
+        return value;
+      }
+    }
+  } catch {
+    // Ignore storage errors
+  }
+  return 150; // Default
+}
+
 SplashScreen.setOptions({
-  duration: 150,
+  duration: getSplashFadeDuration(),
   fade: true,
 });
 

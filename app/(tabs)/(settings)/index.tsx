@@ -23,6 +23,7 @@ export default function SettingsScreen() {
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
     depthAnimationDuration, setDepthAnimationDuration,
+    splashFadeDuration, setSplashFadeDuration,
   } = usePreset();
   const {
     currentlyRunning,
@@ -135,9 +136,9 @@ export default function SettingsScreen() {
         <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Visualization</Text>
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Fade in on open</Text>
+            <Text style={styles.settingLabel}>Fade in on tab switch</Text>
             <Text style={styles.settingDescription}>
-              Fade in visualization when opening app or switching tabs
+              Fade in visualization when switching tabs or restoring from background
             </Text>
           </View>
           <Switch
@@ -213,7 +214,8 @@ export default function SettingsScreen() {
               Math.round(fadeInDuration) !== 800 ||
               Math.round(editFadeOutDuration) !== 0 ||
               Math.round(editFadeInDuration) !== 100 ||
-              Math.round(depthAnimationDuration) !== 60;
+              Math.round(depthAnimationDuration) !== 60 ||
+              Math.round(splashFadeDuration) !== 150;
             return (
               <Pressable
                 onPress={() => {
@@ -221,6 +223,7 @@ export default function SettingsScreen() {
                   setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
                   setDepthAnimationDuration(60);
+                  setSplashFadeDuration(150);
                 }}
                 style={styles.resetButton}
               >
@@ -261,6 +264,14 @@ export default function SettingsScreen() {
           max={200}
           value={depthAnimationDuration}
           onChange={setDepthAnimationDuration}
+          formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
+          label="Splash screen fade"
+          min={0}
+          max={1000}
+          value={splashFadeDuration}
+          onChange={setSplashFadeDuration}
           formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
       </View>

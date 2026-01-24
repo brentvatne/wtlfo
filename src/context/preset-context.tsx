@@ -21,11 +21,13 @@ const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
 const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
+const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
 const DEFAULT_EDIT_FADE_OUT = 0; // ms
 const DEFAULT_EDIT_FADE_IN = 100; // ms
 const DEFAULT_DEPTH_ANIM_DURATION = 60; // ms
+const DEFAULT_SPLASH_FADE_DURATION = 150; // ms
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -210,6 +212,22 @@ function getInitialDepthAnimDuration(): number {
   return DEFAULT_DEPTH_ANIM_DURATION;
 }
 
+// Load initial splash fade duration synchronously
+function getInitialSplashFadeDuration(): number {
+  try {
+    const saved = Storage.getItemSync(SPLASH_FADE_DURATION_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 0 && value <= 1000) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load splash fade duration setting');
+  }
+  return DEFAULT_SPLASH_FADE_DURATION;
+}
+
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -280,6 +298,8 @@ interface PresetContextValue {
   setShowFadeEnvelope: (show: boolean) => void;
   depthAnimationDuration: number;
   setDepthAnimationDuration: (duration: number) => void;
+  splashFadeDuration: number;
+  setSplashFadeDuration: (duration: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -298,6 +318,7 @@ const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
+const INITIAL_SPLASH_FADE_DURATION = getInitialSplashFadeDuration();
 
 // Check if auto-connect is enabled - if so, start LFO paused
 // (waiting for MIDI transport start or user tap)
@@ -341,6 +362,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
   const [depthAnimationDuration, setDepthAnimationDurationState] = useState(INITIAL_DEPTH_ANIM_DURATION);
+  const [splashFadeDuration, setSplashFadeDurationState] = useState(INITIAL_SPLASH_FADE_DURATION);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -554,6 +576,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(DEPTH_ANIM_DURATION_KEY, String(duration));
     } catch {
       console.warn('Failed to save depth animation duration setting');
+    }
+  }, []);
+
+  const setSplashFadeDuration = useCallback((duration: number) => {
+    setSplashFadeDurationState(duration);
+    try {
+      Storage.setItemSync(SPLASH_FADE_DURATION_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save splash fade duration setting');
     }
   }, []);
 
@@ -932,6 +963,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setShowFadeEnvelope,
     depthAnimationDuration,
     setDepthAnimationDuration,
+    splashFadeDuration,
+    setSplashFadeDuration,
   };
 
   return (
