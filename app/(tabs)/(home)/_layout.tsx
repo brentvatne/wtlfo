@@ -1,5 +1,7 @@
-import { View, Text, ActivityIndicator, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, ActivityIndicator, StyleSheet, Pressable } from 'react-native';
 import { Stack, router } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
 import { usePreset } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
 import { useFrameRate } from '@/src/context/frame-rate-context';
@@ -54,16 +56,14 @@ function HeaderFrameRateItem() {
   );
 }
 
-// Connecting state needs custom component for ActivityIndicator
-function ConnectingIndicator() {
+// Styled wrapper for header buttons with custom background
+function HeaderButtonWrapper({ children, onPress }: { children: React.ReactNode; onPress?: () => void }) {
   return (
-    <View style={headerStyles.connectingContainer}>
-      <ActivityIndicator size="small" color="#ff6600" />
-    </View>
+    <Pressable onPress={onPress} style={headerStyles.buttonWrapper}>
+      {children}
+    </Pressable>
   );
 }
-
-import React from 'react';
 
 function useHeaderRightItems() {
   const { autoConnect, connected, digitaktAvailable, connecting } = useMidi();
@@ -85,50 +85,26 @@ function useHeaderRightItems() {
       items.push({
         type: 'custom' as const,
         element: <HeaderFrameRateItem />,
-        separateBackground: true,
       });
     }
 
-    // MIDI status button
+    // MIDI status button - always custom with our own styled wrapper
     if (showMidi) {
-      if (connecting) {
-        // Connecting: activity indicator (custom)
-        items.push({
-          type: 'custom' as const,
-          element: <ConnectingIndicator />,
-          separateBackground: true,
-        });
-      } else if (connected) {
-        // Connected: green link icon (native button)
-        items.push({
-          type: 'button' as const,
-          label: 'MIDI',
-          icon: { type: 'sfSymbol' as const, name: 'link' as const },
-          tintColor: '#22c55e',
-          onPress: () => router.push('/midi'),
-          separateBackground: true,
-        });
-      } else if (digitaktAvailable) {
-        // Available: orange link icon (native button)
-        items.push({
-          type: 'button' as const,
-          label: 'MIDI',
-          icon: { type: 'sfSymbol' as const, name: 'link' as const },
-          tintColor: '#ff6600',
-          onPress: () => router.push('/midi'),
-          separateBackground: true,
-        });
-      } else {
-        // Not available: gray link.badge.plus icon (native button)
-        items.push({
-          type: 'button' as const,
-          label: 'MIDI',
-          icon: { type: 'sfSymbol' as const, name: 'link.badge.plus' as const },
-          tintColor: '#666666',
-          onPress: () => router.push('/midi'),
-          separateBackground: true,
-        });
-      }
+      const iconName = connected ? 'link' : digitaktAvailable ? 'link' : 'link.badge.plus';
+      const color = connected ? '#22c55e' : digitaktAvailable ? '#ff6600' : '#666666';
+
+      items.push({
+        type: 'custom' as const,
+        element: (
+          <HeaderButtonWrapper onPress={() => router.push('/midi')}>
+            {connecting ? (
+              <ActivityIndicator size="small" color="#ff6600" />
+            ) : (
+              <SymbolView name={iconName} size={18} tintColor={color} />
+            )}
+          </HeaderButtonWrapper>
+        ),
+      });
     }
 
     return items;
@@ -136,6 +112,15 @@ function useHeaderRightItems() {
 }
 
 const headerStyles = StyleSheet.create({
+  buttonWrapper: {
+    backgroundColor: 'rgba(255, 255, 255, 0.08)',
+    borderRadius: 8,
+    padding: 8,
+    minWidth: 34,
+    minHeight: 34,
+    alignItems: 'center',
+    justifyContent: 'center',
+  },
   fpsContainer: {
     flexDirection: 'row',
     alignItems: 'center',
@@ -151,9 +136,6 @@ const headerStyles = StyleSheet.create({
     fontSize: 12,
     fontWeight: '700',
     fontFamily: 'Menlo',
-  },
-  connectingContainer: {
-    padding: 4,
   },
 });
 
@@ -182,12 +164,12 @@ export default function HomeLayout() {
         options={{
           title: preset?.name || 'LFO',
           unstable_headerLeftItems: () => [{
-            type: 'button',
-            label: 'Presets',
-            icon: { type: 'sfSymbol', name: 'list.bullet' },
-            tintColor: '#ff6600',
-            onPress: () => router.push('/presets'),
-            separateBackground: true,
+            type: 'custom',
+            element: (
+              <HeaderButtonWrapper onPress={() => router.push('/presets')}>
+                <SymbolView name="list.bullet" size={18} tintColor="#ff6600" />
+              </HeaderButtonWrapper>
+            ),
           }],
           unstable_headerRightItems: headerRightItems,
         }}
