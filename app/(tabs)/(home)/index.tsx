@@ -127,23 +127,55 @@ export default function HomeScreen() {
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      // Trigger visualization fade-in when coming back from background
-      if (
-        (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
-        nextAppState === 'active' &&
-        fadeInVisualization
-      ) {
-        visualizerOpacity.value = 0;
-        visualizerOpacity.value = withTiming(1, {
-          duration: visualizationFadeDuration,
+      const wasActive = appStateRef.current === 'active';
+      const isNowActive = nextAppState === 'active';
+      const isGoingToBackground = wasActive && (nextAppState === 'background' || nextAppState === 'inactive');
+      const isComingFromBackground =
+        (appStateRef.current === 'background' || appStateRef.current === 'inactive') && isNowActive;
+
+      // Going to background: quick fade out to hide current position
+      // LFO pause is handled by preset-context
+      if (isGoingToBackground && fadeInOnOpen) {
+        screenOpacity.value = withTiming(tabSwitchFadeOpacity, {
+          duration: 150,
           easing: Easing.out(Easing.ease),
         });
       }
+
+      // Coming back from background: fade screen and visualization back in
+      // LFO resume is handled by preset-context
+      if (isComingFromBackground) {
+        // Fade screen back in
+        if (fadeInOnOpen) {
+          screenOpacity.value = withTiming(1, {
+            duration: fadeInDuration,
+            easing: Easing.out(Easing.ease),
+          });
+        }
+
+        // Visualization fade-in (hides any position discontinuity)
+        if (fadeInVisualization) {
+          visualizerOpacity.value = 0;
+          visualizerOpacity.value = withTiming(1, {
+            duration: visualizationFadeDuration,
+            easing: Easing.out(Easing.ease),
+          });
+        }
+      }
+
       appStateRef.current = nextAppState;
     });
 
     return () => subscription.remove();
-  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
+  }, [
+    fadeInVisualization,
+    visualizationFadeDuration,
+    visualizerOpacity,
+    fadeInOnOpen,
+    fadeInDuration,
+    tabSwitchFadeOpacity,
+    screenOpacity,
+  ]);
 
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
   const { width: screenWidth } = useWindowDimensions();

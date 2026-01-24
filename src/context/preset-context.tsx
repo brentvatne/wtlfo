@@ -984,6 +984,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         nextAppState === 'active'
       ) {
         // App is coming back to foreground
+        // Reset timing to avoid large phase jump (time passed while backgrounded)
+        lfoRef.current?.resetTiming();
+
         // Only resume if:
         // 1. We were actively running before going to background
         // 2. We're still not in a paused state (in case state changed while backgrounded)
