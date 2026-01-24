@@ -235,7 +235,7 @@ export default function SettingsScreen() {
           })()}
         </View>
         <ParameterSlider
-          label="Open fade-in duration"
+          label="Tab switch fade-in"
           min={100}
           max={2000}
           value={fadeInDuration}
