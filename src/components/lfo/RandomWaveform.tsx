@@ -1,9 +1,9 @@
 import React, { useEffect } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
+import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN } from '@/src/context/preset-context';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEFAULT_DEPTH_ANIMATION_DURATION = 60;
 
 interface RandomWaveformProps {
   samples: Array<{ phase: number; value: number }>;
@@ -19,9 +19,9 @@ interface RandomWaveformProps {
   startPhase?: number;
   /** When true, hides the fill (while actively editing depth) */
   isEditing?: boolean;
-  /** Duration in ms for fade-in when editing ends (default 350) */
+  /** Duration in ms for fade-in when editing ends */
   editFadeInDuration?: number;
-  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  /** Duration in ms for depth scale animation (0 = instant) */
   depthAnimationDuration?: number;
 }
 
@@ -40,8 +40,8 @@ export function RandomWaveform({
   speed,
   startPhase,
   isEditing = false,
-  editFadeInDuration = 350,
-  depthAnimationDuration = DEFAULT_DEPTH_ANIMATION_DURATION,
+  editFadeInDuration = DEFAULT_EDIT_FADE_IN,
+  depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: RandomWaveformProps) {
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);

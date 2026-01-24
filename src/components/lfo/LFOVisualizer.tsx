@@ -14,6 +14,7 @@ import { TimingInfo } from './TimingInfo';
 import { ParameterBadges } from './ParameterBadges';
 import { GridLines } from './GridLines';
 import { DEFAULT_THEME_DARK, DEFAULT_THEME_LIGHT, DEFAULT_WIDTH, DEFAULT_HEIGHT } from './constants';
+import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN, DEFAULT_EDIT_FADE_OUT } from '@/src/context/preset-context';
 import type { LFOVisualizerProps, LFOTheme } from './types';
 
 export function LFOVisualizer({
@@ -41,12 +42,12 @@ export function LFOVisualizer({
   isEditing = false,
   hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
-  editFadeOutDuration = 100,
-  editFadeInDuration = 350,
+  editFadeOutDuration = DEFAULT_EDIT_FADE_OUT,
+  editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   fadeMultiplier,
   randomSamples,
   showFadeEnvelope = true,
-  depthAnimationDuration = 60,
+  depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: LFOVisualizerProps) {
   // Only apply editing fade if setting is enabled
   const shouldHideValue = isEditing && hideValuesWhileEditing;

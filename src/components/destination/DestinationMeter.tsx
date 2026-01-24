@@ -8,6 +8,7 @@ import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
 import { sampleWaveformWorklet } from '@/src/components/lfo/worklets';
+import { DEFAULT_EDIT_FADE_IN, DEFAULT_EDIT_FADE_OUT } from '@/src/context/preset-context';
 
 // Unipolar waveforms only output 0 to 1 (not -1 to +1)
 const UNIPOLAR_WAVEFORMS: WaveformType[] = ['EXP', 'RMP'];
@@ -38,7 +39,7 @@ interface DestinationMeterProps {
   showFillsWhenEditing?: boolean;
   /** Duration in ms for fade-out when editing starts (default 100) */
   editFadeOutDuration?: number;
-  /** Duration in ms for fade-in when editing ends (default 350) */
+  /** Duration in ms for fade-in when editing ends */
   editFadeInDuration?: number;
   /** When true, dims the visualization canvas (but not the value text) */
   isPaused?: boolean;
@@ -61,8 +62,8 @@ export function DestinationMeter({
   isEditing = false,
   hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
-  editFadeOutDuration = 100,
-  editFadeInDuration = 350,
+  editFadeOutDuration = DEFAULT_EDIT_FADE_OUT,
+  editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   isPaused = false,
 }: DestinationMeterProps) {
   // Only apply editing fade if setting is enabled

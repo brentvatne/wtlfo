@@ -3,9 +3,9 @@ import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 import type { WaveformDisplayProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
+import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN } from '@/src/context/preset-context';
 
 const BASE_FILL_OPACITY = 0.2;
-const DEFAULT_DEPTH_ANIMATION_DURATION = 60;
 
 export function WaveformDisplay({
   waveform,
@@ -19,8 +19,8 @@ export function WaveformDisplay({
   speed,
   startPhase,
   isEditing = false,
-  editFadeInDuration = 350,
-  depthAnimationDuration = DEFAULT_DEPTH_ANIMATION_DURATION,
+  editFadeInDuration = DEFAULT_EDIT_FADE_IN,
+  depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: WaveformDisplayProps) {
   const padding = 8;
 

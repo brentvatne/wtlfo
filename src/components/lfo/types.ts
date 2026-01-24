@@ -95,7 +95,7 @@ export interface LFOVisualizerProps {
   /** Duration in ms for fade-out when editing starts (default 100) */
   editFadeOutDuration?: number;
 
-  /** Duration in ms for fade-in when editing ends (default 350) */
+  /** Duration in ms for fade-in when editing ends */
   editFadeInDuration?: number;
 
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
@@ -107,7 +107,7 @@ export interface LFOVisualizerProps {
   /** Whether to show the fade envelope curves (default true) */
   showFadeEnvelope?: boolean;
 
-  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  /** Duration in ms for depth scale animation (0 = instant) */
   depthAnimationDuration?: number;
 }
 
@@ -146,9 +146,9 @@ export interface WaveformDisplayProps {
   startPhase?: number;
   /** When true, hides the fill (while actively editing depth) */
   isEditing?: boolean;
-  /** Duration in ms for fade-in when editing ends (default 350) */
+  /** Duration in ms for fade-in when editing ends */
   editFadeInDuration?: number;
-  /** Duration in ms for depth scale animation (0 = instant, default 60) */
+  /** Duration in ms for depth scale animation (0 = instant) */
   depthAnimationDuration?: number;
 }
 
