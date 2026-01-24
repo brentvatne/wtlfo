@@ -85,6 +85,7 @@ function useHeaderRightItems() {
       items.push({
         type: 'custom' as const,
         element: <HeaderFrameRateItem />,
+        hidesSharedBackground: true,
       });
     }
 
@@ -100,10 +101,11 @@ function useHeaderRightItems() {
             {connecting ? (
               <ActivityIndicator size="small" color="#ff6600" />
             ) : (
-              <SymbolView name={iconName} size={18} tintColor={color} />
+              <SymbolView name={iconName} size={20} tintColor={color} />
             )}
           </HeaderButtonWrapper>
         ),
+        hidesSharedBackground: true,
       });
     }
 
@@ -114,10 +116,10 @@ function useHeaderRightItems() {
 const headerStyles = StyleSheet.create({
   buttonWrapper: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 8,
-    padding: 8,
-    minWidth: 34,
-    minHeight: 34,
+    borderRadius: 10,
+    padding: 10,
+    minWidth: 38,
+    minHeight: 38,
     alignItems: 'center',
     justifyContent: 'center',
   },
@@ -167,9 +169,10 @@ export default function HomeLayout() {
             type: 'custom',
             element: (
               <HeaderButtonWrapper onPress={() => router.push('/presets')}>
-                <SymbolView name="list.bullet" size={18} tintColor="#ff6600" />
+                <SymbolView name="list.bullet" size={20} tintColor="#ff6600" />
               </HeaderButtonWrapper>
             ),
+            hidesSharedBackground: true,
           }],
           unstable_headerRightItems: headerRightItems,
         }}
