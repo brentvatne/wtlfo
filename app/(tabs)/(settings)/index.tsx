@@ -401,7 +401,7 @@ export default function SettingsScreen() {
       {/* Version and Update Info */}
       <View style={styles.versionContainer}>
         <Text style={styles.versionText} selectable>
-          v{APP_VERSION}
+          v{APP_VERSION}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
         </Text>
         <Pressable
           onPress={handleCheckUpdate}
