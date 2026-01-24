@@ -2,7 +2,7 @@ import React, { useRef, useCallback, useEffect } from 'react';
 import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { usePathname } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -120,6 +120,18 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
+  // Create local phase SharedValue that tracks the context's lfoPhase
+  // This ensures Skia properly reacts to phase changes from the context
+  const displayPhase = useSharedValue(lfoPhase.value);
+  useAnimatedReaction(
+    () => lfoPhase.value,
+    (currentPhase) => {
+      'worklet';
+      displayPhase.value = currentPhase;
+    },
+    [lfoPhase]
+  );
+
   // Derive display output from phase (for destination meter sync)
   const waveformForWorklet = currentConfig.waveform as WaveformType;
   // Pre-compute clamped depth scale (handles asymmetric range -64 to +63)
@@ -136,7 +148,7 @@ export default function HomeScreen() {
     if (!fadeApplies) return 1;
 
     // Calculate phase (shifted for visualization)
-    const phaseNormalized = ((lfoPhase.value - startPhaseNormalized) % 1 + 1) % 1;
+    const phaseNormalized = ((displayPhase.value - startPhaseNormalized) % 1 + 1) % 1;
 
     // Calculate fade envelope using same formula as PhaseIndicator
     const absFade = Math.abs(fadeValue);
@@ -149,15 +161,15 @@ export default function HomeScreen() {
       // Fade-out: envelope goes from 1 to 0 over fadeDuration
       return fadeDuration > 0 ? Math.max(0, 1 - phaseNormalized / fadeDuration) : 0;
     }
-  }, [fadeApplies, fadeValue, startPhaseNormalized, lfoPhase]);
+  }, [fadeApplies, fadeValue, startPhaseNormalized, displayPhase]);
 
   const displayOutput = useDerivedValue(() => {
     'worklet';
     // Sample the waveform at current phase
-    const rawOutput = sampleWaveformWorklet(waveformForWorklet, lfoPhase.value);
+    const rawOutput = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
     // Apply depth scaling
     return rawOutput * depthScaleForWorklet;
-  }, [waveformForWorklet, depthScaleForWorklet, lfoPhase]);
+  }, [waveformForWorklet, depthScaleForWorklet, displayPhase]);
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -194,7 +206,7 @@ export default function HomeScreen() {
             accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
           >
             <LFOVisualizer
-              phase={lfoPhase}
+              phase={displayPhase}
               output={lfoOutput}
               waveform={currentConfig.waveform as WaveformType}
               speed={currentConfig.speed}
