@@ -92,7 +92,7 @@ export default function HomeScreen() {
 
       // Tab switch: fade in entire screen
       if (fadeInOnOpen) {
-        screenOpacity.value = 0;
+        screenOpacity.value = 0.2;
         screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
