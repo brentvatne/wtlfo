@@ -1,8 +1,7 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { usePathname } from 'expo-router';
-import { useIsFocused } from '@react-navigation/native';
+import { usePathname, useFocusEffect } from 'expo-router';
 import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
@@ -53,14 +52,14 @@ export default function HomeScreen() {
   } = usePreset();
 
   // Tab switch fade - wraps entire screen content
-  const screenOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
+  // Start at 1 (visible) - useFocusEffect will handle the initial fade if needed
+  const screenOpacity = useSharedValue(1);
   // Visualization fade - wraps just the visualizer row
   const visualizerOpacity = useSharedValue(fadeInVisualization ? 0 : 1);
 
   const wasInModalRef = useRef(false);
-  const wasFocusedRef = useRef(false);
+  const isFirstFocusRef = useRef(true);
   const pathname = usePathname();
-  const isFocused = useIsFocused();
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
@@ -70,14 +69,23 @@ export default function HomeScreen() {
   }, [pathname]);
 
   // Tab switch fade - triggers when switching between tabs (not within-stack navigation)
-  useEffect(() => {
-    // Detect focus gained (was not focused, now is focused)
-    if (isFocused && !wasFocusedRef.current) {
+  // useFocusEffect from expo-router works correctly with NativeTabs
+  useFocusEffect(
+    useCallback(() => {
       // Skip fade-in if returning from a modal within the same stack
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
-      } else if (fadeInOnOpen) {
-        // Tab switch: fade in entire screen
+        return;
+      }
+
+      // Skip fade on first focus (app launch) - let visualization fade handle that
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
+
+      // Tab switch: fade in entire screen
+      if (fadeInOnOpen) {
         screenOpacity.value = 0;
         screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
@@ -86,9 +94,8 @@ export default function HomeScreen() {
       } else {
         screenOpacity.value = 1;
       }
-    }
-    wasFocusedRef.current = isFocused;
-  }, [isFocused, fadeInOnOpen, fadeInDuration, screenOpacity]);
+    }, [fadeInOnOpen, fadeInDuration, screenOpacity])
+  );
 
   // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);
