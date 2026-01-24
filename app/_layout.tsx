@@ -6,6 +6,13 @@ import { PresetProvider } from '@/src/context/preset-context';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+import * as Sentry from '@sentry/react-native';
+
+Sentry.init({
+  dsn: 'https://1397d1c25ba952f620723abd186c27ac@o85374.ingest.us.sentry.io/4510763027464192',
+  sendDefaultPii: true,
+  enableLogs: true,
+});
 
 SplashScreen.setOptions({
   duration: 150,
@@ -19,7 +26,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-export default function RootLayout() {
+export default Sentry.wrap(function RootLayout() {
   return (
     <ErrorBoundary>
       <FrameRateProvider>
@@ -47,4 +54,4 @@ export default function RootLayout() {
       </FrameRateProvider>
     </ErrorBoundary>
   );
-}
+});

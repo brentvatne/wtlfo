@@ -103,7 +103,15 @@
       "Bash(npx expo-doctor:*)",
       "Bash(npx expo prebuild:*)",
       "Bash(npx expo run:ios)",
-      "Bash(bun run lint:*)"
+      "Bash(bun run lint:*)",
+      "Bash(eas secret:push:*)",
+      "Bash(eas secret:create:*)",
+      "Bash(eas env:create:*)",
+      "Bash(bun pm:*)",
+      "Bash(eas build:list:*)",
+      "WebFetch(domain:docs.sentry.io)",
+      "Bash(claude /doctor:*)",
+      "Bash(npm:*)"
     ]
   }
 }

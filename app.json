@@ -51,7 +51,16 @@
       "expo-sqlite",
       "expo-font",
       "expo-image",
-      "expo-web-browser"
+      "expo-web-browser",
+      [
+        "@sentry/react-native/expo",
+        {
+          "url": "https://sentry.io/",
+          "project": "wtlfo",
+          "organization": "brent-projects",
+          "dsn": "https://1397d1c25ba952f620723abd186c27ac@o85374.ingest.us.sentry.io/4510763027464192"
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true,
@@ -68,6 +77,7 @@
       "policy": "appVersion"
     },
     "updates": {
+      "enabled": true,
       "url": "https://u.expo.dev/fd7017b3-0e29-4b90-8a09-cfdb437daca5",
       "enableBsdiffPatchSupport": true,
       "requestHeaders": {

@@ -19,6 +19,7 @@
     "@react-navigation/bottom-tabs": "^7.4.0",
     "@react-navigation/elements": "^2.6.3",
     "@react-navigation/native": "^7.1.8",
+    "@sentry/react-native": "^7.10.0",
     "@shopify/react-native-skia": "2.4.14",
     "elektron-lfo": "1.0.10",
     "expo": "~55.0.0-preview.3",
@@ -62,5 +63,9 @@
   "private": true,
   "trustedDependencies": [
     "@shopify/react-native-skia"
-  ]
+  ],
+  "overrides": {
+    "react-native-worklets": "0.8.0-nightly-20260122-45349f895",
+    "hermes-compiler": "250829098.0.4"
+  }
 }
