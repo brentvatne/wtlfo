@@ -1,5 +1,6 @@
 import React, { useRef, useCallback, useEffect } from 'react';
-import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
 import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, withTiming, Easing } from 'react-native-reanimated';
@@ -33,9 +34,9 @@ export default function HomeScreen() {
     hideValuesWhileEditing,
     showFillsWhenEditing,
     fadeInOnOpen,
-    fadeInOnBackground,
+    fadeInVisualization,
     fadeInDuration,
-    backgroundFadeDuration,
+    visualizationFadeDuration,
     editFadeOutDuration,
     editFadeInDuration,
     showFadeEnvelope,
@@ -51,10 +52,12 @@ export default function HomeScreen() {
     setIsPaused,
   } = usePreset();
 
-  // Fade-in animation when tab is focused (but not when returning from modal)
-  const visualizerOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
+  // Tab switch fade - wraps entire screen content
+  const screenOpacity = useSharedValue(fadeInOnOpen ? 0 : 1);
+  // Visualization fade - wraps just the visualizer row
+  const visualizerOpacity = useSharedValue(fadeInVisualization ? 0 : 1);
+
   const wasInModalRef = useRef(false);
-  const hasInitializedRef = useRef(false);
   const wasFocusedRef = useRef(false);
   const pathname = usePathname();
   const isFocused = useIsFocused();
@@ -66,7 +69,7 @@ export default function HomeScreen() {
     }
   }, [pathname]);
 
-  // Trigger fade-in when tab becomes focused
+  // Tab switch fade - triggers when switching between tabs (not within-stack navigation)
   useEffect(() => {
     // Detect focus gained (was not focused, now is focused)
     if (isFocused && !wasFocusedRef.current) {
@@ -74,33 +77,49 @@ export default function HomeScreen() {
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
       } else if (fadeInOnOpen) {
-        // Reset to transparent and fade in
-        visualizerOpacity.value = 0;
-        visualizerOpacity.value = withTiming(1, {
+        // Tab switch: fade in entire screen
+        screenOpacity.value = 0;
+        screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
         });
       } else {
-        visualizerOpacity.value = 1;
+        screenOpacity.value = 1;
       }
-      hasInitializedRef.current = true;
     }
     wasFocusedRef.current = isFocused;
-  }, [isFocused, fadeInOnOpen, fadeInDuration, visualizerOpacity]);
+  }, [isFocused, fadeInOnOpen, fadeInDuration, screenOpacity]);
 
-  // Fade-in animation when app returns from background
+  // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);
+  const hasInitializedVisualization = useRef(false);
+
+  useEffect(() => {
+    // Initial fade-in on app open
+    if (!hasInitializedVisualization.current && fadeInVisualization) {
+      visualizerOpacity.value = 0;
+      visualizerOpacity.value = withTiming(1, {
+        duration: visualizationFadeDuration,
+        easing: Easing.out(Easing.ease),
+      });
+      hasInitializedVisualization.current = true;
+    } else if (!fadeInVisualization) {
+      visualizerOpacity.value = 1;
+      hasInitializedVisualization.current = true;
+    }
+  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
-      // Trigger fade-in when coming back from background/inactive to active
+      // Trigger visualization fade-in when coming back from background
       if (
         (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
         nextAppState === 'active' &&
-        fadeInOnBackground
+        fadeInVisualization
       ) {
         visualizerOpacity.value = 0;
         visualizerOpacity.value = withTiming(1, {
-          duration: backgroundFadeDuration,
+          duration: visualizationFadeDuration,
           easing: Easing.out(Easing.ease),
         });
       }
@@ -108,7 +127,7 @@ export default function HomeScreen() {
     });
 
     return () => subscription.remove();
-  }, [fadeInOnBackground, backgroundFadeDuration, visualizerOpacity]);
+  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
   const { width: screenWidth } = useWindowDimensions();
@@ -193,116 +212,118 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      {/* LFO Visualizer + Destination Meter Row */}
-      <Animated.View style={[styles.visualizerRow, { opacity: visualizerOpacity }]}>
-        {/* LFO Visualizer column - canvas is tappable, timing info is not */}
-        <View style={styles.visualizerColumn}>
+      <Animated.View style={{ opacity: screenOpacity }}>
+        {/* LFO Visualizer + Destination Meter Row */}
+        <Animated.View style={[styles.visualizerRow, { opacity: visualizerOpacity }]}>
+          {/* LFO Visualizer column - canvas is tappable, timing info is not */}
+          <View style={styles.visualizerColumn}>
+            <Pressable
+              style={[styles.visualizerContainer, isPaused && styles.paused]}
+              onPress={handleTap}
+              accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isPaused }}
+              accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
+            >
+              <LFOVisualizer
+                phase={displayPhase}
+                output={lfoOutput}
+                waveform={currentConfig.waveform as WaveformType}
+                speed={currentConfig.speed}
+                multiplier={currentConfig.multiplier}
+                startPhase={currentConfig.startPhase}
+                mode={currentConfig.mode as TriggerMode}
+                depth={currentConfig.depth}
+                fade={currentConfig.fade}
+                bpm={effectiveBpm}
+                cycleTimeMs={timingInfo.cycleTimeMs}
+                noteValue={timingInfo.noteValue}
+                steps={timingInfo.steps}
+                width={visualizerWidth}
+                height={METER_HEIGHT}
+                theme={ELEKTRON_THEME}
+                showParameters={false}
+                showTiming={false}
+                showOutput={false}
+                isEditing={isEditing}
+                hideValuesWhileEditing={hideValuesWhileEditing}
+                showFillsWhenEditing={showFillsWhenEditing}
+                editFadeOutDuration={editFadeOutDuration}
+                editFadeInDuration={editFadeInDuration}
+                strokeWidth={2.5}
+                showFadeEnvelope={showFadeEnvelope}
+                depthAnimationDuration={depthAnimationDuration}
+              />
+            </Pressable>
+            {/* Timing info outside pressable - tapping here won't pause */}
+            <View style={[styles.timingContainer, { width: visualizerWidth }]}>
+              <TimingInfo
+                bpm={effectiveBpm}
+                cycleTimeMs={timingInfo.cycleTimeMs}
+                noteValue={timingInfo.noteValue}
+                steps={timingInfo.steps}
+                theme={ELEKTRON_THEME}
+                phase={lfoPhase}
+                startPhase={currentConfig.startPhase}
+              />
+            </View>
+          </View>
+
+          {/* Destination Meter - same height as canvas */}
           <Pressable
-            style={[styles.visualizerContainer, isPaused && styles.paused]}
+            style={styles.meterContainer}
             onPress={handleTap}
-            accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+            accessibilityLabel={hasDestination
+              ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
+              : 'Destination meter, no destination selected'}
             accessibilityRole="button"
-            accessibilityState={{ selected: isPaused }}
+            accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
             accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
           >
-            <LFOVisualizer
-              phase={displayPhase}
-              output={lfoOutput}
-              waveform={currentConfig.waveform as WaveformType}
-              speed={currentConfig.speed}
-              multiplier={currentConfig.multiplier}
-              startPhase={currentConfig.startPhase}
-              mode={currentConfig.mode as TriggerMode}
+            <DestinationMeter
+              lfoOutput={displayOutput}
+              destination={activeDestination}
+              centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
               depth={currentConfig.depth}
               fade={currentConfig.fade}
-              bpm={effectiveBpm}
-              cycleTimeMs={timingInfo.cycleTimeMs}
-              noteValue={timingInfo.noteValue}
-              steps={timingInfo.steps}
-              width={visualizerWidth}
+              mode={currentConfig.mode as TriggerMode}
+              fadeMultiplier={displayFadeMultiplier}
+              waveform={currentConfig.waveform as WaveformType}
+              startPhase={currentConfig.startPhase}
+              width={METER_WIDTH}
               height={METER_HEIGHT}
-              theme={ELEKTRON_THEME}
-              showParameters={false}
-              showTiming={false}
-              showOutput={false}
+              showValue
               isEditing={isEditing}
               hideValuesWhileEditing={hideValuesWhileEditing}
               showFillsWhenEditing={showFillsWhenEditing}
               editFadeOutDuration={editFadeOutDuration}
               editFadeInDuration={editFadeInDuration}
-              strokeWidth={2.5}
-              showFadeEnvelope={showFadeEnvelope}
-              depthAnimationDuration={depthAnimationDuration}
+              isPaused={isPaused}
             />
           </Pressable>
-          {/* Timing info outside pressable - tapping here won't pause */}
-          <View style={[styles.timingContainer, { width: visualizerWidth }]}>
-            <TimingInfo
-              bpm={effectiveBpm}
-              cycleTimeMs={timingInfo.cycleTimeMs}
-              noteValue={timingInfo.noteValue}
-              steps={timingInfo.steps}
-              theme={ELEKTRON_THEME}
-              phase={lfoPhase}
-              startPhase={currentConfig.startPhase}
-            />
-          </View>
+        </Animated.View>
+
+        {/* Parameter Grid - Full width */}
+        <View style={styles.gridContainer}>
+          <Text style={styles.sectionHeading}>PARAMETERS</Text>
+          <ParamGrid />
         </View>
 
-        {/* Destination Meter - same height as canvas */}
-        <Pressable
-          style={styles.meterContainer}
-          onPress={handleTap}
-          accessibilityLabel={hasDestination
-            ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
-            : 'Destination meter, no destination selected'}
-          accessibilityRole="button"
-          accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
-          accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
-        >
-          <DestinationMeter
-            lfoOutput={displayOutput}
-            destination={activeDestination}
-            centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
-            depth={currentConfig.depth}
-            fade={currentConfig.fade}
-            mode={currentConfig.mode as TriggerMode}
-            fadeMultiplier={displayFadeMultiplier}
-            waveform={currentConfig.waveform as WaveformType}
-            startPhase={currentConfig.startPhase}
-            width={METER_WIDTH}
-            height={METER_HEIGHT}
-            showValue
-            isEditing={isEditing}
-            hideValuesWhileEditing={hideValuesWhileEditing}
-            showFillsWhenEditing={showFillsWhenEditing}
-            editFadeOutDuration={editFadeOutDuration}
-            editFadeInDuration={editFadeInDuration}
-            isPaused={isPaused}
+        {/* Destination Info - always rendered to prevent layout shift */}
+        <View style={[styles.destinationSection, !hasDestination && styles.destinationHidden]}>
+          <Text style={styles.destinationName}>
+            {hasDestination ? activeDestination.name : 'No Destination'}
+          </Text>
+          <CenterValueSlider
+            value={hasDestination ? getCenterValue(activeDestinationId) : 64}
+            onChange={(value) => hasDestination && setCenterValue(activeDestinationId, value)}
+            min={activeDestination?.min ?? 0}
+            max={activeDestination?.max ?? 127}
+            label="Center Value"
+            bipolar={activeDestination?.bipolar ?? false}
           />
-        </Pressable>
+        </View>
       </Animated.View>
-
-      {/* Parameter Grid - Full width */}
-      <View style={styles.gridContainer}>
-        <Text style={styles.sectionHeading}>PARAMETERS</Text>
-        <ParamGrid />
-      </View>
-
-      {/* Destination Info - always rendered to prevent layout shift */}
-      <View style={[styles.destinationSection, !hasDestination && styles.destinationHidden]}>
-        <Text style={styles.destinationName}>
-          {hasDestination ? activeDestination.name : 'No Destination'}
-        </Text>
-        <CenterValueSlider
-          value={hasDestination ? getCenterValue(activeDestinationId) : 64}
-          onChange={(value) => hasDestination && setCenterValue(activeDestinationId, value)}
-          min={activeDestination?.min ?? 0}
-          max={activeDestination?.max ?? 127}
-          label="Center Value"
-          bipolar={activeDestination?.bipolar ?? false}
-        />
-      </View>
     </ScrollView>
   );
 }

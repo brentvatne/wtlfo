@@ -1,5 +1,6 @@
 import React, { useEffect } from 'react';
-import { View, Text, ScrollView, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
@@ -17,10 +18,10 @@ export default function SettingsScreen() {
     hideValuesWhileEditing, setHideValuesWhileEditing,
     showFillsWhenEditing, setShowFillsWhenEditing,
     fadeInOnOpen, setFadeInOnOpen,
-    fadeInOnBackground, setFadeInOnBackground,
+    fadeInVisualization, setFadeInVisualization,
     resetLFOOnChange, setResetLFOOnChange,
     fadeInDuration, setFadeInDuration,
-    backgroundFadeDuration, setBackgroundFadeDuration,
+    visualizationFadeDuration, setVisualizationFadeDuration,
     editFadeOutDuration, setEditFadeOutDuration,
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
@@ -140,7 +141,7 @@ export default function SettingsScreen() {
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
             <Text style={styles.settingDescription}>
-              Fade in visualization when switching to the Editor tab
+              Fade in entire screen when switching tabs
             </Text>
           </View>
           <Switch
@@ -152,14 +153,14 @@ export default function SettingsScreen() {
         </View>
         <View style={[styles.settingRow, { marginTop: 16 }]}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Fade in from background</Text>
+            <Text style={styles.settingLabel}>Fade in visualization</Text>
             <Text style={styles.settingDescription}>
-              Fade in visualization when returning from background
+              Fade in visualization on Editor when opening app or returning from background
             </Text>
           </View>
           <Switch
-            value={fadeInOnBackground}
-            onValueChange={setFadeInOnBackground}
+            value={fadeInVisualization}
+            onValueChange={setFadeInVisualization}
             trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
             thumbColor="#ffffff"
           />
@@ -228,7 +229,7 @@ export default function SettingsScreen() {
           {(() => {
             const hasNonDefaultTiming =
               Math.round(fadeInDuration) !== 800 ||
-              Math.round(backgroundFadeDuration) !== 400 ||
+              Math.round(visualizationFadeDuration) !== 400 ||
               Math.round(editFadeOutDuration) !== 0 ||
               Math.round(editFadeInDuration) !== 100 ||
               Math.round(depthAnimationDuration) !== 60 ||
@@ -237,7 +238,7 @@ export default function SettingsScreen() {
               <Pressable
                 onPress={() => {
                   setFadeInDuration(800);
-                  setBackgroundFadeDuration(400);
+                  setVisualizationFadeDuration(400);
                   setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
                   setDepthAnimationDuration(60);
@@ -261,11 +262,11 @@ export default function SettingsScreen() {
           formatValue={(v) => `${Math.round(v)}ms`}
         />
         <ParameterSlider
-          label="Background fade-in"
+          label="Visualization fade-in"
           min={100}
           max={2000}
-          value={backgroundFadeDuration}
-          onChange={setBackgroundFadeDuration}
+          value={visualizationFadeDuration}
+          onChange={setVisualizationFadeDuration}
           formatValue={(v) => `${Math.round(v)}ms`}
         />
         <ParameterSlider
