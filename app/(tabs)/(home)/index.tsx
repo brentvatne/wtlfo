@@ -1,7 +1,8 @@
 import React, { useRef, useCallback, useEffect } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { usePathname, useFocusEffect } from 'expo-router';
+import { usePathname } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
 import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
@@ -60,6 +61,7 @@ export default function HomeScreen() {
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
   const pathname = usePathname();
+  const navigation = useNavigation();
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
@@ -68,10 +70,14 @@ export default function HomeScreen() {
     }
   }, [pathname]);
 
-  // Tab switch fade - triggers when switching between tabs (not within-stack navigation)
-  // useFocusEffect from expo-router works correctly with NativeTabs
-  useFocusEffect(
-    useCallback(() => {
+  // Tab switch fade - listen to the parent tabs navigator for focus events
+  // useFocusEffect doesn't work reliably with NativeTabs when inside a nested Stack
+  useEffect(() => {
+    // Get the parent navigation (NativeTabs) from the Stack navigator
+    const tabsNavigation = navigation.getParent();
+    if (!tabsNavigation) return;
+
+    const unsubscribe = tabsNavigation.addListener('focus', () => {
       // Skip fade-in if returning from a modal within the same stack
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
@@ -94,8 +100,10 @@ export default function HomeScreen() {
       } else {
         screenOpacity.value = 1;
       }
-    }, [fadeInOnOpen, fadeInDuration, screenOpacity])
-  );
+    });
+
+    return unsubscribe;
+  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
 
   // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);
