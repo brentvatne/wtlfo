@@ -111,7 +111,13 @@
       "Bash(eas build:list:*)",
       "WebFetch(domain:docs.sentry.io)",
       "Bash(claude /doctor:*)",
-      "Bash(npm:*)"
+      "Bash(npm:*)",
+      "Bash(bunx testflight:*)",
+      "mcp__unblocked__unblocked_context_engine",
+      "Bash(bun run check:*)",
+      "Bash(git show:*)",
+      "WebFetch(domain:raw.githubusercontent.com)",
+      "Bash(gh pr create:*)"
     ]
   }
 }
