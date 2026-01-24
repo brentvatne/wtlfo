@@ -3,7 +3,7 @@ import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from
 import { ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useIsFocused } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -141,15 +141,25 @@ export default function HomeScreen() {
 
   // Create local phase SharedValue that tracks the context's lfoPhase
   // This ensures Skia properly reacts to phase changes from the context
-  const displayPhase = useSharedValue(lfoPhase.value);
+  // Initialize with 0, useAnimatedReaction will set the correct value immediately
+  const displayPhase = useSharedValue(0);
   useAnimatedReaction(
     () => lfoPhase.value,
     (currentPhase) => {
       'worklet';
       displayPhase.value = currentPhase;
     },
-    [lfoPhase]
+    []
   );
+
+  // Animated styles for fade effects
+  const screenFadeStyle = useAnimatedStyle(() => ({
+    opacity: screenOpacity.value,
+  }));
+
+  const visualizerFadeStyle = useAnimatedStyle(() => ({
+    opacity: visualizerOpacity.value,
+  }));
 
   // Derive display output from phase (for destination meter sync)
   const waveformForWorklet = currentConfig.waveform as WaveformType;
@@ -212,9 +222,9 @@ export default function HomeScreen() {
       contentContainerStyle={{ paddingBottom: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Animated.View style={{ opacity: screenOpacity }}>
+      <Animated.View style={screenFadeStyle}>
         {/* LFO Visualizer + Destination Meter Row */}
-        <Animated.View style={[styles.visualizerRow, { opacity: visualizerOpacity }]}>
+        <Animated.View style={[styles.visualizerRow, visualizerFadeStyle]}>
           {/* LFO Visualizer column - canvas is tappable, timing info is not */}
           <View style={styles.visualizerColumn}>
             <Pressable
