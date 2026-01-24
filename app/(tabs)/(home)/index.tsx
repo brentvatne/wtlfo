@@ -36,6 +36,7 @@ export default function HomeScreen() {
     fadeInOnOpen,
     fadeInVisualization,
     fadeInDuration,
+    tabSwitchFadeOpacity,
     visualizationFadeDuration,
     editFadeOutDuration,
     editFadeInDuration,
@@ -92,7 +93,7 @@ export default function HomeScreen() {
 
       // Tab switch: fade in entire screen
       if (fadeInOnOpen) {
-        screenOpacity.value = 0.2;
+        screenOpacity.value = tabSwitchFadeOpacity;
         screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
@@ -103,7 +104,7 @@ export default function HomeScreen() {
     });
 
     return unsubscribe;
-  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
+  }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity]);
 
   // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);

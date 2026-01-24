@@ -26,6 +26,7 @@ const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
 const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
 const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
 const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
+const TAB_SWITCH_FADE_OPACITY_KEY = 'tabSwitchFadeOpacity';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
 const DEFAULT_VISUALIZATION_FADE_DURATION = 400; // ms
@@ -34,6 +35,7 @@ const DEFAULT_EDIT_FADE_IN = 100; // ms
 const DEFAULT_DEPTH_ANIM_DURATION = 60; // ms
 const DEFAULT_SPLASH_FADE_DURATION = 150; // ms
 const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms - roughly one frame at 60fps
+const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.2; // Starting opacity for tab switch fade
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -292,6 +294,22 @@ function getInitialPhaseAnimationDuration(): number {
   return DEFAULT_PHASE_ANIMATION_DURATION;
 }
 
+// Load initial tab switch fade opacity synchronously
+function getInitialTabSwitchFadeOpacity(): number {
+  try {
+    const saved = Storage.getItemSync(TAB_SWITCH_FADE_OPACITY_KEY);
+    if (saved !== null) {
+      const value = parseFloat(saved);
+      if (!isNaN(value) && value >= 0 && value <= 1) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load tab switch fade opacity setting');
+  }
+  return DEFAULT_TAB_SWITCH_FADE_OPACITY;
+}
+
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -372,6 +390,8 @@ interface PresetContextValue {
   setSmoothPhaseAnimation: (enabled: boolean) => void;
   phaseAnimationDuration: number;
   setPhaseAnimationDuration: (duration: number) => void;
+  tabSwitchFadeOpacity: number;
+  setTabSwitchFadeOpacity: (opacity: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -395,6 +415,7 @@ const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
 const INITIAL_SPLASH_FADE_DURATION = getInitialSplashFadeDuration();
 const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
 const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
+const INITIAL_TAB_SWITCH_FADE_OPACITY = getInitialTabSwitchFadeOpacity();
 
 // Check if auto-connect is enabled - if so, start LFO paused
 // (waiting for MIDI transport start or user tap)
@@ -443,6 +464,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [splashFadeDuration, setSplashFadeDurationState] = useState(INITIAL_SPLASH_FADE_DURATION);
   const [smoothPhaseAnimation, setSmoothPhaseAnimationState] = useState(INITIAL_SMOOTH_PHASE_ANIMATION);
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
+  const [tabSwitchFadeOpacity, setTabSwitchFadeOpacityState] = useState(INITIAL_TAB_SWITCH_FADE_OPACITY);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -706,6 +728,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(PHASE_ANIMATION_DURATION_KEY, String(duration));
     } catch {
       console.warn('Failed to save phase animation duration setting');
+    }
+  }, []);
+
+  const setTabSwitchFadeOpacity = useCallback((opacity: number) => {
+    setTabSwitchFadeOpacityState(opacity);
+    try {
+      Storage.setItemSync(TAB_SWITCH_FADE_OPACITY_KEY, String(opacity));
+    } catch {
+      console.warn('Failed to save tab switch fade opacity setting');
     }
   }, []);
 
@@ -1134,6 +1165,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setSmoothPhaseAnimation,
     phaseAnimationDuration,
     setPhaseAnimationDuration,
+    tabSwitchFadeOpacity,
+    setTabSwitchFadeOpacity,
   };
 
   return (

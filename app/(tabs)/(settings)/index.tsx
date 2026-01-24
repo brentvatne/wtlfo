@@ -32,6 +32,7 @@ export default function SettingsScreen() {
     splashFadeDuration, setSplashFadeDuration,
     smoothPhaseAnimation, setSmoothPhaseAnimation,
     phaseAnimationDuration, setPhaseAnimationDuration,
+    tabSwitchFadeOpacity, setTabSwitchFadeOpacity,
   } = usePreset();
 
   // Tab switch fade
@@ -53,7 +54,7 @@ export default function SettingsScreen() {
       }
 
       if (fadeInOnOpen) {
-        screenOpacity.value = 0.2;
+        screenOpacity.value = tabSwitchFadeOpacity;
         screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
@@ -62,7 +63,7 @@ export default function SettingsScreen() {
     });
 
     return unsubscribe;
-  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
+  }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity]);
   const {
     currentlyRunning,
     isUpdatePending,
@@ -271,6 +272,7 @@ export default function SettingsScreen() {
               Math.round(depthAnimationDuration) !== 60 ||
               smoothPhaseAnimation !== false ||
               Math.round(phaseAnimationDuration) !== 16 ||
+              Math.round(tabSwitchFadeOpacity * 100) !== 20 ||
               Math.round(splashFadeDuration) !== 150;
             return (
               <Pressable
@@ -282,6 +284,7 @@ export default function SettingsScreen() {
                   setDepthAnimationDuration(60);
                   setSmoothPhaseAnimation(false);
                   setPhaseAnimationDuration(16);
+                  setTabSwitchFadeOpacity(0.2);
                   setSplashFadeDuration(150);
                 }}
                 style={styles.resetButton}
@@ -300,6 +303,14 @@ export default function SettingsScreen() {
           value={fadeInDuration}
           onChange={setFadeInDuration}
           formatValue={(v) => `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
+          label="Tab switch start opacity"
+          min={0}
+          max={100}
+          value={tabSwitchFadeOpacity * 100}
+          onChange={(v) => setTabSwitchFadeOpacity(v / 100)}
+          formatValue={(v) => `${Math.round(v)}%`}
         />
         <ParameterSlider
           label="Visualization fade-in"

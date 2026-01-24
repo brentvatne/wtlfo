@@ -120,7 +120,7 @@ function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () 
 export default function LearnIndexScreen() {
   const router = useRouter();
   const navigation = useNavigation();
-  const { fadeInOnOpen, fadeInDuration } = usePreset();
+  const { fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity } = usePreset();
 
   // Tab switch fade
   const screenOpacity = useSharedValue(1);
@@ -141,7 +141,7 @@ export default function LearnIndexScreen() {
       }
 
       if (fadeInOnOpen) {
-        screenOpacity.value = 0.2;
+        screenOpacity.value = tabSwitchFadeOpacity;
         screenOpacity.value = withTiming(1, {
           duration: fadeInDuration,
           easing: Easing.out(Easing.ease),
@@ -150,7 +150,7 @@ export default function LearnIndexScreen() {
     });
 
     return unsubscribe;
-  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
+  }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity]);
 
   return (
     <ScrollView
