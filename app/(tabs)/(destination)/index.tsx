@@ -1,5 +1,6 @@
 import React, { useEffect, useState } from 'react';
-import { View, Text, ScrollView, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from 'expo-router';
 import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
 import { usePreset } from '@/src/context/preset-context';

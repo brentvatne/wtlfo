@@ -1,5 +1,6 @@
 import React, { useRef, useState } from 'react';
-import { View, Text, ScrollView, Pressable, StyleSheet, Switch } from 'react-native';
+import { View, Text, Pressable, StyleSheet, Switch } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMidi } from '@/src/context/midi-context';

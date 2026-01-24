@@ -4,9 +4,9 @@ import {
   Text,
   Pressable,
   Modal,
-  ScrollView,
   StyleSheet,
 } from 'react-native';
+import { ScrollView } from 'react-native-gesture-handler';
 import * as Haptics from 'expo-haptics';
 import { useModulation } from '@/src/context/modulation-context';
 import {
