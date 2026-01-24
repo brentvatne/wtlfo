@@ -135,11 +135,18 @@ export default function HomeScreen() {
 
       // Going to background: quick fade out to hide current position
       // LFO pause is handled by preset-context
-      if (isGoingToBackground && fadeInOnOpen) {
-        screenOpacity.value = withTiming(tabSwitchFadeOpacity, {
-          duration: 150,
-          easing: Easing.out(Easing.ease),
-        });
+      if (isGoingToBackground) {
+        // Hide visualization immediately so it's ready for fade-in on return
+        if (fadeInVisualization) {
+          visualizerOpacity.value = 0;
+        }
+        // Fade screen to reduced opacity
+        if (fadeInOnOpen) {
+          screenOpacity.value = withTiming(tabSwitchFadeOpacity, {
+            duration: 150,
+            easing: Easing.out(Easing.ease),
+          });
+        }
       }
 
       // Coming back from background: fade screen and visualization back in

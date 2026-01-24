@@ -991,17 +991,26 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         // 1. We were actively running before going to background
         // 2. We're still not in a paused state (in case state changed while backgrounded)
         if (wasRunningBeforeBackgroundRef.current && !isPausedRef.current) {
-          // Restart the animation loop
-          const animate = (timestamp: number) => {
-            if (lfoRef.current) {
-              const state = lfoRef.current.update(timestamp);
-              updatePhaseRef.current(state.phase);
-              lfoOutput.value = state.output;
-              lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+          // Delay animation restart to let UI fades set up first
+          // This ensures visualization is hidden before LFO starts moving
+          setTimeout(() => {
+            // Check again in case state changed during delay
+            if (!isPausedRef.current && animationRef.current === 0) {
+              // Reset timing again right before restart for accurate delta
+              lfoRef.current?.resetTiming();
+              // Restart the animation loop
+              const animate = (timestamp: number) => {
+                if (lfoRef.current) {
+                  const state = lfoRef.current.update(timestamp);
+                  updatePhaseRef.current(state.phase);
+                  lfoOutput.value = state.output;
+                  lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+                }
+                animationRef.current = requestAnimationFrame(animate);
+              };
+              animationRef.current = requestAnimationFrame(animate);
             }
-            animationRef.current = requestAnimationFrame(animate);
-          };
-          animationRef.current = requestAnimationFrame(animate);
+          }, 50);
         }
         wasRunningBeforeBackgroundRef.current = false;
       }
