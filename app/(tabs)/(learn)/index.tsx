@@ -1,7 +1,10 @@
-import React from 'react';
+import React, { useRef, useEffect } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import { usePreset } from '@/src/context/preset-context';
 import {
   QuestionWaveIcon,
   SlidersIcon,
@@ -116,6 +119,38 @@ function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () 
 
 export default function LearnIndexScreen() {
   const router = useRouter();
+  const navigation = useNavigation();
+  const { fadeInOnOpen, fadeInDuration } = usePreset();
+
+  // Tab switch fade
+  const screenOpacity = useSharedValue(1);
+  const isFirstFocusRef = useRef(true);
+
+  const screenFadeStyle = useAnimatedStyle(() => ({
+    opacity: screenOpacity.value,
+  }));
+
+  useEffect(() => {
+    const tabsNavigation = navigation.getParent();
+    if (!tabsNavigation) return;
+
+    const unsubscribe = tabsNavigation.addListener('focus', () => {
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
+
+      if (fadeInOnOpen) {
+        screenOpacity.value = 0;
+        screenOpacity.value = withTiming(1, {
+          duration: fadeInDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
 
   return (
     <ScrollView
@@ -123,15 +158,17 @@ export default function LearnIndexScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <View style={styles.grid}>
-        {TOPICS.map((topic) => (
-          <TopicCardComponent
-            key={topic.id}
-            topic={topic}
-            onPress={() => router.push(topic.route as any)}
-          />
-        ))}
-      </View>
+      <Animated.View style={screenFadeStyle}>
+        <View style={styles.grid}>
+          {TOPICS.map((topic) => (
+            <TopicCardComponent
+              key={topic.id}
+              topic={topic}
+              onPress={() => router.push(topic.route as any)}
+            />
+          ))}
+        </View>
+      </Animated.View>
     </ScrollView>
   );
 }

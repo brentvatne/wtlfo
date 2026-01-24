@@ -1,7 +1,9 @@
-import React, { useEffect } from 'react';
+import React, { useEffect, useRef } from 'react';
 import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
+import { useNavigation } from '@react-navigation/native';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
 import { SymbolView } from 'expo-symbols';
@@ -13,6 +15,7 @@ const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
   const {
     bpm, setBPM,
     hideValuesWhileEditing, setHideValuesWhileEditing,
@@ -27,7 +30,39 @@ export default function SettingsScreen() {
     showFadeEnvelope, setShowFadeEnvelope,
     depthAnimationDuration, setDepthAnimationDuration,
     splashFadeDuration, setSplashFadeDuration,
+    smoothPhaseAnimation, setSmoothPhaseAnimation,
+    phaseAnimationDuration, setPhaseAnimationDuration,
   } = usePreset();
+
+  // Tab switch fade
+  const screenOpacity = useSharedValue(1);
+  const isFirstFocusRef = useRef(true);
+
+  const screenFadeStyle = useAnimatedStyle(() => ({
+    opacity: screenOpacity.value,
+  }));
+
+  useEffect(() => {
+    const tabsNavigation = navigation.getParent();
+    if (!tabsNavigation) return;
+
+    const unsubscribe = tabsNavigation.addListener('focus', () => {
+      if (isFirstFocusRef.current) {
+        isFirstFocusRef.current = false;
+        return;
+      }
+
+      if (fadeInOnOpen) {
+        screenOpacity.value = 0;
+        screenOpacity.value = withTiming(1, {
+          duration: fadeInDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+    });
+
+    return unsubscribe;
+  }, [navigation, fadeInOnOpen, fadeInDuration, screenOpacity]);
   const {
     currentlyRunning,
     isUpdatePending,
@@ -82,6 +117,7 @@ export default function SettingsScreen() {
       contentContainerStyle={{ padding: 20 }}
       contentInsetAdjustmentBehavior="automatic"
     >
+      <Animated.View style={screenFadeStyle}>
       <View style={styles.section}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderTitle}>Tempo</Text>
@@ -233,6 +269,8 @@ export default function SettingsScreen() {
               Math.round(editFadeOutDuration) !== 0 ||
               Math.round(editFadeInDuration) !== 100 ||
               Math.round(depthAnimationDuration) !== 60 ||
+              smoothPhaseAnimation !== false ||
+              Math.round(phaseAnimationDuration) !== 16 ||
               Math.round(splashFadeDuration) !== 150;
             return (
               <Pressable
@@ -242,6 +280,8 @@ export default function SettingsScreen() {
                   setEditFadeOutDuration(0);
                   setEditFadeInDuration(100);
                   setDepthAnimationDuration(60);
+                  setSmoothPhaseAnimation(false);
+                  setPhaseAnimationDuration(16);
                   setSplashFadeDuration(150);
                 }}
                 style={styles.resetButton}
@@ -293,6 +333,30 @@ export default function SettingsScreen() {
           onChange={setDepthAnimationDuration}
           formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
+        <View style={[styles.settingRow, { marginTop: 8, marginBottom: 8 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Smooth phase animation</Text>
+            <Text style={styles.settingDescription}>
+              Interpolate phase for dropped frame compensation
+            </Text>
+          </View>
+          <Switch
+            value={smoothPhaseAnimation}
+            onValueChange={setSmoothPhaseAnimation}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        {smoothPhaseAnimation && (
+          <ParameterSlider
+            label="Phase interpolation"
+            min={0}
+            max={100}
+            value={phaseAnimationDuration}
+            onChange={setPhaseAnimationDuration}
+            formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
+          />
+        )}
         <ParameterSlider
           label="Splash screen fade"
           min={0}
@@ -357,6 +421,7 @@ export default function SettingsScreen() {
           )}
         </Pressable>
       </View>
+      </Animated.View>
     </ScrollView>
   );
 }

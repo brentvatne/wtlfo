@@ -1,7 +1,7 @@
 import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
-import { useSharedValue } from 'react-native-reanimated';
+import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
@@ -24,6 +24,8 @@ const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
 const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
+const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
+const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
 const DEFAULT_BPM = 120;
 const DEFAULT_FADE_IN_DURATION = 800; // ms
 const DEFAULT_VISUALIZATION_FADE_DURATION = 400; // ms
@@ -31,6 +33,7 @@ const DEFAULT_EDIT_FADE_OUT = 0; // ms
 const DEFAULT_EDIT_FADE_IN = 100; // ms
 const DEFAULT_DEPTH_ANIM_DURATION = 60; // ms
 const DEFAULT_SPLASH_FADE_DURATION = 150; // ms
+const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms - roughly one frame at 60fps
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
@@ -260,6 +263,35 @@ function getInitialSplashFadeDuration(): number {
   return DEFAULT_SPLASH_FADE_DURATION;
 }
 
+// Load initial smooth phase animation setting synchronously
+function getInitialSmoothPhaseAnimation(): boolean {
+  try {
+    const saved = Storage.getItemSync(SMOOTH_PHASE_ANIMATION_KEY);
+    if (saved !== null) {
+      return saved === 'true';
+    }
+  } catch {
+    console.warn('Failed to load smooth phase animation setting');
+  }
+  return false; // Default to disabled - direct phase updates
+}
+
+// Load initial phase animation duration synchronously
+function getInitialPhaseAnimationDuration(): number {
+  try {
+    const saved = Storage.getItemSync(PHASE_ANIMATION_DURATION_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 0 && value <= 100) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load phase animation duration setting');
+  }
+  return DEFAULT_PHASE_ANIMATION_DURATION;
+}
+
 interface TimingInfo {
   cycleTimeMs: number;
   noteValue: string;
@@ -336,6 +368,10 @@ interface PresetContextValue {
   setDepthAnimationDuration: (duration: number) => void;
   splashFadeDuration: number;
   setSplashFadeDuration: (duration: number) => void;
+  smoothPhaseAnimation: boolean;
+  setSmoothPhaseAnimation: (enabled: boolean) => void;
+  phaseAnimationDuration: number;
+  setPhaseAnimationDuration: (duration: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -357,6 +393,8 @@ const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
 const INITIAL_SPLASH_FADE_DURATION = getInitialSplashFadeDuration();
+const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
+const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
 
 // Check if auto-connect is enabled - if so, start LFO paused
 // (waiting for MIDI transport start or user tap)
@@ -403,6 +441,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
   const [depthAnimationDuration, setDepthAnimationDurationState] = useState(INITIAL_DEPTH_ANIM_DURATION);
   const [splashFadeDuration, setSplashFadeDurationState] = useState(INITIAL_SPLASH_FADE_DURATION);
+  const [smoothPhaseAnimation, setSmoothPhaseAnimationState] = useState(INITIAL_SMOOTH_PHASE_ANIMATION);
+  const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -445,6 +485,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   // Ref to track isPaused for AppState handler (avoids stale closure issues)
   const isPausedRef = useRef(false);
+  // Refs for smooth phase animation settings (to access in animation callbacks)
+  const smoothPhaseAnimationRef = useRef(INITIAL_SMOOTH_PHASE_ANIMATION);
+  const phaseAnimationDurationRef = useRef(INITIAL_PHASE_ANIMATION_DURATION);
+  // Track last target phase for wrap-around detection
+  const lastTargetPhaseRef = useRef(INITIAL_START_PHASE);
   // Track if this is the initial LFO creation (to avoid phase reset on mount)
   const isInitialLFOCreation = useRef(true);
   // Track if the main animation loop has started (to prevent duplicate loops)
@@ -646,6 +691,24 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  const setSmoothPhaseAnimation = useCallback((enabled: boolean) => {
+    setSmoothPhaseAnimationState(enabled);
+    try {
+      Storage.setItemSync(SMOOTH_PHASE_ANIMATION_KEY, String(enabled));
+    } catch {
+      console.warn('Failed to save smooth phase animation setting');
+    }
+  }, []);
+
+  const setPhaseAnimationDuration = useCallback((duration: number) => {
+    setPhaseAnimationDurationState(duration);
+    try {
+      Storage.setItemSync(PHASE_ANIMATION_DURATION_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save phase animation duration setting');
+    }
+  }, []);
+
   // Sync currentConfig when activePreset changes
   // Skip on first render - config is already initialized to match activePreset
   const isFirstPresetSync = useRef(true);
@@ -676,6 +739,40 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     isPausedRef.current = isPaused;
   }, [isPaused]);
+
+  // Keep smooth phase animation refs in sync with state
+  useEffect(() => {
+    smoothPhaseAnimationRef.current = smoothPhaseAnimation;
+  }, [smoothPhaseAnimation]);
+
+  useEffect(() => {
+    phaseAnimationDurationRef.current = phaseAnimationDuration;
+  }, [phaseAnimationDuration]);
+
+  // Helper to update phase with optional smooth animation
+  // Handles wrap-around by setting directly when phase wraps from ~1 to ~0
+  const updatePhaseRef = useRef((newPhase: number) => {
+    const oldPhase = lastTargetPhaseRef.current;
+    const phaseDiff = newPhase - oldPhase;
+
+    // Detect wrap-around: if the phase jumped backwards by more than 0.5,
+    // it means we wrapped from ~1 to ~0, so set directly without animation
+    const wrapped = phaseDiff < -0.5;
+
+    // Update the last target phase ref
+    lastTargetPhaseRef.current = newPhase;
+
+    if (wrapped || !smoothPhaseAnimationRef.current || phaseAnimationDurationRef.current === 0) {
+      // Direct set: wrap-around, animation disabled, or zero duration
+      lfoPhase.value = newPhase;
+    } else {
+      // Smooth animation to new phase
+      lfoPhase.value = withTiming(newPhase, {
+        duration: phaseAnimationDurationRef.current,
+        easing: Easing.linear,
+      });
+    }
+  });
 
   // Ref to track isEditing for coordination (avoids stale closure issues)
   const isEditingRef = useRef(false);
@@ -721,6 +818,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         lfoRef.current.trigger();
         // Get the actual initial state from the new LFO
         const initialState = lfoRef.current.update(performance.now());
+        // Direct assignment for initialization (also resets lastTargetPhaseRef)
+        lastTargetPhaseRef.current = initialState.phase;
         lfoPhase.value = initialState.phase;
         lfoOutput.value = initialState.output;
         lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
@@ -734,7 +833,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         const animate = (timestamp: number) => {
           if (lfoRef.current) {
             const state = lfoRef.current.update(timestamp);
-            lfoPhase.value = state.phase;
+            updatePhaseRef.current(state.phase);
             lfoOutput.value = state.output;
             lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
           }
@@ -763,7 +862,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       const animate = (timestamp: number) => {
         if (lfoRef.current) {
           const state = lfoRef.current.update(timestamp);
-          lfoPhase.value = state.phase;
+          updatePhaseRef.current(state.phase);
           lfoOutput.value = state.output;
           lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
         }
@@ -801,6 +900,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       lfoRef.current.trigger();
       // Get the actual initial state (don't assume output is 0 - it depends on waveform)
       const initialState = lfoRef.current.update(performance.now());
+      // Direct assignment for initialization (also resets lastTargetPhaseRef)
+      lastTargetPhaseRef.current = initialState.phase;
       lfoPhase.value = initialState.phase;
       lfoOutput.value = initialState.output;
       lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
@@ -822,7 +923,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
         const state = lfoRef.current.update(timestamp);
-        lfoPhase.value = state.phase;
+        updatePhaseRef.current(state.phase);
         lfoOutput.value = state.output;
         lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
       }
@@ -868,7 +969,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
           const animate = (timestamp: number) => {
             if (lfoRef.current) {
               const state = lfoRef.current.update(timestamp);
-              lfoPhase.value = state.phase;
+              updatePhaseRef.current(state.phase);
               lfoOutput.value = state.output;
               lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
             }
@@ -936,6 +1037,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       // Immediately update shared values so visualization syncs without waiting for next frame
       if (lfoRef.current) {
         const initialState = lfoRef.current.update(performance.now());
+        // Direct assignment for initialization (also resets lastTargetPhaseRef)
+        lastTargetPhaseRef.current = initialState.phase;
         lfoPhase.value = initialState.phase;
         lfoOutput.value = initialState.output;
         lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
@@ -948,7 +1051,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         const animate = (timestamp: number) => {
           if (lfoRef.current) {
             const state = lfoRef.current.update(timestamp);
-            lfoPhase.value = state.phase;
+            updatePhaseRef.current(state.phase);
             lfoOutput.value = state.output;
             lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
           }
@@ -1027,6 +1130,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setDepthAnimationDuration,
     splashFadeDuration,
     setSplashFadeDuration,
+    smoothPhaseAnimation,
+    setSmoothPhaseAnimation,
+    phaseAnimationDuration,
+    setPhaseAnimationDuration,
   };
 
   return (
