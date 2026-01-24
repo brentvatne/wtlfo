@@ -51,8 +51,7 @@
       "expo-sqlite",
       "expo-font",
       "expo-image",
-      "expo-web-browser",
-      "expo-build-properties"
+      "expo-web-browser"
     ],
     "experiments": {
       "typedRoutes": true,
@@ -70,7 +69,10 @@
     },
     "updates": {
       "url": "https://u.expo.dev/fd7017b3-0e29-4b90-8a09-cfdb437daca5",
-      "enableBsdiffPatchSupport": true
+      "enableBsdiffPatchSupport": true,
+      "requestHeaders": {
+        "expo-channel-name": "main"
+      }
     }
   }
 }

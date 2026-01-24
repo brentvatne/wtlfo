@@ -1,5 +1,7 @@
 # AGENTS.md
 
+**Also read**: `CLAUDE.md` for project-specific context, and `.claude/decisions.md` for architectural decisions.
+
 ## Project Overview
 
 This is an Expo/React Native mobile application. Prioritize mobile-first patterns, performance, and cross-platform compatibility.

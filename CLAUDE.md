@@ -1,8 +1,10 @@
 # CLAUDE.md - Project Instructions for Claude Code
 
+**Also read**: `AGENTS.md` for Expo/React Native patterns, commands, and worklet guidelines.
+
 ## Before Spawning Agents
 
-**ALWAYS** instruct agents to read `.claude/decisions.md` first - it contains architectural decisions that affect recommendations (e.g., React Compiler means no manual memoization).
+**ALWAYS** instruct agents to read `AGENTS.md` and `.claude/decisions.md` first - they contain Expo patterns and architectural decisions that affect recommendations (e.g., React Compiler means no manual memoization, worklet requirements).
 
 ## Project Overview
 
