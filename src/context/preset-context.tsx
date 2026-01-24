@@ -1,9 +1,9 @@
-import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
+import React, { createContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
 import { useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
-import { LFO } from 'elektron-lfo';
+import { LFO, calculateTimingInfo } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 import { useMidi } from '@/src/context/midi-context';
 
@@ -487,19 +487,19 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }
   const animationRef = useRef<number>(0);
-  // Initialize timing info from the LFO we just created
-  const [timingInfo, setTimingInfo] = useState<TimingInfo>(() => {
-    if (lfoRef.current) {
-      const info = lfoRef.current.getTimingInfo();
-      const msPerStep = 15000 / INITIAL_BPM;
-      return {
-        cycleTimeMs: info.cycleTimeMs,
-        noteValue: info.noteValue,
-        steps: info.cycleTimeMs / msPerStep,
-      };
-    }
-    return { cycleTimeMs: 0, noteValue: '', steps: 0 };
-  });
+  // Compute timing info live from currentConfig (no debounce delay)
+  // This ensures timing values update immediately when parameters change
+  const timingInfo = useMemo<TimingInfo>(() => {
+    const info = calculateTimingInfo(currentConfig, effectiveBpm);
+    // Calculate steps: one step = 1/16 note = (60000/bpm)/4 ms = 15000/bpm ms
+    const msPerStep = 15000 / effectiveBpm;
+    const steps = info.cycleTimeMs / msPerStep;
+    return {
+      cycleTimeMs: info.cycleTimeMs,
+      noteValue: info.noteValue,
+      steps,
+    };
+  }, [currentConfig, effectiveBpm]);
 
   // Track whether we paused the animation due to app going to background
   // This is separate from user-initiated pause (isPaused state)
@@ -914,16 +914,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     lfoRef.current = new LFO(debouncedConfig, effectiveBpm);
 
-    // Get timing info
-    const info = lfoRef.current.getTimingInfo();
-    // Calculate steps: one step = 1/16 note = (60000/bpm)/4 ms
-    const msPerStep = 15000 / effectiveBpm;
-    const steps = info.cycleTimeMs / msPerStep;
-    setTimingInfo({
-      cycleTimeMs: info.cycleTimeMs,
-      noteValue: info.noteValue,
-      steps,
-    });
+    // Note: timing info is now computed live from currentConfig via useMemo,
+    // so no need to update it here
 
     // Only reset phase/output and trigger if resetLFOOnChange is enabled
     if (resetLFOOnChange) {
