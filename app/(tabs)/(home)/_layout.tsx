@@ -116,7 +116,7 @@ function useHeaderRightItems() {
 const headerStyles = StyleSheet.create({
   buttonWrapper: {
     backgroundColor: 'rgba(255, 255, 255, 0.08)',
-    borderRadius: 10,
+    borderRadius: 19,
     padding: 10,
     minWidth: 38,
     minHeight: 38,
