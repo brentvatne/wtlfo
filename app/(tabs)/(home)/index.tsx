@@ -1,13 +1,10 @@
 import React, { useRef, useCallback, useEffect } from 'react';
-import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, ScrollView, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { useFocusEffect, usePathname } from 'expo-router';
 import Animated, { useDerivedValue, useSharedValue, withTiming, Easing } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
-  SlowMotionBadge,
-  useSlowMotionPhase,
-  getSlowdownInfo,
   sampleWaveformWorklet,
   TimingInfo,
 } from '@/src/components/lfo';
@@ -86,6 +83,28 @@ export default function HomeScreen() {
     }, [fadeInOnOpen, fadeInDuration, visualizerOpacity])
   );
 
+  // Fade-in animation when app returns from background
+  const appStateRef = useRef(AppState.currentState);
+  useEffect(() => {
+    const subscription = AppState.addEventListener('change', (nextAppState) => {
+      // Trigger fade-in when coming back from background/inactive to active
+      if (
+        (appStateRef.current === 'background' || appStateRef.current === 'inactive') &&
+        nextAppState === 'active' &&
+        fadeInOnOpen
+      ) {
+        visualizerOpacity.value = 0;
+        visualizerOpacity.value = withTiming(1, {
+          duration: fadeInDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
+      appStateRef.current = nextAppState;
+    });
+
+    return () => subscription.remove();
+  }, [fadeInOnOpen, fadeInDuration, visualizerOpacity]);
+
   const { activeDestinationId, getCenterValue, setCenterValue } = useModulation();
   const { width: screenWidth } = useWindowDimensions();
 
@@ -96,19 +115,7 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
-  // Slow-motion preview for fast LFOs
-  // Track previous factor for hysteresis calculations
-  const previousFactorRef = useRef(1);
-  const slowdownInfo = getSlowdownInfo(
-    timingInfo.cycleTimeMs,
-    previousFactorRef.current
-  );
-  previousFactorRef.current = slowdownInfo.factor;
-
-  // Create slowed display phase using the fixed hook
-  const displayPhase = useSlowMotionPhase(lfoPhase, slowdownInfo.factor);
-
-  // Derive display output from display phase (for destination meter sync)
+  // Derive display output from phase (for destination meter sync)
   const waveformForWorklet = currentConfig.waveform as WaveformType;
   // Pre-compute clamped depth scale (handles asymmetric range -64 to +63)
   const depthScaleForWorklet = Math.max(-1, Math.min(1, currentConfig.depth / 63));
@@ -118,14 +125,13 @@ export default function HomeScreen() {
   const startPhaseNormalized = currentConfig.startPhase / 128;
   const fadeApplies = fadeValue !== 0 && modeValue !== 'FRE';
 
-  // Compute display fade multiplier based on slowed display phase
-  // This ensures the meter's fade bounds match the slowed visualization
+  // Compute fade multiplier based on current phase
   const displayFadeMultiplier = useDerivedValue(() => {
     'worklet';
     if (!fadeApplies) return 1;
 
-    // Calculate display phase (shifted for visualization)
-    const displayPhaseNormalized = ((displayPhase.value - startPhaseNormalized) % 1 + 1) % 1;
+    // Calculate phase (shifted for visualization)
+    const phaseNormalized = ((lfoPhase.value - startPhaseNormalized) % 1 + 1) % 1;
 
     // Calculate fade envelope using same formula as PhaseIndicator
     const absFade = Math.abs(fadeValue);
@@ -133,20 +139,20 @@ export default function HomeScreen() {
 
     if (fadeValue < 0) {
       // Fade-in: envelope goes from 0 to 1 over fadeDuration
-      return fadeDuration > 0 ? Math.min(1, displayPhaseNormalized / fadeDuration) : 1;
+      return fadeDuration > 0 ? Math.min(1, phaseNormalized / fadeDuration) : 1;
     } else {
       // Fade-out: envelope goes from 1 to 0 over fadeDuration
-      return fadeDuration > 0 ? Math.max(0, 1 - displayPhaseNormalized / fadeDuration) : 0;
+      return fadeDuration > 0 ? Math.max(0, 1 - phaseNormalized / fadeDuration) : 0;
     }
-  }, [fadeApplies, fadeValue, startPhaseNormalized]);
+  }, [fadeApplies, fadeValue, startPhaseNormalized, lfoPhase]);
 
   const displayOutput = useDerivedValue(() => {
     'worklet';
-    // Sample the waveform at the slowed display phase
-    const rawOutput = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
+    // Sample the waveform at current phase
+    const rawOutput = sampleWaveformWorklet(waveformForWorklet, lfoPhase.value);
     // Apply depth scaling
     return rawOutput * depthScaleForWorklet;
-  }, [waveformForWorklet, depthScaleForWorklet]);
+  }, [waveformForWorklet, depthScaleForWorklet, lfoPhase]);
 
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
@@ -182,41 +188,35 @@ export default function HomeScreen() {
             accessibilityState={{ selected: isPaused }}
             accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
           >
-            <View>
-              <LFOVisualizer
-                phase={displayPhase}
-                output={lfoOutput}
-                waveform={currentConfig.waveform as WaveformType}
-                speed={currentConfig.speed}
-                multiplier={currentConfig.multiplier}
-                startPhase={currentConfig.startPhase}
-                mode={currentConfig.mode as TriggerMode}
-                depth={currentConfig.depth}
-                fade={currentConfig.fade}
-                bpm={effectiveBpm}
-                cycleTimeMs={timingInfo.cycleTimeMs}
-                noteValue={timingInfo.noteValue}
-                steps={timingInfo.steps}
-                width={visualizerWidth}
-                height={METER_HEIGHT}
-                theme={ELEKTRON_THEME}
-                showParameters={false}
-                showTiming={false}
-                showOutput={false}
-                isEditing={isEditing}
-                hideValuesWhileEditing={hideValuesWhileEditing}
-                showFillsWhenEditing={showFillsWhenEditing}
-                editFadeOutDuration={editFadeOutDuration}
-                editFadeInDuration={editFadeInDuration}
-                strokeWidth={2.5}
-                showFadeEnvelope={showFadeEnvelope}
-                depthAnimationDuration={depthAnimationDuration}
-              />
-              <SlowMotionBadge
-                factor={slowdownInfo.factor}
-                visible={slowdownInfo.isSlowed}
-              />
-            </View>
+            <LFOVisualizer
+              phase={lfoPhase}
+              output={lfoOutput}
+              waveform={currentConfig.waveform as WaveformType}
+              speed={currentConfig.speed}
+              multiplier={currentConfig.multiplier}
+              startPhase={currentConfig.startPhase}
+              mode={currentConfig.mode as TriggerMode}
+              depth={currentConfig.depth}
+              fade={currentConfig.fade}
+              bpm={effectiveBpm}
+              cycleTimeMs={timingInfo.cycleTimeMs}
+              noteValue={timingInfo.noteValue}
+              steps={timingInfo.steps}
+              width={visualizerWidth}
+              height={METER_HEIGHT}
+              theme={ELEKTRON_THEME}
+              showParameters={false}
+              showTiming={false}
+              showOutput={false}
+              isEditing={isEditing}
+              hideValuesWhileEditing={hideValuesWhileEditing}
+              showFillsWhenEditing={showFillsWhenEditing}
+              editFadeOutDuration={editFadeOutDuration}
+              editFadeInDuration={editFadeInDuration}
+              strokeWidth={2.5}
+              showFadeEnvelope={showFadeEnvelope}
+              depthAnimationDuration={depthAnimationDuration}
+            />
           </Pressable>
           {/* Timing info outside pressable - tapping here won't pause */}
           <View style={[styles.timingContainer, { width: visualizerWidth }]}>
