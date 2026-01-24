@@ -244,7 +244,7 @@ export default function SettingsScreen() {
             thumbColor="#ffffff"
           />
         </View>
-        <View style={[styles.settingRow, { marginTop: 16, marginBottom: 8 }]}>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Show fade envelope</Text>
             <Text style={styles.settingDescription}>
@@ -254,6 +254,20 @@ export default function SettingsScreen() {
           <Switch
             value={showFadeEnvelope}
             onValueChange={setShowFadeEnvelope}
+            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
+            thumbColor="#ffffff"
+          />
+        </View>
+        <View style={[styles.settingRow, { marginTop: 16, marginBottom: 8 }]}>
+          <View style={styles.settingTextContainer}>
+            <Text style={styles.settingLabel}>Smooth phase animation</Text>
+            <Text style={styles.settingDescription}>
+              Interpolate phase for dropped frame compensation
+            </Text>
+          </View>
+          <Switch
+            value={smoothPhaseAnimation}
+            onValueChange={setSmoothPhaseAnimation}
             trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
             thumbColor="#ffffff"
           />
@@ -344,20 +358,6 @@ export default function SettingsScreen() {
           onChange={setDepthAnimationDuration}
           formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
-        <View style={[styles.settingRow, { marginTop: 8, marginBottom: 8 }]}>
-          <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Smooth phase animation</Text>
-            <Text style={styles.settingDescription}>
-              Interpolate phase for dropped frame compensation
-            </Text>
-          </View>
-          <Switch
-            value={smoothPhaseAnimation}
-            onValueChange={setSmoothPhaseAnimation}
-            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
-            thumbColor="#ffffff"
-          />
-        </View>
         {smoothPhaseAnimation && (
           <ParameterSlider
             label="Phase interpolation"
