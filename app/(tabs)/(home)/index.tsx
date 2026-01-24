@@ -133,19 +133,15 @@ export default function HomeScreen() {
       const isComingFromBackground =
         (appStateRef.current === 'background' || appStateRef.current === 'inactive') && isNowActive;
 
-      // Going to background: quick fade out to hide current position
+      // Going to background: immediately hide content (no time for animations)
       // LFO pause is handled by preset-context
       if (isGoingToBackground) {
-        // Hide visualization immediately so it's ready for fade-in on return
+        // Set values synchronously - app suspension gives no time for animations
         if (fadeInVisualization) {
           visualizerOpacity.value = 0;
         }
-        // Fade screen to reduced opacity
         if (fadeInOnOpen) {
-          screenOpacity.value = withTiming(tabSwitchFadeOpacity, {
-            duration: 150,
-            easing: Easing.out(Easing.ease),
-          });
+          screenOpacity.value = tabSwitchFadeOpacity;
         }
       }
 
