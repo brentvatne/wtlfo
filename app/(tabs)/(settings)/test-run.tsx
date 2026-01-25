@@ -19,6 +19,7 @@ export default function TestRunScreen() {
     logs: verificationLogs,
     isRunning: verificationRunning,
     testSuites,
+    totalTestCount,
     runSuiteByKey,
     runAllSuites,
     clearLogs: clearVerificationLogs,
@@ -56,7 +57,7 @@ export default function TestRunScreen() {
       return '4 benchmarks';
     }
     if (selectedSuite === 'all') {
-      return '75 tests';
+      return `${totalTestCount} tests`;
     }
     return `${testSuites[selectedSuite]?.tests.length || 0} tests`;
   };
