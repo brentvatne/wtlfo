@@ -143,6 +143,22 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
+  // Reset all audio parameters to defaults (used when destination changes)
+  const resetAudioParams = useCallback(() => {
+    const osc = oscillatorRef.current;
+    const gain = gainNodeRef.current;
+    const filter = filterNodeRef.current;
+    const panner = pannerNodeRef.current;
+
+    if (osc) osc.frequency.value = BASE_FREQUENCY;
+    if (gain) gain.gain.value = DEFAULT_GAIN;
+    if (filter) {
+      filter.frequency.value = DEFAULT_FILTER_FREQ;
+      filter.Q.value = DEFAULT_FILTER_Q;
+    }
+    if (panner) panner.pan.value = 0;
+  }, []);
+
   // Clean up audio graph
   const destroyAudioGraph = useCallback(() => {
     console.log('[AudioContext] destroyAudioGraph called', {
@@ -326,6 +342,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       }
     }
   }, [isPaused, isPlaying, buildAudioGraph, destroyAudioGraph, updateAudioParams]);
+
+  // Reset audio params when destination changes to clear previous modulation effect
+  useEffect(() => {
+    if (isPlaying) {
+      resetAudioParams();
+    }
+  }, [activeDestinationId, isPlaying, resetAudioParams]);
 
   // Handle app background/foreground
   useEffect(() => {
