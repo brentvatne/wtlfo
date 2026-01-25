@@ -12,7 +12,8 @@
       "supportsTablet": true,
       "bundleIdentifier": "com.brents.wtlfo",
       "infoPlist": {
-        "ITSAppUsesNonExemptEncryption": false
+        "ITSAppUsesNonExemptEncryption": false,
+        "NSMicrophoneUsageDescription": "This app uses audio synthesis for the test tone feature."
       },
       "appleTeamId": "GQ4S96SE9Z"
     },
