@@ -3,7 +3,7 @@ import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native'
 import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
 
 type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
-import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, useAnimatedReaction, withTiming, withSequence, Easing, cancelAnimation, runOnJS } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
@@ -189,18 +189,29 @@ export function DestinationMeter({
     });
   }, []);
 
-  // Sample lfoOutput from JS thread periodically (decoupled from UI thread animation)
+  // Sample lfoOutput using useAnimatedReaction (UI thread safe)
   // Uses centerValue prop directly (not spring-animated) so text responds immediately to slider
   // Apply fadeMultiplier to account for fade envelope
-  useEffect(() => {
-    const interval = setInterval(() => {
+  // Throttle to ~30fps to avoid excessive re-renders
+  const lastValueUpdateRef = useRef(0);
+  const VALUE_THROTTLE_MS = 33; // ~30fps
+
+  useAnimatedReaction(
+    () => lfoOutput.value,
+    (currentOutput) => {
+      'worklet';
+      // Throttle updates to ~30fps
+      const now = Date.now();
+      if (now - lastValueUpdateRef.current < VALUE_THROTTLE_MS) return;
+      lastValueUpdateRef.current = now;
+
       const fadeMult = fadeMultiplier?.value ?? 1;
-      const modulationAmount = lfoOutput.value * maxModulation * fadeMult;
+      const modulationAmount = currentOutput * maxModulation * fadeMult;
       const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
-      setCurrentValue(value);
-    }, 33); // 30fps for text
-    return () => clearInterval(interval);
-  }, [lfoOutput, fadeMultiplier, centerValue, maxModulation, min, max]);
+      runOnJS(setCurrentValue)(value);
+    },
+    [fadeMultiplier, centerValue, maxModulation, min, max]
+  );
 
   // Position calculations
   const meterX = 8;

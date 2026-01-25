@@ -1,13 +1,15 @@
-import React, { useState, useEffect, useCallback } from 'react';
+import React, { useState, useEffect, useCallback, useRef } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import Animated, {
   useSharedValue,
   useAnimatedStyle,
+  useAnimatedReaction,
   withRepeat,
   withSequence,
   withTiming,
   Easing,
   cancelAnimation,
+  runOnJS,
 } from 'react-native-reanimated';
 import type { TimingInfoProps } from './types';
 
@@ -23,41 +25,57 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
   // Track elapsed time within cycle (updated periodically from phase)
   const [elapsedTimeMs, setElapsedTimeMs] = useState(0);
 
-  // Update elapsed time from phase when showing elapsed time
-  useEffect(() => {
-    if (!showElapsedTime || !phase || !cycleTimeMs) return;
+  // Throttle state updates to ~15fps to prioritize visualization performance
+  const lastElapsedUpdateRef = useRef(0);
+  const lastStepUpdateRef = useRef(0);
+  const THROTTLE_MS = 66; // ~15fps
 
-    // Convert startPhase (0-127) to normalized (0-1)
-    const startPhaseNormalized = startPhase / 128;
-    const interval = setInterval(() => {
+  // Update elapsed time from phase using useAnimatedReaction (UI thread safe)
+  useAnimatedReaction(
+    () => phase?.value ?? 0,
+    (currentPhase) => {
+      'worklet';
+      if (!showElapsedTime || !cycleTimeMs) return;
+
+      // Throttle updates to ~15fps
+      const now = Date.now();
+      if (now - lastElapsedUpdateRef.current < THROTTLE_MS) return;
+      lastElapsedUpdateRef.current = now;
+
+      // Convert startPhase (0-127) to normalized (0-1)
+      const startPhaseNormalized = startPhase / 128;
       // Subtract startPhase offset so elapsed time starts at the LFO's start position
-      const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+      const adjustedPhase = ((currentPhase - startPhaseNormalized) % 1 + 1) % 1;
       // Calculate elapsed time within cycle
-      setElapsedTimeMs(adjustedPhase * cycleTimeMs);
-    }, 66); // ~15fps (every 2 frames at 30fps base) - prioritize visualization performance
+      runOnJS(setElapsedTimeMs)(adjustedPhase * cycleTimeMs);
+    },
+    [showElapsedTime, cycleTimeMs, startPhase]
+  );
 
-    return () => clearInterval(interval);
-  }, [showElapsedTime, phase, cycleTimeMs, startPhase]);
+  // Update current step from phase using useAnimatedReaction (UI thread safe)
+  useAnimatedReaction(
+    () => phase?.value ?? 0,
+    (currentPhase) => {
+      'worklet';
+      if (!showCurrentStep || !steps || steps <= 0) return;
 
-  // Update current step from phase when in "STEP" mode
-  useEffect(() => {
-    if (!showCurrentStep || !phase || !steps || steps <= 0) return;
+      // Throttle updates to ~15fps
+      const now = Date.now();
+      if (now - lastStepUpdateRef.current < THROTTLE_MS) return;
+      lastStepUpdateRef.current = now;
 
-    const totalSteps = Math.ceil(steps);
-    // Convert startPhase (0-127) to normalized (0-1)
-    const startPhaseNormalized = startPhase / 128;
-    const interval = setInterval(() => {
+      const totalSteps = Math.ceil(steps);
+      // Convert startPhase (0-127) to normalized (0-1)
+      const startPhaseNormalized = startPhase / 128;
       // Subtract startPhase offset so step 1 starts at the LFO's start position
-      // Ensure result is in 0-1 range with correct modulo handling
-      const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
+      const adjustedPhase = ((currentPhase - startPhaseNormalized) % 1 + 1) % 1;
       // Calculate current step (1-indexed), wrapping correctly
       const rawStep = Math.floor(adjustedPhase * steps);
       const step = (rawStep % totalSteps) + 1;
-      setCurrentStep(step);
-    }, 66); // ~15fps (every 2 frames at 30fps base) - prioritize visualization performance
-
-    return () => clearInterval(interval);
-  }, [showCurrentStep, phase, steps, startPhase]);
+      runOnJS(setCurrentStep)(step);
+    },
+    [showCurrentStep, steps, startPhase]
+  );
 
   // Toggle between STEPS and STEP display
   const handleStepsPress = useCallback(() => {
