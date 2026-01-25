@@ -42,11 +42,13 @@
     "react": "19.2.0",
     "react-dom": "19.2.0",
     "react-native": "0.83.1",
+    "react-native-audio-api": "^0.11.2",
     "react-native-gesture-handler": "~2.30.0",
     "react-native-reanimated": "~4.2.1",
     "react-native-safe-area-context": "~5.6.0",
     "react-native-screens": "~4.20.0",
-    "react-native-web": "~0.21.0"
+    "react-native-web": "~0.21.0",
+    "react-native-worklets": "0.7.2"
   },
   "devDependencies": {
     "@testing-library/react-native": "^13.3.3",
@@ -65,7 +67,6 @@
     "@shopify/react-native-skia"
   ],
   "overrides": {
-    "react-native-worklets": "0.8.0-nightly-20260122-45349f895",
     "hermes-compiler": "250829098.0.4"
   }
 }

@@ -2,6 +2,7 @@ import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { FrameRateProvider } from '@/src/context/frame-rate-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
+import { AudioProvider } from '@/src/context/audio-context';
 import { PresetProvider } from '@/src/context/preset-context';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
@@ -52,21 +53,23 @@ export default Sentry.wrap(function RootLayout() {
           <MidiProvider>
             <PresetProvider>
               <ModulationProvider>
-                <Stack screenOptions={{ headerShown: false }}>
-                  <Stack.Screen name="(tabs)" />
-                  <Stack.Screen
-                    name="midi"
-                    options={{
-                      title: 'MIDI Sync',
-                      presentation: 'modal',
-                      headerShown: true,
-                      headerStyle: { backgroundColor: '#0a0a0a' },
-                      headerTintColor: '#ff6600',
-                      headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
-                      contentStyle: { backgroundColor: '#0a0a0a' },
-                    }}
-                  />
-                </Stack>
+                <AudioProvider>
+                  <Stack screenOptions={{ headerShown: false }}>
+                    <Stack.Screen name="(tabs)" />
+                    <Stack.Screen
+                      name="midi"
+                      options={{
+                        title: 'MIDI Sync',
+                        presentation: 'modal',
+                        headerShown: true,
+                        headerStyle: { backgroundColor: '#0a0a0a' },
+                        headerTintColor: '#ff6600',
+                        headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
+                        contentStyle: { backgroundColor: '#0a0a0a' },
+                      }}
+                    />
+                  </Stack>
+                </AudioProvider>
               </ModulationProvider>
             </PresetProvider>
           </MidiProvider>

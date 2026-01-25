@@ -2,7 +2,7 @@
   "expo": {
     "name": "wtlfo",
     "slug": "wtlfo",
-    "version": "1.0.2",
+    "version": "1.0.3",
     "orientation": "portrait",
     "icon": "./assets/images/icon.png",
     "scheme": "wtlfo",
@@ -60,7 +60,8 @@
           "organization": "brent-projects",
           "dsn": "https://1397d1c25ba952f620723abd186c27ac@o85374.ingest.us.sentry.io/4510763027464192"
         }
-      ]
+      ],
+      ["react-native-audio-api", { "iosBackgroundMode": false }]
     ],
     "experiments": {
       "typedRoutes": true,

@@ -13,6 +13,7 @@ import {
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
 import { DestinationMeter, CenterValueSlider } from '@/src/components/destination';
+import { TestTone } from '@/src/components/audio';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
@@ -402,6 +403,7 @@ export default function HomeScreen() {
             label="Center Value"
             bipolar={activeDestination?.bipolar ?? false}
           />
+          <TestTone visible={hasDestination} />
         </View>
       </Animated.View>
     </ScrollView>
