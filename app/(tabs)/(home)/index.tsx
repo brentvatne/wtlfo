@@ -1,9 +1,9 @@
 import React, { useRef, useCallback, useEffect, useState } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { usePathname } from 'expo-router';
+import { usePathname, router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing, FadeIn } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing, FadeIn, runOnJS } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -73,6 +73,27 @@ export default function HomeScreen() {
   const pathname = usePathname();
   const navigation = useNavigation();
 
+  // Track when param modal is open for overlay
+  const isParamModalOpen = pathname.includes('/param/');
+  const overlayOpacity = useSharedValue(0);
+
+  // Animate overlay when modal opens/closes
+  useEffect(() => {
+    overlayOpacity.value = withTiming(isParamModalOpen ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+    });
+  }, [isParamModalOpen, overlayOpacity]);
+
+  const overlayStyle = useAnimatedStyle(() => ({
+    opacity: overlayOpacity.value,
+    pointerEvents: overlayOpacity.value > 0 ? 'auto' : 'none',
+  }));
+
+  const handleOverlayPress = useCallback(() => {
+    router.back();
+  }, []);
+
   // Track when splash fade completes to defer expensive Skia rendering
   const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
   useEffect(() => {
@@ -99,6 +120,14 @@ export default function HomeScreen() {
     if (!tabsNavigation) return;
 
     const unsubscribeFocus = tabsNavigation.addListener('focus', () => {
+      // Resume LFO if it was paused due to tab switch (not manual pause)
+      // This must happen before early returns to ensure we always resume
+      if (pausedDueToTabSwitchRef.current) {
+        pausedDueToTabSwitchRef.current = false;
+        startLFO();
+        setIsPaused(false);
+      }
+
       // Skip fade-in if returning from a modal within the same stack
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
@@ -109,13 +138,6 @@ export default function HomeScreen() {
       if (isFirstFocusRef.current) {
         isFirstFocusRef.current = false;
         return;
-      }
-
-      // Resume LFO if it was paused due to tab switch (not manual pause)
-      if (pausedDueToTabSwitchRef.current) {
-        pausedDueToTabSwitchRef.current = false;
-        startLFO();
-        setIsPaused(false);
       }
 
       // Tab switch: fade in entire screen
@@ -422,26 +444,34 @@ export default function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Parameter Grid - Full width */}
-        <View style={styles.gridContainer}>
-          <Text style={styles.sectionHeading}>PARAMETERS</Text>
-          <ParamGrid />
-        </View>
+        {/* Content below visualization - with overlay for param modal */}
+        <View style={styles.belowVisualization}>
+          {/* Parameter Grid - Full width */}
+          <View style={styles.gridContainer}>
+            <Text style={styles.sectionHeading}>PARAMETERS</Text>
+            <ParamGrid />
+          </View>
 
-        {/* Destination Info - always rendered to prevent layout shift */}
-        <View style={[styles.destinationSection, !hasDestination && styles.destinationHidden]}>
-          <Text style={styles.destinationName}>
-            {hasDestination ? activeDestination.name : 'No Destination'}
-          </Text>
-          <CenterValueSlider
-            value={hasDestination ? getCenterValue(activeDestinationId) : 64}
-            onChange={(value) => hasDestination && setCenterValue(activeDestinationId, value)}
-            min={activeDestination?.min ?? 0}
-            max={activeDestination?.max ?? 127}
-            label="Center Value"
-            bipolar={activeDestination?.bipolar ?? false}
-          />
-          <TestTone visible={hasDestination} />
+          {/* Destination Info - always rendered to prevent layout shift */}
+          <View style={[styles.destinationSection, !hasDestination && styles.destinationHidden]}>
+            <Text style={styles.destinationName}>
+              {hasDestination ? activeDestination.name : 'No Destination'}
+            </Text>
+            <CenterValueSlider
+              value={hasDestination ? getCenterValue(activeDestinationId) : 64}
+              onChange={(value) => hasDestination && setCenterValue(activeDestinationId, value)}
+              min={activeDestination?.min ?? 0}
+              max={activeDestination?.max ?? 127}
+              label="Center Value"
+              bipolar={activeDestination?.bipolar ?? false}
+            />
+            <TestTone visible={hasDestination} />
+          </View>
+
+          {/* Overlay when param modal is open */}
+          <Animated.View style={[styles.modalOverlay, overlayStyle]}>
+            <Pressable style={styles.modalOverlayPressable} onPress={handleOverlayPress} />
+          </Animated.View>
         </View>
       </Animated.View>
     </ScrollView>
@@ -453,6 +483,16 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     marginTop: 8,
     marginBottom: 8,
+  },
+  belowVisualization: {
+    position: 'relative',
+  },
+  modalOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    backgroundColor: 'rgba(0, 0, 0, 0.5)',
+  },
+  modalOverlayPressable: {
+    flex: 1,
   },
   visualizerColumn: {
     flex: 1,

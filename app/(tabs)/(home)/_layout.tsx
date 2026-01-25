@@ -194,6 +194,8 @@ export default function HomeLayout() {
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.35, 0.5],
           contentStyle: { backgroundColor: '#0a0a0a' },
+          // @ts-expect-error - sheetBackdropColor is available in newer react-native-screens
+          sheetBackdropColor: 'transparent',
         }}
       />
     </Stack>
