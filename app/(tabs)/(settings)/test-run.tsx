@@ -1,8 +1,10 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
+import * as Clipboard from 'expo-clipboard';
+import * as Haptics from 'expo-haptics';
 import { useLfoVerification, TestSuiteKey } from '@/src/hooks/useLfoVerification';
 import { usePerformanceBenchmark } from '@/src/hooks/usePerformanceBenchmark';
 
@@ -20,6 +22,8 @@ export default function TestRunScreen() {
     runSuiteByKey,
     runAllSuites,
     clearLogs: clearVerificationLogs,
+    failedTestCount,
+    runFailedTests,
   } = useLfoVerification();
 
   const {
@@ -100,6 +104,15 @@ export default function TestRunScreen() {
     });
   };
 
+  const copyLogsToClipboard = useCallback(async () => {
+    const logText = logs
+      .map((entry) => `[${formatTime(entry.timestamp)}] ${entry.message}`)
+      .join('\n');
+
+    await Clipboard.setStringAsync(logText);
+    Haptics.notificationAsync(Haptics.NotificationFeedbackType.Success);
+  }, [logs]);
+
   return (
     <>
       <Stack.Screen
@@ -123,6 +136,19 @@ export default function TestRunScreen() {
             <Text style={styles.statusText}>{isRunning ? 'Running' : 'Complete'}</Text>
           </View>
         </View>
+
+        {/* Re-Run Failed Tests Button */}
+        {testType === 'verification' && !isRunning && failedTestCount > 0 && (
+          <Pressable
+            onPress={runFailedTests}
+            style={({ pressed }) => [styles.rerunButton, pressed && styles.rerunButtonPressed]}
+          >
+            <SymbolView name="arrow.counterclockwise" size={16} tintColor="#ffffff" />
+            <Text style={styles.rerunButtonText}>
+              Re-Run {failedTestCount} Failed Test{failedTestCount !== 1 ? 's' : ''}
+            </Text>
+          </Pressable>
+        )}
 
         {/* Performance Results Summary */}
         {testType === 'performance' && perfResults.length > 0 && !perfRunning && (
@@ -148,6 +174,17 @@ export default function TestRunScreen() {
         <View style={styles.logSection}>
           <View style={styles.logHeader}>
             <Text style={styles.logTitle}>Log Output</Text>
+            <Pressable
+              onPress={copyLogsToClipboard}
+              style={({ pressed }) => [styles.copyButton, pressed && styles.copyButtonPressed]}
+              hitSlop={8}
+              disabled={logs.length === 0}
+            >
+              <SymbolView name="doc.on.doc" size={16} tintColor={logs.length > 0 ? '#ff6600' : '#555'} />
+              <Text style={[styles.copyButtonText, logs.length === 0 && styles.copyButtonTextDisabled]}>
+                Copy
+              </Text>
+            </Pressable>
           </View>
           <ScrollView
             ref={scrollViewRef}
@@ -209,6 +246,24 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 13,
     marginTop: 4,
+  },
+  rerunButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'center',
+    gap: 8,
+    backgroundColor: '#991b1b',
+    borderRadius: 8,
+    padding: 12,
+    marginBottom: 16,
+  },
+  rerunButtonPressed: {
+    backgroundColor: '#7f1d1d',
+  },
+  rerunButtonText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
   },
   statusBadge: {
     paddingHorizontal: 12,
@@ -297,6 +352,26 @@ const styles = StyleSheet.create({
     fontWeight: '600',
     textTransform: 'uppercase',
     letterSpacing: 1,
+  },
+  copyButton: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    borderRadius: 6,
+    backgroundColor: '#333',
+  },
+  copyButtonPressed: {
+    backgroundColor: '#444',
+  },
+  copyButtonText: {
+    color: '#ff6600',
+    fontSize: 12,
+    fontWeight: '600',
+  },
+  copyButtonTextDisabled: {
+    color: '#555',
   },
   logContainer: {
     flex: 1,
