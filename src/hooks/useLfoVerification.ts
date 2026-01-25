@@ -1241,6 +1241,161 @@ const INVESTIGATION_TESTS: TestConfig[] = [
     mode: 'TRG',
     durationMs: 60000,  // 60 cycles
   },
+
+  // ============================================
+  // SLOW-SPEED FADE INVESTIGATION
+  // Goal: Verify fade timing is cycle-relative at different LFO speeds
+  //
+  // If fade is truly cycle-relative:
+  //   - FADE=-16 should take ~2.2 cycles regardless of cycle duration
+  //   - A 4-second cycle with FADE=-16 should reach full at same cycle count
+  //     as a 1-second cycle with FADE=-16
+  //
+  // These tests use slower cycle times to verify this relationship
+  // and include multiple triggers to observe fade reset behavior.
+  // ============================================
+
+  // SLOW FADE: 4-second cycle (SPD=16, MULT=4) vs 1-second cycle
+  // Expected: Same cycle count to reach full amplitude
+  {
+    name: 'FADE_SLOW: -8 @ 4s cycle (expect ~1.4 cycles)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,   // 16 × 4 = 64 → 4 second cycle
+    depth: 63,
+    fade: -8,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 12000,  // 3 cycles at 4s each
+  },
+  {
+    name: 'FADE_SLOW: -16 @ 4s cycle (expect ~2.2 cycles)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 63,
+    fade: -16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 16000,  // 4 cycles at 4s each
+  },
+  {
+    name: 'FADE_SLOW: -24 @ 4s cycle (expect ~7.5 cycles)',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,
+    depth: 63,
+    fade: -24,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 40000,  // 10 cycles at 4s each
+  },
+
+  // VERY SLOW: 8-second cycle (SPD=8, MULT=2)
+  // Tests extreme slow speeds to ensure formula holds
+  {
+    name: 'FADE_VSLOW: -8 @ 8s cycle (expect ~1.4 cycles)',
+    waveform: 'TRI',
+    speed: 8,
+    multiplier: 2,   // 8 × 2 = 16 → 8 second cycle
+    depth: 63,
+    fade: -8,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 20000,  // 2.5 cycles at 8s each
+  },
+  {
+    name: 'FADE_VSLOW: -16 @ 8s cycle (expect ~2.2 cycles)',
+    waveform: 'TRI',
+    speed: 8,
+    multiplier: 2,
+    depth: 63,
+    fade: -16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 24000,  // 3 cycles at 8s each
+  },
+
+  // ============================================
+  // FADE RESET WITH RETRIGGERS
+  // Goal: Verify fade resets to 0 on each trigger in TRG mode
+  //
+  // Setup: Moderate fade with multiple triggers before fade completes
+  // If fade resets correctly, each trigger should show the same
+  // progressive amplitude pattern from the beginning.
+  // ============================================
+
+  // Retrigger before fade completes - should see amplitude reset each time
+  {
+    name: 'FADE_RETRIG: -16 with 3 triggers @ 3s intervals',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,   // 1 second cycle
+    depth: 63,
+    fade: -16,       // ~2.2 cycles to complete
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2500,       // ~2.5 cycles per trigger window
+    retriggerCount: 3,
+    retriggerDelayMs: 3000, // Retrigger every 3s
+  },
+
+  // Retrigger during fade-out - should restart at full amplitude
+  {
+    name: 'FADE_RETRIG: +16 with 3 triggers @ 3s intervals',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 63,
+    fade: 16,        // Fade OUT: ~2.2 cycles to silence
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 2500,
+    retriggerCount: 3,
+    retriggerDelayMs: 3000,
+  },
+
+  // Slower cycle with retriggers - verify reset at different speeds
+  {
+    name: 'FADE_RETRIG_SLOW: -16 @ 4s cycle, 3 triggers',
+    waveform: 'TRI',
+    speed: 16,
+    multiplier: 4,   // 4 second cycle
+    depth: 63,
+    fade: -16,
+    startPhase: 0,
+    mode: 'TRG',
+    durationMs: 10000,      // 2.5 cycles per trigger window
+    retriggerCount: 3,
+    retriggerDelayMs: 12000, // Retrigger every 12s (~3 cycles)
+  },
+
+  // ============================================
+  // FADE + FRE MODE (Should NOT fade - requires trigger)
+  // Goal: Verify fade has no effect in FRE mode
+  // ============================================
+  {
+    name: 'FADE_FRE: -32 in FRE mode (no fade expected)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 63,
+    fade: -32,
+    startPhase: 0,
+    mode: 'FRE',
+    durationMs: 10000,  // 10 cycles
+  },
+  {
+    name: 'FADE_FRE: +32 in FRE mode (no fade expected)',
+    waveform: 'TRI',
+    speed: 32,
+    multiplier: 8,
+    depth: 63,
+    fade: 32,
+    startPhase: 0,
+    mode: 'FRE',
+    durationMs: 10000,
+  },
 ];
 
 // ============================================
@@ -1796,7 +1951,10 @@ export function useLfoVerification() {
       const observedRangeSize = maxVal - minVal;
 
       // Range check: does it achieve at least 85% of expected CC swing?
-      const rangePass = observedRangeSize >= expectedRangeSize * 0.85;
+      // NOTE: RND waveform is exempt - random values don't guarantee hitting full range
+      const rangePass = config.waveform === 'RND'
+        ? true  // RND: skip range check, only verify bounds
+        : observedRangeSize >= expectedRangeSize * 0.85;
 
       // Bounds check: is it within expected min/max (with 5 CC tolerance)?
       const boundsPass = minVal >= expectedMin - 5 && maxVal <= expectedMax + 5;
@@ -1850,7 +2008,8 @@ export function useLfoVerification() {
       console.log(`\n[LFO_RESULT] ============ ${config.name} ============`);
       console.log(`[LFO_RESULT] CONFIG: mode=${config.mode} speed=${config.speed} mult=${config.multiplier} depth=${config.depth} startPhase=${config.startPhase}`);
       console.log(`[LFO_RESULT] TIMING: expected=${expectedCycleMs.toFixed(0)}ms observed=${observedCycleMs.toFixed(0)}ms drift=${timingDriftPercent.toFixed(1)}% (info only)`);
-      console.log(`[LFO_RESULT] SHAPE: range=${observedRangeSize}/${expectedRangeSize} (${rangePass ? 'OK' : 'FAIL'}) bounds=[${minVal}-${maxVal}] expected=[${expectedMin}-${expectedMax}] (${boundsPass ? 'OK' : 'FAIL'})`);
+      const rangeLabel = config.waveform === 'RND' ? 'N/A (random)' : (rangePass ? 'OK' : 'FAIL');
+      console.log(`[LFO_RESULT] SHAPE: range=${observedRangeSize}/${expectedRangeSize} (${rangeLabel}) bounds=[${minVal}-${maxVal}] expected=[${expectedMin}-${expectedMax}] (${boundsPass ? 'OK' : 'FAIL'})`);
       console.log(`[LFO_RESULT] DIRECTION: ${directionInfo || 'N/A'} (${directionPass ? 'OK' : 'FAIL'})`);
       console.log(`[LFO_RESULT] START: value=${startValue} direction=${startDirection} trigger_status=${triggerStatus}`);
 
