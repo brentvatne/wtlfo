@@ -1,4 +1,5 @@
 export {
+  AboutIcon,
   QuestionWaveIcon,
   SlidersIcon,
   WaveformsIcon,

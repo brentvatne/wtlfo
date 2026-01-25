@@ -425,7 +425,51 @@ export function TimingMathIcon({
   );
 }
 
-// Icon 9: Preset Recipes (star)
+// Icon 9: About/Info ("i" in circle)
+export function AboutIcon({
+  size = DEFAULT_SIZE,
+  color = DEFAULT_COLOR,
+  strokeWidth = DEFAULT_STROKE_WIDTH,
+  backgroundColor = '#2a2a2a',
+  borderRadius = 8,
+  style,
+}: SkiaIconProps) {
+  const centerX = size / 2;
+  const centerY = size / 2;
+  const radius = size * 0.32;
+
+  // Info "i" shape
+  const dotY = centerY - radius * 0.45;
+  const lineTop = centerY - radius * 0.1;
+  const lineBottom = centerY + radius * 0.55;
+
+  return (
+    <View
+      style={[
+        { width: size, height: size, backgroundColor, borderRadius, overflow: 'hidden' },
+        style,
+      ]}
+      accessibilityLabel="About This App"
+      accessibilityRole="image"
+    >
+      <Canvas style={{ width: size, height: size }}>
+        <Group>
+          <Circle cx={centerX} cy={centerY} r={radius} color={color} style="stroke" strokeWidth={strokeWidth} />
+          <Circle cx={centerX} cy={dotY} r={strokeWidth * 1.1} color={color} />
+          <Line
+            p1={{ x: centerX, y: lineTop }}
+            p2={{ x: centerX, y: lineBottom }}
+            color={color}
+            strokeWidth={strokeWidth * 1.3}
+            strokeCap="round"
+          />
+        </Group>
+      </Canvas>
+    </View>
+  );
+}
+
+// Icon 10: Preset Recipes (star)
 export function PresetsIcon({
   size = DEFAULT_SIZE,
   color = DEFAULT_COLOR,
