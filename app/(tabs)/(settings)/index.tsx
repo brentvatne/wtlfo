@@ -367,40 +367,7 @@ export default function SettingsScreen() {
         </View>
       </CollapsibleSection>
 
-      <CollapsibleSection
-        title="Animation timing"
-        defaultCollapsed
-        headerRight={(() => {
-          const hasNonDefaultTiming =
-            Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
-            Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
-            Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
-            Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
-            Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
-            Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
-            Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
-            Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
-          return (
-            <Pressable
-              onPress={() => {
-                setFadeInDuration(DEFAULT_FADE_IN_DURATION);
-                setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
-                setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
-                setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
-                setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
-                setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
-                setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
-                setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);
-              }}
-              style={styles.resetButton}
-            >
-              <Text style={[styles.resetButtonText, hasNonDefaultTiming && styles.resetButtonTextActive]}>
-                Reset
-              </Text>
-            </Pressable>
-          );
-        })()}
-      >
+      <CollapsibleSection title="Animation timing" defaultCollapsed>
         <ParameterSlider
           label="Tab switch fade-in"
           min={100}
@@ -467,6 +434,36 @@ export default function SettingsScreen() {
           onChange={setSplashFadeDuration}
           formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
+        {(() => {
+          const hasNonDefaultTiming =
+            Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
+            Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
+            Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
+            Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
+            Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
+            Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
+            Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
+            Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
+          return (
+            <Pressable
+              onPress={() => {
+                setFadeInDuration(DEFAULT_FADE_IN_DURATION);
+                setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
+                setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
+                setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
+                setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
+                setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
+                setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
+                setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);
+              }}
+              style={styles.resetTimingButton}
+            >
+              <Text style={[styles.resetTimingButtonText, hasNonDefaultTiming && styles.resetTimingButtonTextActive]}>
+                Reset to defaults
+              </Text>
+            </Pressable>
+          );
+        })()}
       </CollapsibleSection>
 
       <CollapsibleSection title="Experimental" defaultCollapsed>
@@ -581,6 +578,21 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   resetButtonTextActive: {
+    color: '#ff6600',
+  },
+  resetTimingButton: {
+    alignItems: 'center',
+    paddingVertical: 12,
+    marginTop: 8,
+    backgroundColor: '#252525',
+    borderRadius: 8,
+  },
+  resetTimingButtonText: {
+    color: '#888899',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  resetTimingButtonTextActive: {
     color: '#ff6600',
   },
   settingRow: {
