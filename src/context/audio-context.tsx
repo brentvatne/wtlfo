@@ -84,7 +84,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { lfoOutput, currentConfig, lfoFadeMultiplier, isPaused } = usePreset();
   const { activeDestinationId, getCenterValue } = useModulation();
 
-  console.log('[AudioProvider] render, isPaused:', isPaused);
 
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
@@ -112,6 +111,43 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Check if current destination can be mapped to audio
   const canModulateAudio = AUDIO_DESTINATIONS.has(activeDestinationId as AudioDestination);
 
+  // Warm up the audio system on mount to avoid lag on first user interaction
+  // iOS lazily initializes audio hardware, so we do a silent init/teardown
+  const hasWarmedUpRef = useRef(false);
+  useEffect(() => {
+    if (hasWarmedUpRef.current) return;
+    hasWarmedUpRef.current = true;
+
+    const warmUp = async () => {
+      try {
+        // Create context and oscillator
+        const ctx = new AudioContextClass();
+        const osc = ctx.createOscillator();
+        const gain = ctx.createGain();
+
+        // Set gain to 0 so it's silent
+        gain.gain.value = 0;
+
+        // Connect and start briefly
+        osc.connect(gain);
+        gain.connect(ctx.destination);
+        osc.start();
+
+        // Let it run for one frame then clean up
+        await nextFrame();
+
+        osc.stop();
+        ctx.close();
+      } catch {
+        // Audio may not be supported
+      }
+    };
+
+    // Run warmup after a short delay to not block initial render
+    const timeoutId = setTimeout(warmUp, 100);
+    return () => clearTimeout(timeoutId);
+  }, []);
+
   // Build the audio graph with chunked initialization to prevent frame drops
   // Each step yields to the next frame via requestAnimationFrame
   const buildAudioGraphChunked = useCallback(async (): Promise<boolean> => {
@@ -132,11 +168,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       await nextFrame();
       if (initCancelledRef.current) return false;
 
-      // Frame 3: Create gain and filter
+      // Frame 3: Create gain node
       const gain = ctx.createGain();
       gain.gain.value = DEFAULT_GAIN;
       gainNodeRef.current = gain;
 
+      await nextFrame();
+      if (initCancelledRef.current) return false;
+
+      // Frame 4: Create filter
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = DEFAULT_FILTER_FREQ;
@@ -146,12 +186,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       await nextFrame();
       if (initCancelledRef.current) return false;
 
-      // Frame 4: Create panner and connect graph
+      // Frame 5: Create panner
       const panner = ctx.createStereoPanner();
       panner.pan.value = 0;
       pannerNodeRef.current = panner;
 
-      // Connect: osc -> gain -> filter -> panner -> destination
+      await nextFrame();
+      if (initCancelledRef.current) return false;
+
+      // Frame 6: Connect graph
       osc.connect(gain);
       gain.connect(filter);
       filter.connect(panner);
@@ -183,11 +226,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Clean up audio graph
   const destroyAudioGraph = useCallback(() => {
-    console.log('[AudioContext] destroyAudioGraph called', {
-      hasOscillator: !!oscillatorRef.current,
-      hasAudioContext: !!audioContextRef.current,
-    });
-
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
       animationFrameRef.current = 0;
@@ -196,9 +234,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (oscillatorRef.current) {
       try {
         oscillatorRef.current.stop();
-        console.log('[AudioContext] Oscillator stopped');
-      } catch (e) {
-        console.log('[AudioContext] Oscillator stop error:', e);
+      } catch {
+        // Oscillator may already be stopped
       }
       oscillatorRef.current = null;
     }
@@ -209,7 +246,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     if (audioContextRef.current) {
       audioContextRef.current.close();
-      console.log('[AudioContext] AudioContext closed');
       audioContextRef.current = null;
     }
   }, []);
@@ -374,7 +410,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Stop audio when LFO is paused (but keep toggle state)
   useEffect(() => {
     if (isPaused && isPlaying && oscillatorRef.current) {
-      console.log('[AudioContext] Stopping audio (LFO paused, toggle stays on)');
       stoppedDueToPauseRef.current = true;
       destroyAudioGraph();
     }
@@ -383,7 +418,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Resume audio when LFO is unpaused (if toggle is still on)
   useEffect(() => {
     if (!isPaused && isPlaying && stoppedDueToPauseRef.current) {
-      console.log('[AudioContext] Starting audio fresh (LFO resumed)');
       stoppedDueToPauseRef.current = false;
       initCancelledRef.current = false;
 
