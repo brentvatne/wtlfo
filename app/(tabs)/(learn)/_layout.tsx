@@ -36,12 +36,6 @@ export default function LearnLayout() {
         }}
       />
       <Stack.Screen
-        name="parameters"
-        options={{
-          title: 'The 7 Parameters',
-        }}
-      />
-      <Stack.Screen
         name="waveforms"
         options={{
           title: 'Waveforms',
@@ -62,13 +56,13 @@ export default function LearnLayout() {
       <Stack.Screen
         name="depth"
         options={{
-          title: 'Depth & Fade',
+          title: 'Depth & fade',
         }}
       />
       <Stack.Screen
         name="modes"
         options={{
-          title: 'Trigger Modes',
+          title: 'Trigger modes',
         }}
       />
       <Stack.Screen

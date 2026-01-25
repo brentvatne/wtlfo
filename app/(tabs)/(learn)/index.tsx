@@ -8,7 +8,6 @@ import { usePreset } from '@/src/context/preset-context';
 import {
   AboutIcon,
   QuestionWaveIcon,
-  SlidersIcon,
   WaveformsIcon,
   SpeedometerIcon,
   EnvelopeIcon,
@@ -40,13 +39,6 @@ const TOPICS: TopicCard[] = [
     route: '/intro',
   },
   {
-    id: 'parameters',
-    IconComponent: SlidersIcon,
-    title: 'The 7 Parameters',
-    description: 'Visual guide to every LFO control',
-    route: '/parameters',
-  },
-  {
     id: 'waveforms',
     IconComponent: WaveformsIcon,
     title: 'Waveforms',
@@ -63,14 +55,14 @@ const TOPICS: TopicCard[] = [
   {
     id: 'depth',
     IconComponent: EnvelopeIcon,
-    title: 'Depth & Fade',
+    title: 'Depth & fade',
     description: 'Controlling intensity and envelope',
     route: '/depth',
   },
   {
     id: 'modes',
     IconComponent: TriggersIcon,
-    title: 'Trigger Modes',
+    title: 'Trigger modes',
     description: 'FRE, TRG, HLD, ONE, HLF explained',
     route: '/modes',
   },

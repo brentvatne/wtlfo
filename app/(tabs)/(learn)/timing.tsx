@@ -1,7 +1,7 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useRouter } from 'expo-router';
+import { WaveformIcon } from '@/src/components/lfo';
 
 interface TimingExample {
   label: string;
@@ -60,8 +60,6 @@ function TimingCard({ example }: { example: TimingExample }) {
 }
 
 export default function TimingScreen() {
-  const router = useRouter();
-
   return (
     <ScrollView
       style={styles.container}
@@ -70,24 +68,24 @@ export default function TimingScreen() {
     >
       <Section title="SPD (Speed)">
         <Text style={styles.paragraph}>
-          Range: -64 to +63. Positive = forward, negative = backward, zero = frozen.
+          Range: -64.00 to +63.99. Positive = forward, negative = backward, zero = frozen.
         </Text>
       </Section>
 
-      <Section title="MULT (Multiplier)">
+      <Section title="MULT (multiplier)">
         <Text style={styles.paragraph}>
           Powers of 2 from 1 to 2k. Higher = faster. BPM mode syncs to tempo, 120 mode locks to 120 BPM.
         </Text>
       </Section>
 
-      <Section title="The Formula">
+      <Section title="The formula">
         <View style={styles.formulaBox}>
           <Text style={styles.formula}>|SPD| × MULT = Product</Text>
           <Text style={styles.formulaNote}>Product of 128 = 1 bar per cycle</Text>
         </View>
       </Section>
 
-      <Section title="Quick Reference">
+      <Section title="Quick reference">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -100,20 +98,34 @@ export default function TimingScreen() {
         </ScrollView>
       </Section>
 
-      <ExpandableSection title="Negative Speed Deep Dive">
+      <ExpandableSection title="Negative speed">
         <Text style={styles.expandedText}>
           When speed is negative, the LFO runs backward through the waveform cycle.
         </Text>
-        <Text style={[styles.expandedText, { marginTop: 8 }]}>
-          <Text style={styles.bold}>SAW with positive speed:</Text> Rising ramp (builds up){'\n'}
-          <Text style={styles.bold}>SAW with negative speed:</Text> Falling ramp (decays)
-        </Text>
-        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+        <View style={styles.waveformExamples}>
+          <View style={styles.waveformExample}>
+            <WaveformIcon waveform="SAW" size={24} color="#ff6600" />
+            <View style={styles.waveformExampleText}>
+              <Text style={styles.bold}>SAW with positive speed</Text>
+              <Text style={styles.waveformDesc}>Rising ramp (builds up)</Text>
+            </View>
+          </View>
+          <View style={styles.waveformExample}>
+            <View style={{ transform: [{ scaleX: -1 }] }}>
+              <WaveformIcon waveform="SAW" size={24} color="#ff6600" />
+            </View>
+            <View style={styles.waveformExampleText}>
+              <Text style={styles.bold}>SAW with negative speed</Text>
+              <Text style={styles.waveformDesc}>Falling ramp (decays)</Text>
+            </View>
+          </View>
+        </View>
+        <Text style={[styles.expandedText, { marginTop: 12 }]}>
           This is different from negative depth, which inverts the output but keeps the direction the same.
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Speed = 0: Static LFO">
+      <ExpandableSection title="Speed = 0: static LFO">
         <Text style={styles.expandedText}>
           When SPD is set to 0, the LFO becomes completely static—it doesn't move at all.
         </Text>
@@ -121,18 +133,9 @@ export default function TimingScreen() {
           <Text style={styles.bold}>Why?</Text> The timing formula divides by |SPD| × MULT. When SPD=0, this results in division by zero → infinite cycle time.
         </Text>
         <Text style={[styles.expandedText, { marginTop: 8 }]}>
-          <Text style={styles.bold}>Use case:</Text> Combined with Start Phase, you can use SPD=0 to create a fixed offset. Set SPH to position the "frozen" output wherever you want on the waveform.
+          The Start Phase parameter determines where on the waveform the frozen output sits.
         </Text>
       </ExpandableSection>
-
-      <View style={styles.relatedSection}>
-        <Pressable
-          onPress={() => router.push('/advanced' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Advanced → Full formulas and technical details</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
@@ -271,25 +274,24 @@ const styles = StyleSheet.create({
     fontSize: 14,
     lineHeight: 20,
   },
-  relatedSection: {
-    marginTop: 8,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222222',
+  waveformExamples: {
+    marginTop: 12,
+    gap: 10,
   },
-  relatedTitle: {
+  waveformExample: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    backgroundColor: '#252525',
+    borderRadius: 8,
+    padding: 10,
+  },
+  waveformExampleText: {
+    flex: 1,
+  },
+  waveformDesc: {
     color: '#888899',
     fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  relatedLink: {
-    paddingVertical: 8,
-  },
-  relatedLinkText: {
-    color: '#ff6600',
-    fontSize: 14,
+    marginTop: 2,
   },
 });

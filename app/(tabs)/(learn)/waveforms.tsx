@@ -124,7 +124,10 @@ function WaveformCard({ info, width }: { info: WaveformInfo; width: number }) {
           <Text style={styles.waveName}>{info.name}</Text>
         </View>
         <View style={[styles.polarityBadge, info.polarity === 'Unipolar' && styles.unipolarBadge]}>
-          <Text style={styles.polarityText}>{info.polarity === 'Bipolar' ? '±' : '+'}</Text>
+          <Text style={styles.polarityIcon}>{info.polarity === 'Bipolar' ? '±' : '+'}</Text>
+          <Text style={[styles.polarityText, info.polarity === 'Unipolar' && styles.unipolarText]}>
+            {info.polarity}
+          </Text>
         </View>
       </View>
 
@@ -174,23 +177,36 @@ export default function WaveformsScreen() {
         The waveform determines the shape of modulation over time. Each creates a different character of movement.
       </Text>
 
+      <View style={styles.polaritySection}>
+        <Text style={styles.polaritySectionTitle}>Bipolar vs unipolar</Text>
+        <View style={styles.polarityRow}>
+          <View style={[styles.polarityBadgeLarge, styles.bipolarBadgeLarge]}>
+            <Text style={styles.polarityIconLarge}>±</Text>
+          </View>
+          <View style={styles.polarityInfo}>
+            <Text style={styles.polarityLabel}>Bipolar</Text>
+            <Text style={styles.polarityDesc}>Swings above and below center (-1 to +1)</Text>
+          </View>
+        </View>
+        <View style={styles.polarityRow}>
+          <View style={[styles.polarityBadgeLarge, styles.unipolarBadgeLarge]}>
+            <Text style={styles.polarityIconLarge}>+</Text>
+          </View>
+          <View style={styles.polarityInfo}>
+            <Text style={styles.polarityLabel}>Unipolar</Text>
+            <Text style={styles.polarityDesc}>Only positive values (0 to +1). EXP and RMP.</Text>
+          </View>
+        </View>
+        <Text style={styles.polarityNote}>
+          This matters with negative depth—inverting a unipolar waveform keeps it positive but reverses direction.
+        </Text>
+      </View>
+
       <View style={styles.cardList}>
         {WAVEFORMS.map((info) => (
           <WaveformCard key={info.type} info={info} width={cardWidth} />
         ))}
       </View>
-
-      <ExpandableSection title="Bipolar vs Unipolar">
-        <Text style={styles.sectionText}>
-          <Text style={styles.bold}>Bipolar</Text> waveforms swing both above and below center (±). They oscillate between -1 and +1.
-        </Text>
-        <Text style={[styles.sectionText, { marginTop: 8 }]}>
-          <Text style={styles.bold}>Unipolar</Text> waveforms only produce positive values. They range from 0 to +1. EXP and RMP are unipolar.
-        </Text>
-        <Text style={[styles.sectionText, { marginTop: 8 }]}>
-          This distinction matters when using negative depth - inverting a unipolar waveform keeps it positive but reverses its direction.
-        </Text>
-      </ExpandableSection>
     </ScrollView>
   );
 }
@@ -241,18 +257,84 @@ const styles = StyleSheet.create({
     fontWeight: '500',
   },
   polarityBadge: {
+    flexDirection: 'row',
+    alignItems: 'center',
     backgroundColor: '#2a4a2a',
     paddingHorizontal: 8,
     paddingVertical: 4,
     borderRadius: 4,
+    gap: 4,
   },
   unipolarBadge: {
     backgroundColor: '#4a3a2a',
   },
-  polarityText: {
+  polarityIcon: {
     color: '#88cc88',
     fontSize: 12,
+    fontWeight: '700',
+  },
+  polarityText: {
+    color: '#88cc88',
+    fontSize: 11,
+    fontWeight: '500',
+  },
+  unipolarText: {
+    color: '#ccaa88',
+  },
+  polaritySection: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  polaritySectionTitle: {
+    color: '#ffffff',
+    fontSize: 16,
     fontWeight: '600',
+    marginBottom: 12,
+  },
+  polarityRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 12,
+    marginBottom: 10,
+  },
+  polarityBadgeLarge: {
+    width: 32,
+    height: 32,
+    borderRadius: 6,
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  bipolarBadgeLarge: {
+    backgroundColor: '#2a4a2a',
+  },
+  unipolarBadgeLarge: {
+    backgroundColor: '#4a3a2a',
+  },
+  polarityIconLarge: {
+    fontSize: 16,
+    fontWeight: '700',
+    color: '#88cc88',
+  },
+  polarityInfo: {
+    flex: 1,
+  },
+  polarityLabel: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  polarityDesc: {
+    color: '#888899',
+    fontSize: 13,
+    marginTop: 2,
+  },
+  polarityNote: {
+    color: '#666680',
+    fontSize: 12,
+    marginTop: 6,
+    fontStyle: 'italic',
   },
   character: {
     color: '#cccccc',

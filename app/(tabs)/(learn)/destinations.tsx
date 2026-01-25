@@ -93,7 +93,7 @@ export default function DestinationsScreen() {
         </Text>
       </View>
 
-      <Text style={styles.sectionHeader}>Audio Track Destinations</Text>
+      <Text style={styles.sectionHeader}>Audio track destinations</Text>
 
       <ScrollView
         horizontal
@@ -106,7 +106,7 @@ export default function DestinationsScreen() {
         ))}
       </ScrollView>
 
-      <Text style={styles.sectionHeader}>Popular Combinations</Text>
+      <Text style={styles.sectionHeader}>Popular combinations</Text>
 
       <View style={styles.comboList}>
         {POPULAR_COMBOS.map((combo) => (
@@ -117,7 +117,7 @@ export default function DestinationsScreen() {
         ))}
       </View>
 
-      <ExpandableSection title="How Modulation Works">
+      <ExpandableSection title="How modulation works">
         <Text style={styles.expandedText}>
           The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when LFO output is zero. The LFO moves above and below this point.
         </Text>
@@ -126,7 +126,7 @@ export default function DestinationsScreen() {
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="MIDI Track Destinations">
+      <ExpandableSection title="MIDI track destinations">
         <Text style={styles.expandedText}>
           MIDI tracks can modulate CC values, pitch bend, aftertouch, and note parameters.
         </Text>

@@ -1,7 +1,6 @@
 import React from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useRouter } from 'expo-router';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,22 +20,6 @@ function BulletPoint({ children }: { children: string }) {
   );
 }
 
-function RelatedLink({ title, description, route }: { title: string; description: string; route: string }) {
-  const router = useRouter();
-  return (
-    <Pressable
-      onPress={() => router.push(route as any)}
-      style={({ pressed }) => [styles.relatedLink, pressed && styles.relatedLinkPressed]}
-    >
-      <View style={styles.relatedLinkContent}>
-        <Text style={styles.relatedLinkTitle}>{title}</Text>
-        <Text style={styles.relatedLinkDescription}>{description}</Text>
-      </View>
-      <Text style={styles.relatedLinkChevron}>›</Text>
-    </Pressable>
-  );
-}
-
 export default function IntroScreen() {
   return (
     <ScrollView
@@ -44,13 +27,13 @@ export default function IntroScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Section title="The Basics">
+      <Section title="The basics">
         <BulletPoint>LFO = Low Frequency Oscillator</BulletPoint>
         <BulletPoint>Automatically moves parameters over time</BulletPoint>
         <BulletPoint>Creates movement in your sounds: filter sweeps, tremolo, vibrato, panning</BulletPoint>
       </Section>
 
-      <Section title="Digitakt II LFO Architecture">
+      <Section title="Digitakt II LFO architecture">
         <View style={styles.infoBox}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Audio Tracks</Text>
@@ -65,20 +48,6 @@ export default function IntroScreen() {
           LFOs can modulate each other for complex movement (LFO3 → LFO2 → LFO1)
         </Text>
       </Section>
-
-      <View style={styles.relatedSection}>
-        <Text style={styles.relatedTitle}>Related Concepts</Text>
-        <RelatedLink
-          title="The 7 Parameters"
-          description="Learn what each control does"
-          route="/parameters"
-        />
-        <RelatedLink
-          title="Modulation Destinations"
-          description="See where LFOs can go"
-          route="/destinations"
-        />
-      </View>
     </ScrollView>
   );
 }
@@ -140,47 +109,5 @@ const styles = StyleSheet.create({
     fontSize: 13,
     fontStyle: 'italic',
     marginTop: 8,
-  },
-  relatedSection: {
-    marginTop: 16,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222222',
-  },
-  relatedTitle: {
-    color: '#888899',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  relatedLink: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 8,
-    padding: 12,
-    flexDirection: 'row',
-    alignItems: 'center',
-    marginBottom: 8,
-  },
-  relatedLinkPressed: {
-    backgroundColor: '#252525',
-  },
-  relatedLinkContent: {
-    flex: 1,
-  },
-  relatedLinkTitle: {
-    color: '#ff6600',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  relatedLinkDescription: {
-    color: '#888899',
-    fontSize: 13,
-    marginTop: 2,
-  },
-  relatedLinkChevron: {
-    color: '#555566',
-    fontSize: 20,
   },
 });

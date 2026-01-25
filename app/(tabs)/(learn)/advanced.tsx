@@ -61,7 +61,7 @@ export default function TimingScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Section title="The Core Concept">
+      <Section title="The core concept">
         <FormulaBox
           formula="|SPD| × MULT = Product"
           note="Product of 128 = exactly 1 bar per cycle"
@@ -71,7 +71,7 @@ export default function TimingScreen() {
         </Text>
       </Section>
 
-      <Section title="Common Timing Reference">
+      <Section title="Common timing reference">
         <ScrollView
           horizontal
           showsHorizontalScrollIndicator={false}
@@ -87,7 +87,7 @@ export default function TimingScreen() {
         </ScrollView>
       </Section>
 
-      <ExpandableSection title="The Formulas">
+      <ExpandableSection title="The formulas">
         <Text style={styles.formulaLabel}>Calculating Cycle Length:</Text>
         <View style={styles.codeBlock}>
           <Text style={styles.code}>product = |SPD| × MULT</Text>
@@ -120,19 +120,19 @@ export default function TimingScreen() {
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Asymmetry Note">
+      <ExpandableSection title="Asymmetry note">
         <Text style={styles.expandedText}>
-          The speed range is -64 to +63, which is slightly asymmetric.
+          The speed range is -64.00 to +63.99.
         </Text>
         <Text style={[styles.expandedText, { marginTop: 8 }]}>
-          At SPD=-64, the magnitude is slightly greater than 1.0 (64/63 ≈ 1.016).
+          At SPD=-64, the magnitude is slightly greater than 1.0 (64/63.99 ≈ 1.0002).
         </Text>
         <Text style={[styles.expandedText, { marginTop: 8 }]}>
           <Text style={styles.bold}>Workaround:</Text> Use SPD=-64 with SPH=127 for nearly perfect sync when running backward.
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Modulation Update Rate">
+      <ExpandableSection title="Modulation update rate">
         <Text style={styles.expandedText}>
           The Digitakt LFO updates <Text style={styles.bold}>continuously</Text>, not quantized to sequencer steps.
         </Text>
@@ -159,7 +159,7 @@ export default function TimingScreen() {
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Verification & Sources">
+      <ExpandableSection title="Verification & sources">
         <Text style={styles.expandedText}>
           Formulas verified against Digitakt II hardware via MIDI CC capture and nixienoise.com LFO calculator.
         </Text>

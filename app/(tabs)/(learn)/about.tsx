@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { SymbolView } from 'expo-symbols';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -26,10 +27,7 @@ export default function AboutScreen() {
 
       <Section title="Accuracy">
         <Text style={styles.paragraph}>
-          LFO calculations are based on the Elektron formula and verified against Digitakt II hardware. The visualizations accurately represent waveform shapes, timing relationships, and parameter interactions.
-        </Text>
-        <Text style={[styles.paragraph, { marginTop: 12 }]}>
-          While built for Digitakt II, LFO parameters work the same way across Elektron devices (Digitakt, Syntakt, Analog Four, etc.). The number of LFOs per track and available destinations vary by device.
+          Verified against Digitakt II hardware. LFO behavior is the same across all Elektron devices.
         </Text>
       </Section>
 
@@ -42,7 +40,9 @@ export default function AboutScreen() {
       <Section title="Limitations">
         <View style={styles.limitationsList}>
           <View style={styles.limitation}>
-            <Text style={styles.limitationIcon}>!</Text>
+            <View style={styles.limitationIconContainer}>
+              <SymbolView name="cable.connector" size={18} tintColor="#888899" />
+            </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Limited MIDI sync</Text>
               <Text style={styles.limitationText}>
@@ -52,7 +52,9 @@ export default function AboutScreen() {
           </View>
 
           <View style={styles.limitation}>
-            <Text style={styles.limitationIcon}>!</Text>
+            <View style={styles.limitationIconContainer}>
+              <SymbolView name="bookmark.slash" size={18} tintColor="#888899" />
+            </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>No custom presets</Text>
               <Text style={styles.limitationText}>
@@ -62,7 +64,9 @@ export default function AboutScreen() {
           </View>
 
           <View style={styles.limitation}>
-            <Text style={styles.limitationIcon}>!</Text>
+            <View style={styles.limitationIconContainer}>
+              <SymbolView name="clock.badge.questionmark" size={18} tintColor="#888899" />
+            </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Timing is approximate</Text>
               <Text style={styles.limitationText}>
@@ -72,7 +76,9 @@ export default function AboutScreen() {
           </View>
 
           <View style={styles.limitation}>
-            <Text style={styles.limitationIcon}>!</Text>
+            <View style={styles.limitationIconContainer}>
+              <SymbolView name="speaker.wave.1" size={18} tintColor="#888899" />
+            </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Limited audio simulation</Text>
               <Text style={styles.limitationText}>
@@ -82,7 +88,9 @@ export default function AboutScreen() {
           </View>
 
           <View style={styles.limitation}>
-            <Text style={styles.limitationIcon}>!</Text>
+            <View style={styles.limitationIconContainer}>
+              <SymbolView name="list.bullet" size={18} tintColor="#888899" />
+            </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Simplified destination list</Text>
               <Text style={styles.limitationText}>
@@ -128,12 +136,10 @@ const styles = StyleSheet.create({
     padding: 12,
     gap: 12,
   },
-  limitationIcon: {
-    color: '#ffaa00',
-    fontSize: 16,
-    fontWeight: '700',
-    width: 20,
-    textAlign: 'center',
+  limitationIconContainer: {
+    width: 24,
+    alignItems: 'center',
+    paddingTop: 2,
   },
   limitationContent: {
     flex: 1,

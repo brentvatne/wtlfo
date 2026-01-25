@@ -58,7 +58,7 @@ export default function DepthScreen() {
         </View>
       </Section>
 
-      <Section title="FADE Parameter">
+      <Section title="FADE parameter">
         <View style={styles.infoBox}>
           <View style={styles.infoRow}>
             <Text style={styles.infoLabel}>Range</Text>
@@ -97,7 +97,7 @@ export default function DepthScreen() {
         </View>
       </Section>
 
-      <ExpandableSection title="Fade Timing Deep Dive">
+      <ExpandableSection title="Fade timing">
         <Text style={styles.expandedText}>
           Fade speed is relative to the LFO cycle time. Higher absolute values = faster fade.
         </Text>
@@ -108,7 +108,7 @@ export default function DepthScreen() {
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Combining Depth & Fade">
+      <ExpandableSection title="Combining depth & fade">
         <Text style={styles.expandedText}>
           <Text style={styles.bold}>Fade IN + Positive Depth:</Text>{'\n'}
           Modulation gradually builds up from zero.
@@ -122,22 +122,6 @@ export default function DepthScreen() {
           Creates envelope-like behavior - perfect for attack/decay shapes.
         </Text>
       </ExpandableSection>
-
-      <View style={styles.relatedSection}>
-        <Text style={styles.relatedTitle}>Related Concepts</Text>
-        <Pressable
-          onPress={() => router.push('/modes' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Trigger Modes → Use ONE + FADE for envelopes</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/waveforms' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Waveforms → See how shapes respond to inversion</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
@@ -310,26 +294,5 @@ const styles = StyleSheet.create({
     color: '#cccccc',
     fontSize: 14,
     lineHeight: 20,
-  },
-  relatedSection: {
-    marginTop: 8,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222222',
-  },
-  relatedTitle: {
-    color: '#888899',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  relatedLink: {
-    paddingVertical: 8,
-  },
-  relatedLinkText: {
-    color: '#ff6600',
-    fontSize: 14,
   },
 });

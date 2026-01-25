@@ -1,7 +1,6 @@
 import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useRouter } from 'expo-router';
 
 interface ModeInfo {
   mode: string;
@@ -82,8 +81,6 @@ function ExpandableSection({ title, children }: { title: string; children: React
 }
 
 export default function ModesScreen() {
-  const router = useRouter();
-
   return (
     <ScrollView
       style={styles.container}
@@ -100,7 +97,7 @@ export default function ModesScreen() {
         ))}
       </View>
 
-      <ExpandableSection title="Hardware Verified Behavior">
+      <ExpandableSection title="Hardware verified behavior">
         <Text style={styles.verifiedText}>
           Verified against Digitakt II via MIDI CC capture:
         </Text>
@@ -133,17 +130,6 @@ export default function ModesScreen() {
           </Text>
         </View>
       </ExpandableSection>
-
-
-      <View style={styles.relatedSection}>
-        <Text style={styles.relatedTitle}>Related</Text>
-        <Pressable
-          onPress={() => router.push('/depth' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Depth & Fade → Use FADE with ONE for envelopes</Text>
-        </Pressable>
-      </View>
     </ScrollView>
   );
 }
@@ -234,27 +220,6 @@ const styles = StyleSheet.create({
   expandableContent: {
     padding: 14,
     paddingTop: 0,
-  },
-  relatedSection: {
-    marginTop: 24,
-    paddingTop: 16,
-    borderTopWidth: 1,
-    borderTopColor: '#222222',
-  },
-  relatedTitle: {
-    color: '#888899',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 0.5,
-    marginBottom: 12,
-  },
-  relatedLink: {
-    paddingVertical: 8,
-  },
-  relatedLinkText: {
-    color: '#ff6600',
-    fontSize: 14,
   },
   verifiedText: {
     color: '#88cc88',
