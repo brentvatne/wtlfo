@@ -1,6 +1,8 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { useSafeAreaFrame } from 'react-native-safe-area-context';
+import { LFOKnobDemo } from '@/src/components/learn/LFOKnobDemo';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -21,12 +23,20 @@ function BulletPoint({ children }: { children: string }) {
 }
 
 export default function IntroScreen() {
+  const { width: frameWidth } = useSafeAreaFrame();
+  const demoWidth = frameWidth - 32;
+
   return (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
+      <View style={styles.demoContainer}>
+        <LFOKnobDemo width={demoWidth} height={140} />
+        <Text style={styles.demoCaption}>LFO waveform automatically turns a knob</Text>
+      </View>
+
       <Section title="The basics">
         <BulletPoint>LFO = Low Frequency Oscillator</BulletPoint>
         <BulletPoint>Automatically moves parameters over time</BulletPoint>
@@ -59,6 +69,16 @@ const styles = StyleSheet.create({
   },
   content: {
     padding: 16,
+  },
+  demoContainer: {
+    marginBottom: 24,
+    alignItems: 'center',
+  },
+  demoCaption: {
+    color: '#888899',
+    fontSize: 13,
+    marginTop: 8,
+    textAlign: 'center',
   },
   section: {
     marginBottom: 24,
