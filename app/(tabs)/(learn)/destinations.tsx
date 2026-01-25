@@ -93,6 +93,17 @@ export default function DestinationsScreen() {
         </Text>
       </View>
 
+      <View style={styles.howItWorksSection}>
+        <ExpandableSection title="How modulation works">
+          <Text style={styles.expandedText}>
+            The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when LFO output is zero. The LFO moves above and below this point.
+          </Text>
+          <Text style={[styles.expandedText, { marginTop: 8 }]}>
+            <Text style={styles.highlight}>Depth</Text> controls range. At +63, the full parameter range can be modulated.
+          </Text>
+        </ExpandableSection>
+      </View>
+
       <Text style={styles.sectionHeader}>Audio track destinations</Text>
 
       <ScrollView
@@ -116,15 +127,6 @@ export default function DestinationsScreen() {
           </View>
         ))}
       </View>
-
-      <ExpandableSection title="How modulation works">
-        <Text style={styles.expandedText}>
-          The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when LFO output is zero. The LFO moves above and below this point.
-        </Text>
-        <Text style={[styles.expandedText, { marginTop: 8 }]}>
-          <Text style={styles.highlight}>Depth</Text> controls range. At +63, the full parameter range can be modulated.
-        </Text>
-      </ExpandableSection>
 
       <ExpandableSection title="MIDI track destinations">
         <Text style={styles.expandedText}>
@@ -160,6 +162,9 @@ const styles = StyleSheet.create({
     color: '#88cc88',
     fontSize: 13,
     textAlign: 'center',
+  },
+  howItWorksSection: {
+    marginBottom: 8,
   },
   sectionHeader: {
     color: '#ffffff',
