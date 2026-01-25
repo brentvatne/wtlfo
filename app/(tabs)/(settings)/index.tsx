@@ -500,28 +500,28 @@ export default function SettingsScreen() {
       </CollapsibleSection>
 
       {/* Version and Update Info */}
-      <View style={styles.versionContainer}>
-        <Text style={styles.versionText} selectable>
+      <Pressable
+        style={styles.versionContainer}
+        onPress={handleCheckUpdate}
+        disabled={isChecking || isDownloading}
+        hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
+      >
+        <Text style={styles.versionText}>
           v{APP_VERSION}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
         </Text>
-        <Pressable
-          onPress={handleCheckUpdate}
-          disabled={isChecking || isDownloading}
-        >
-          {isChecking || isDownloading ? (
-            <View style={styles.updateRow}>
-              <ActivityIndicator size="small" color="#888" />
-              <Text style={styles.updateCheckingText}>
-                {isDownloading ? 'Downloading...' : 'Checking...'}
-              </Text>
-            </View>
-          ) : (
-            <Text style={styles.updateIdText} selectable>
-              {getUpdateId()}
+        {isChecking || isDownloading ? (
+          <View style={styles.updateRow}>
+            <ActivityIndicator size="small" color="#888" />
+            <Text style={styles.updateCheckingText}>
+              {isDownloading ? 'Downloading...' : 'Checking...'}
             </Text>
-          )}
-        </Pressable>
-      </View>
+          </View>
+        ) : (
+          <Text style={styles.updateIdText}>
+            {getUpdateId()}
+          </Text>
+        )}
+      </Pressable>
       </Animated.View>
     </ScrollView>
   );
