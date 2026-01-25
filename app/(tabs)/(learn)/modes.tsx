@@ -7,63 +7,39 @@ interface ModeInfo {
   mode: string;
   name: string;
   description: string;
-  behavior: string;
   bestFor: string[];
-  runsContinuously: boolean;
-  respondsToTrigger: string;
-  stops: string;
 }
 
 const MODES: ModeInfo[] = [
   {
     mode: 'FRE',
     name: 'Free',
-    description: 'LFO runs continuously, ignoring all triggers',
-    behavior: 'Endless cycling regardless of note events',
-    bestFor: ['Ambient textures', 'Evolving pads', 'Background movement'],
-    runsContinuously: true,
-    respondsToTrigger: 'No',
-    stops: 'Never',
+    description: 'Runs continuously, ignores triggers',
+    bestFor: ['Ambient textures', 'Evolving pads'],
   },
   {
     mode: 'TRG',
     name: 'Trigger',
-    description: 'LFO restarts from start phase on each trigger',
-    behavior: 'Resets to SPH position every time a note plays',
-    bestFor: ['Rhythmic effects', 'Synced modulation', 'Consistent attacks'],
-    runsContinuously: true,
-    respondsToTrigger: 'Restarts',
-    stops: 'Never',
+    description: 'Restarts from SPH on each trigger',
+    bestFor: ['Rhythmic effects', 'Synced modulation'],
   },
   {
     mode: 'HLD',
     name: 'Hold',
-    description: 'LFO runs hidden; trigger freezes current value',
-    behavior: 'Samples and holds output at moment of trigger',
-    bestFor: ['Sample-and-hold', 'Frozen modulation', 'Random snapshots'],
-    runsContinuously: true,
-    respondsToTrigger: 'Freezes output',
-    stops: 'Never',
+    description: 'Freezes current value on trigger',
+    bestFor: ['Sample-and-hold', 'Random snapshots'],
   },
   {
     mode: 'ONE',
     name: 'One-Shot',
-    description: 'Single complete cycle from trigger, then stops',
-    behavior: 'Runs exactly one full cycle and holds final value',
-    bestFor: ['Envelope-like effects', 'One-time sweeps', 'Attack shapes'],
-    runsContinuously: false,
-    respondsToTrigger: 'Starts',
-    stops: 'After 1 cycle',
+    description: 'One full cycle from trigger, then stops',
+    bestFor: ['Envelope-like effects', 'One-time sweeps'],
   },
   {
     mode: 'HLF',
     name: 'Half',
     description: 'Half cycle from trigger, then stops',
-    behavior: 'Runs exactly half a cycle and holds final value',
-    bestFor: ['Attack-only envelopes', 'Single-direction sweeps'],
-    runsContinuously: false,
-    respondsToTrigger: 'Starts',
-    stops: 'After 1/2 cycle',
+    bestFor: ['Attack-only envelopes'],
   },
 ];
 
@@ -76,10 +52,6 @@ function ModeCard({ info }: { info: ModeInfo }) {
       </View>
 
       <Text style={styles.modeDescription}>{info.description}</Text>
-
-      <View style={styles.behaviorBox}>
-        <Text style={styles.behaviorText}>{info.behavior}</Text>
-      </View>
 
       <View style={styles.tagsRow}>
         {info.bestFor.map((tag) => (
@@ -119,7 +91,7 @@ export default function ModesScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <Text style={styles.intro}>
-        Trigger modes control how the LFO responds to note events. Each mode creates different rhythmic and musical behavior.
+        How the LFO responds to note triggers.
       </Text>
 
       <View style={styles.modeList}>
@@ -162,44 +134,14 @@ export default function ModesScreen() {
         </View>
       </ExpandableSection>
 
-      <ExpandableSection title="Mode Comparison Table">
-        <View style={styles.comparisonTable}>
-          <View style={styles.tableHeader}>
-            <Text style={[styles.tableCell, styles.tableHeaderText, { flex: 0.8 }]}>Mode</Text>
-            <Text style={[styles.tableCell, styles.tableHeaderText]}>Continuous?</Text>
-            <Text style={[styles.tableCell, styles.tableHeaderText]}>On Trigger</Text>
-            <Text style={[styles.tableCell, styles.tableHeaderText]}>Stops?</Text>
-          </View>
-          {MODES.map((info) => (
-            <View key={info.mode} style={styles.tableRow}>
-              <Text style={[styles.tableCell, styles.modeCell, { flex: 0.8 }]}>{info.mode}</Text>
-              <Text style={styles.tableCell}>{info.runsContinuously ? 'Yes' : 'No'}</Text>
-              <Text style={styles.tableCell}>{info.respondsToTrigger}</Text>
-              <Text style={styles.tableCell}>{info.stops}</Text>
-            </View>
-          ))}
-        </View>
-      </ExpandableSection>
 
       <View style={styles.relatedSection}>
-        <Text style={styles.relatedTitle}>Related Concepts</Text>
+        <Text style={styles.relatedTitle}>Related</Text>
         <Pressable
           onPress={() => router.push('/depth' as any)}
           style={styles.relatedLink}
         >
           <Text style={styles.relatedLinkText}>Depth & Fade → Use FADE with ONE for envelopes</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/speed' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Speed & Timing → Mode behavior depends on LFO speed</Text>
-        </Pressable>
-        <Pressable
-          onPress={() => router.push('/presets' as any)}
-          style={styles.relatedLink}
-        >
-          <Text style={styles.relatedLinkText}>Preset Recipes → See modes in action</Text>
         </Pressable>
       </View>
     </ScrollView>
@@ -252,17 +194,6 @@ const styles = StyleSheet.create({
     lineHeight: 20,
     marginBottom: 10,
   },
-  behaviorBox: {
-    backgroundColor: '#252525',
-    borderRadius: 6,
-    padding: 10,
-    marginBottom: 10,
-  },
-  behaviorText: {
-    color: '#aaaaaa',
-    fontSize: 13,
-    fontStyle: 'italic',
-  },
   tagsRow: {
     flexDirection: 'row',
     flexWrap: 'wrap',
@@ -303,37 +234,6 @@ const styles = StyleSheet.create({
   expandableContent: {
     padding: 14,
     paddingTop: 0,
-  },
-  comparisonTable: {
-    borderRadius: 8,
-    overflow: 'hidden',
-  },
-  tableHeader: {
-    flexDirection: 'row',
-    backgroundColor: '#252525',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-  },
-  tableHeaderText: {
-    fontWeight: '600',
-    color: '#888899',
-  },
-  tableRow: {
-    flexDirection: 'row',
-    paddingVertical: 8,
-    paddingHorizontal: 4,
-    borderBottomWidth: 1,
-    borderBottomColor: '#252525',
-  },
-  tableCell: {
-    flex: 1,
-    color: '#cccccc',
-    fontSize: 12,
-    textAlign: 'center',
-  },
-  modeCell: {
-    color: '#ff6600',
-    fontWeight: '600',
   },
   relatedSection: {
     marginTop: 24,

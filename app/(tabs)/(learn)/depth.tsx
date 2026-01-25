@@ -38,52 +38,24 @@ export default function DepthScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Section title="DEP (Depth) Parameter">
-        <View style={styles.infoBox}>
-          <View style={styles.infoRow}>
-            <Text style={styles.infoLabel}>Range</Text>
-            <Text style={styles.infoValue}>-64 to +63</Text>
-          </View>
-        </View>
+      <Section title="DEP (Depth)">
         <Text style={styles.paragraph}>
-          Controls both the <Text style={styles.bold}>intensity</Text> and <Text style={styles.bold}>polarity</Text> of modulation.
+          Range: -64 to +63. Controls intensity and polarity. Negative values invert the waveform. Zero = no output.
         </Text>
-
         <View style={styles.depthExamples}>
           <View style={styles.depthExample}>
             <Text style={styles.depthValue}>+63</Text>
-            <Text style={styles.depthLabel}>Full positive</Text>
+            <Text style={styles.depthLabel}>Full</Text>
           </View>
           <View style={styles.depthExample}>
             <Text style={styles.depthValue}>0</Text>
-            <Text style={styles.depthLabel}>No output</Text>
+            <Text style={styles.depthLabel}>Off</Text>
           </View>
           <View style={styles.depthExample}>
             <Text style={styles.depthValue}>-64</Text>
-            <Text style={styles.depthLabel}>Full inverted</Text>
+            <Text style={styles.depthLabel}>Inverted</Text>
           </View>
         </View>
-
-        <Text style={styles.note}>
-          At depth = 0, the LFO still runs internally, just produces no output.
-        </Text>
-      </Section>
-
-      <Section title="Inversion Explained">
-        <View style={styles.comparisonBox}>
-          <View style={styles.comparisonItem}>
-            <Text style={styles.comparisonLabel}>Positive Depth</Text>
-            <Text style={styles.comparisonValue}>SAW: -1 → +1 (rises)</Text>
-          </View>
-          <View style={styles.comparisonDivider} />
-          <View style={styles.comparisonItem}>
-            <Text style={styles.comparisonLabel}>Negative Depth</Text>
-            <Text style={styles.comparisonValue}>SAW: +1 → -1 (falls)</Text>
-          </View>
-        </View>
-        <Text style={styles.paragraph}>
-          The waveform shape stays the same, but the direction reverses. This is especially useful for unipolar waveforms like EXP and RMP.
-        </Text>
       </Section>
 
       <Section title="FADE Parameter">

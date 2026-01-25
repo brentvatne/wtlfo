@@ -46,17 +46,8 @@ export default function IntroScreen() {
     >
       <Section title="The Basics">
         <BulletPoint>LFO = Low Frequency Oscillator</BulletPoint>
-        <BulletPoint>An invisible hand that automatically moves parameters over time</BulletPoint>
-        <BulletPoint>Oscillates (cycles back and forth) at frequencies too slow to hear</BulletPoint>
-        <BulletPoint>Creates movement, rhythm, and evolution in your sounds</BulletPoint>
-      </Section>
-
-      <Section title="What Can LFOs Do?">
-        <BulletPoint>Sweeping filter effects (wah-wah)</BulletPoint>
-        <BulletPoint>Tremolo and volume pumping</BulletPoint>
-        <BulletPoint>Vibrato and pitch wobble</BulletPoint>
-        <BulletPoint>Stereo movement and panning</BulletPoint>
-        <BulletPoint>Evolving textures and atmospheres</BulletPoint>
+        <BulletPoint>Automatically moves parameters over time</BulletPoint>
+        <BulletPoint>Creates movement in your sounds: filter sweeps, tremolo, vibrato, panning</BulletPoint>
       </Section>
 
       <Section title="Digitakt II LFO Architecture">

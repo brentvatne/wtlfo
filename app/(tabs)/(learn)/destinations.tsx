@@ -84,16 +84,12 @@ export default function DestinationsScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <Text style={styles.intro}>
-        LFOs can modulate almost any parameter on Digitakt II. Each LFO has its own DEST (destination) setting.
+        LFOs can modulate almost any parameter. Each LFO has its own destination setting.
       </Text>
 
-      <View style={styles.conceptCard}>
-        <Text style={styles.conceptTitle}>How Modulation Works</Text>
-        <Text style={styles.conceptText}>
-          The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when the LFO output is zero. The LFO moves the value above and below this center point.
-        </Text>
-        <Text style={[styles.conceptText, { marginTop: 8 }]}>
-          <Text style={styles.highlight}>Depth</Text> controls how far from center the value can go. At depth +63, the full parameter range can be modulated.
+      <View style={styles.testToneNote}>
+        <Text style={styles.testToneText}>
+          Test tone preview supports: Volume, Filter Freq, Filter Reso, Pan, Pitch
         </Text>
       </View>
 
@@ -121,18 +117,18 @@ export default function DestinationsScreen() {
         ))}
       </View>
 
+      <ExpandableSection title="How Modulation Works">
+        <Text style={styles.expandedText}>
+          The <Text style={styles.highlight}>Center Value</Text> is the parameter's value when LFO output is zero. The LFO moves above and below this point.
+        </Text>
+        <Text style={[styles.expandedText, { marginTop: 8 }]}>
+          <Text style={styles.highlight}>Depth</Text> controls range. At +63, the full parameter range can be modulated.
+        </Text>
+      </ExpandableSection>
+
       <ExpandableSection title="MIDI Track Destinations">
         <Text style={styles.expandedText}>
-          MIDI tracks have fewer but powerful destinations:
-        </Text>
-        <View style={styles.midiList}>
-          <Text style={styles.midiItem}>• CC values (any MIDI CC number)</Text>
-          <Text style={styles.midiItem}>• Pitch bend</Text>
-          <Text style={styles.midiItem}>• Aftertouch</Text>
-          <Text style={styles.midiItem}>• Note parameters</Text>
-        </View>
-        <Text style={[styles.expandedText, { marginTop: 8 }]}>
-          This makes Digitakt II a powerful controller for external synths and gear.
+          MIDI tracks can modulate CC values, pitch bend, aftertouch, and note parameters.
         </Text>
       </ExpandableSection>
     </ScrollView>
@@ -151,7 +147,18 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 15,
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: 12,
+    textAlign: 'center',
+  },
+  testToneNote: {
+    backgroundColor: '#1a2a1a',
+    borderRadius: 8,
+    padding: 10,
+    marginBottom: 16,
+  },
+  testToneText: {
+    color: '#88cc88',
+    fontSize: 13,
     textAlign: 'center',
   },
   sectionHeader: {
@@ -254,25 +261,6 @@ const styles = StyleSheet.create({
   midiItem: {
     color: '#aaaaaa',
     fontSize: 13,
-  },
-  conceptCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    padding: 16,
-    marginBottom: 20,
-    borderLeftWidth: 3,
-    borderLeftColor: '#ff6600',
-  },
-  conceptTitle: {
-    color: '#ffffff',
-    fontSize: 16,
-    fontWeight: '600',
-    marginBottom: 10,
-  },
-  conceptText: {
-    color: '#cccccc',
-    fontSize: 14,
-    lineHeight: 20,
   },
   highlight: {
     color: '#ff6600',
