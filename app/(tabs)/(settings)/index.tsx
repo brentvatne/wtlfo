@@ -1,9 +1,17 @@
-import React, { useEffect, useRef } from 'react';
+import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, {
+  useSharedValue,
+  useAnimatedStyle,
+  withTiming,
+  Easing,
+  LinearTransition,
+  FadeIn,
+  FadeOut,
+} from 'react-native-reanimated';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
 import { SymbolView } from 'expo-symbols';
@@ -23,6 +31,69 @@ import { ParameterSlider } from '@/src/components/controls';
 
 const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
+
+// Collapsible section component with animated expand/collapse
+function CollapsibleSection({
+  title,
+  children,
+  defaultCollapsed = false,
+  headerRight,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultCollapsed?: boolean;
+  headerRight?: React.ReactNode;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const chevronRotation = useSharedValue(defaultCollapsed ? 0 : 1);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed(!isCollapsed);
+    chevronRotation.value = withTiming(isCollapsed ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+    });
+  };
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value * 90}deg` }],
+  }));
+
+  return (
+    <Animated.View style={styles.section} layout={LinearTransition.duration(250)}>
+      <View style={styles.collapsibleHeader}>
+        <Pressable
+          onPress={toggleCollapsed}
+          hitSlop={{ left: 16, right: 24, top: 8, bottom: 8 }}
+          style={styles.collapsibleTitlePressable}
+        >
+          <Text style={styles.sectionHeaderTitle}>{title}</Text>
+        </Pressable>
+        <View style={styles.collapsibleHeaderRight}>
+          {headerRight}
+          <Pressable
+            onPress={toggleCollapsed}
+            hitSlop={{ left: 24, right: 16, top: 8, bottom: 8 }}
+            style={styles.collapsibleChevronPressable}
+          >
+            <Animated.Text style={[styles.collapsibleChevron, chevronStyle]}>
+              ›
+            </Animated.Text>
+          </Pressable>
+        </View>
+      </View>
+      {!isCollapsed && (
+        <Animated.View
+          entering={FadeIn.duration(200)}
+          exiting={FadeOut.duration(150)}
+          style={styles.collapsibleContent}
+        >
+          {children}
+        </Animated.View>
+      )}
+    </Animated.View>
+  );
+}
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
@@ -182,8 +253,7 @@ export default function SettingsScreen() {
         )}
       </View>
 
-      <View style={styles.section}>
-        <Text style={[styles.sectionTitle, { marginBottom: 16 }]}>Visualization</Text>
+      <CollapsibleSection title="Visualization" defaultCollapsed>
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
@@ -268,7 +338,7 @@ export default function SettingsScreen() {
             thumbColor="#ffffff"
           />
         </View>
-        <View style={[styles.settingRow, { marginTop: 16, marginBottom: 8 }]}>
+        <View style={[styles.settingRow, { marginTop: 16 }]}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Smooth phase animation</Text>
             <Text style={styles.settingDescription}>
@@ -282,42 +352,42 @@ export default function SettingsScreen() {
             thumbColor="#ffffff"
           />
         </View>
-      </View>
+      </CollapsibleSection>
 
-      <View style={styles.section}>
-        <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderTitle}>Animation Timing</Text>
-          {(() => {
-            const hasNonDefaultTiming =
-              Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
-              Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
-              Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
-              Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
-              Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
-              Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
-              Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
-              Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
-            return (
-              <Pressable
-                onPress={() => {
-                  setFadeInDuration(DEFAULT_FADE_IN_DURATION);
-                  setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
-                  setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
-                  setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
-                  setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
-                  setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
-                  setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
-                  setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);
-                }}
-                style={styles.resetButton}
-              >
-                <Text style={[styles.resetButtonText, hasNonDefaultTiming && styles.resetButtonTextActive]}>
-                  Reset
-                </Text>
-              </Pressable>
-            );
-          })()}
-        </View>
+      <CollapsibleSection
+        title="Animation timing"
+        defaultCollapsed
+        headerRight={(() => {
+          const hasNonDefaultTiming =
+            Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
+            Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
+            Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
+            Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
+            Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
+            Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
+            Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
+            Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
+          return (
+            <Pressable
+              onPress={() => {
+                setFadeInDuration(DEFAULT_FADE_IN_DURATION);
+                setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
+                setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
+                setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
+                setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
+                setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
+                setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
+                setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);
+              }}
+              style={styles.resetButton}
+            >
+              <Text style={[styles.resetButtonText, hasNonDefaultTiming && styles.resetButtonTextActive]}>
+                Reset
+              </Text>
+            </Pressable>
+          );
+        })()}
+      >
         <ParameterSlider
           label="Tab switch fade-in"
           min={100}
@@ -384,10 +454,9 @@ export default function SettingsScreen() {
           onChange={setSplashFadeDuration}
           formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
         />
-      </View>
+      </CollapsibleSection>
 
-      <View style={styles.section}>
-        <Text style={styles.sectionTitle}>Experimental</Text>
+      <CollapsibleSection title="Experimental" defaultCollapsed>
         <Pressable
           style={styles.linkRow}
           onPress={() => router.push('/midi')}
@@ -400,7 +469,7 @@ export default function SettingsScreen() {
                 : 'Connect to external MIDI device'}
             </Text>
           </View>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={styles.linkChevron}>›</Text>
         </Pressable>
         <View style={styles.divider} />
         <Pressable
@@ -413,9 +482,9 @@ export default function SettingsScreen() {
               Frame rate monitor, performance tests, MIDI verification
             </Text>
           </View>
-          <Text style={styles.chevron}>›</Text>
+          <Text style={styles.linkChevron}>›</Text>
         </Pressable>
-      </View>
+      </CollapsibleSection>
 
       {/* Version and Update Info */}
       <View style={styles.versionContainer}>
@@ -512,10 +581,41 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     paddingVertical: 4,
   },
-  chevron: {
+  linkChevron: {
     color: '#888899',
     fontSize: 24,
     fontWeight: '300',
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#252525',
+    paddingLeft: 16,
+    paddingRight: 8,
+    paddingVertical: 10,
+    marginHorizontal: -16,
+    marginTop: -16,
+  },
+  collapsibleTitlePressable: {
+    paddingVertical: 4,
+  },
+  collapsibleHeaderRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+  },
+  collapsibleChevronPressable: {
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  collapsibleChevron: {
+    color: '#888899',
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  collapsibleContent: {
+    paddingTop: 16,
   },
   settingTextContainer: {
     flex: 1,
