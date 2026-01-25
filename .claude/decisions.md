@@ -84,6 +84,54 @@
 ### Center Value vs Depth Animation
 **Observation**: Center value slider uses `withTiming` in `DestinationMeter` for smooth visual transitions. Depth slider now matches this behavior using Group transforms.
 
+## 2026-01-24
+
+### Digitakt II LFO Mode Behaviors (Hardware Verified)
+
+**ONE Mode (One-Shot)**
+- Stops when phase wraps (cycleCount >= 1), not when returning to startPhase
+- This means non-zero startPhase results in partial amplitude coverage:
+  - Phase=0: full waveform traversed before wrap
+  - Phase=32 (90°): full amplitude range (peak to trough)
+  - Phase=64 (180°): half amplitude range (starts at middle)
+  - Phase=96 (270°): half amplitude range (starts at trough)
+- **Note**: Still investigating if behavior is "stop on phase wrap" vs "stop when output returns to starting value" - tests with multiple triggers show full range for startPhase=0
+
+**HLD Mode (Hold)**
+- Captures and holds the current LFO value on each trigger
+- LFO continues running in background between triggers
+- Digitakt only sends CC messages when value CHANGES
+- Each trigger may capture a different value (wherever background LFO was at that moment)
+- If multiple triggers capture same value, only one CC is sent
+- Verification: expect ≤N unique values for N triggers, all within valid range
+
+**HLF Mode (Half Cycle)**
+- Runs for half a phase cycle (0.5 phase distance) then stops
+- For TRI with startPhase=0: goes from middle to peak only = 50% amplitude range
+- Correctly outputs half the expected range
+
+### Fade Formula (Hardware Verified)
+
+**Empirical formula based on Digitakt II testing:**
+- Linear region (|FADE| ≤ 16): `cycles = 0.1 * |FADE| + 0.6`
+- Exponential region (|FADE| > 16): `cycles = 2.2 * 2^((|FADE| - 16) / 4.5)`
+
+**Key observations:**
+- Higher |FADE| = SLOWER fade (more cycles to complete)
+- NO "disabled" threshold - even |FADE|=63 fades, just very slowly (~3000 cycles)
+- Fade does NOT work in FRE mode (requires trigger to initiate)
+
+**Measured values:**
+| FADE | Cycles |
+|------|--------|
+| 4    | ~1     |
+| 8    | ~1.4   |
+| 16   | ~2.2   |
+| 24   | ~7.5   |
+| 32   | ~26    |
+| 48   | ~300   |
+| 63   | ~3000  |
+
 ## Technical Debt
 
 ### Reanimated Strict Mode Disabled

@@ -709,7 +709,7 @@ const MODE_TESTS: TestConfig[] = [
     durationMs: 5000,
   },
   {
-    name: 'TRG mode (reset on trigger)',
+    name: 'TRG mode (reset on trigger, 3 triggers)',
     waveform: 'TRI',
     speed: 16,
     multiplier: 4,
@@ -718,9 +718,11 @@ const MODE_TESTS: TestConfig[] = [
     startPhase: 0,
     mode: 'TRG',
     durationMs: 5000,
+    retriggerCount: 3,
+    retriggerDelayMs: 5000,
   },
   {
-    name: 'HLD mode (hold on trigger)',
+    name: 'HLD mode (hold on trigger, 3 triggers)',
     waveform: 'TRI',
     speed: 16,
     multiplier: 4,
@@ -729,9 +731,11 @@ const MODE_TESTS: TestConfig[] = [
     startPhase: 0,
     mode: 'HLD',
     durationMs: 5000,
+    retriggerCount: 3,
+    retriggerDelayMs: 5000,
   },
   {
-    name: 'ONE mode (one-shot)',
+    name: 'ONE mode (one-shot, 3 triggers)',
     waveform: 'TRI',
     speed: 16,
     multiplier: 4,
@@ -739,12 +743,14 @@ const MODE_TESTS: TestConfig[] = [
     fade: 0,
     startPhase: 0,
     mode: 'ONE',
-    durationMs: 6000,  // Longer to see it stop
+    durationMs: 6000,
+    retriggerCount: 3,
+    retriggerDelayMs: 6000,
   },
   // NOTE: HLF mode runs for HALF a cycle then holds - range will be ~50% of full
   // This is expected behavior, not a test failure
   {
-    name: 'HLF mode (half cycle, expect ~50% range)',
+    name: 'HLF mode (half cycle, 3 triggers)',
     waveform: 'TRI',
     speed: 16,
     multiplier: 4,
@@ -753,6 +759,8 @@ const MODE_TESTS: TestConfig[] = [
     startPhase: 0,
     mode: 'HLF',
     durationMs: 4000,
+    retriggerCount: 3,
+    retriggerDelayMs: 5000,
   },
 ];
 
@@ -2096,16 +2104,40 @@ export function useLfoVerification() {
         }
       }
     } else if (config.mode === 'HLD') {
-      // HLD mode holds a constant value - just verify all samples match
-      const firstValue = sampledCCs[0]?.value;
-      const allSame = sampledCCs.every(cc => Math.abs(cc.value - firstValue) <= 2);
-      if (allSame) {
+      // HLD mode: Each trigger captures and holds the current LFO value.
+      // The Digitakt only sends CCs when the value CHANGES, so:
+      // - We expect roughly one CC per trigger (when held value differs from previous)
+      // - Fewer CCs if triggers happen to capture the same value
+      // - All values should be within valid depth range
+      const values = sampledCCs.map(cc => cc.value);
+      const uniqueValues = [...new Set(values)].sort((a, b) => a - b);
+      const triggerCount = config.retriggerCount || 1;
+
+      // Check all values are within expected range
+      const allInRange = values.every(v => v >= expectedMin && v <= expectedMax);
+
+      // We expect at most triggerCount unique values (one per trigger)
+      // Could be fewer if triggers capture same LFO position
+      const reasonableCount = uniqueValues.length <= triggerCount;
+
+      if (allInRange && reasonableCount) {
         result.passed += sampledCCs.length;
-        log(`  HLD: All ${sampledCCs.length} samples held at ${firstValue} ✓`, 'success');
+        if (uniqueValues.length === 1) {
+          log(`  HLD: Held constant at ${uniqueValues[0]} across ${triggerCount} triggers ✓`, 'success');
+        } else {
+          log(`  HLD: ${uniqueValues.length} held values across ${triggerCount} triggers: ${uniqueValues.join(', ')} ✓`, 'success');
+        }
       } else {
         result.failed += sampledCCs.length;
-        const values = sampledCCs.map(cc => cc.value);
-        log(`  HLD: Values not constant: ${Math.min(...values)}-${Math.max(...values)} ✗`, 'error');
+        if (!allInRange) {
+          log(`  HLD: Values outside expected range [${expectedMin}-${expectedMax}] ✗`, 'error');
+        }
+        if (!reasonableCount) {
+          log(`  HLD: Too many unique values (${uniqueValues.length}) for ${triggerCount} triggers - LFO may not be holding ✗`, 'error');
+        }
+        log(`  HLD: Unique values: ${uniqueValues.join(', ')}`, 'data');
+        const first10 = sampledCCs.slice(0, 10);
+        log(`  HLD: First 10: ${first10.map(cc => `${cc.value}@${Math.round(cc.timestamp)}ms`).join(', ')}`, 'data');
       }
     } else {
       // For deterministic waveforms, use SHAPE-BASED verification
@@ -2332,16 +2364,23 @@ export function useLfoVerification() {
       }
     }
 
-    // Store failed test configs for re-run capability
-    if (newFailedConfigs.length > 0) {
+    // Update failed test configs
+    if (isRerun) {
+      // For re-runs: remove tests that passed, keep tests that still fail
+      const stillFailedNames = new Set(newFailedConfigs.map(c => c.name));
+      const testedNames = new Set(suite.map(c => c.name));
       setFailedTestConfigs(prev => {
-        // Merge with existing failed configs (for re-runs that still fail)
-        const existingNames = new Set(prev.map(c => c.name));
-        const uniqueNew = newFailedConfigs.filter(c => !existingNames.has(c.name));
-        return [...prev.filter(c => newFailedConfigs.some(n => n.name === c.name)), ...newFailedConfigs];
+        // Keep: tests not in this re-run + tests that still failed
+        return [
+          ...prev.filter(c => !testedNames.has(c.name)), // Tests not re-run
+          ...newFailedConfigs, // Tests that still failed
+        ];
       });
-    } else if (!isRerun) {
-      // Clear failed configs if all tests passed (and not a re-run)
+    } else if (newFailedConfigs.length > 0) {
+      // For fresh runs with failures: replace failed list
+      setFailedTestConfigs(newFailedConfigs);
+    } else {
+      // For fresh runs with all passing: clear failed list
       setFailedTestConfigs([]);
     }
 
