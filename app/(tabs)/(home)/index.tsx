@@ -66,6 +66,8 @@ export default function HomeScreen() {
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
+  // Track whether LFO was paused due to tab switch (vs manual pause)
+  const pausedDueToTabSwitchRef = useRef(false);
   // Track whether app is backgrounded to hide phase indicator
   const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
@@ -89,14 +91,14 @@ export default function HomeScreen() {
     }
   }, [pathname]);
 
-  // Tab switch fade - listen to the parent tabs navigator for focus events
+  // Tab switch - listen to the parent tabs navigator for focus/blur events
   // useFocusEffect doesn't work reliably with NativeTabs when inside a nested Stack
   useEffect(() => {
     // Get the parent navigation (NativeTabs) from the Stack navigator
     const tabsNavigation = navigation.getParent();
     if (!tabsNavigation) return;
 
-    const unsubscribe = tabsNavigation.addListener('focus', () => {
+    const unsubscribeFocus = tabsNavigation.addListener('focus', () => {
       // Skip fade-in if returning from a modal within the same stack
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
@@ -107,6 +109,13 @@ export default function HomeScreen() {
       if (isFirstFocusRef.current) {
         isFirstFocusRef.current = false;
         return;
+      }
+
+      // Resume LFO if it was paused due to tab switch (not manual pause)
+      if (pausedDueToTabSwitchRef.current) {
+        pausedDueToTabSwitchRef.current = false;
+        startLFO();
+        setIsPaused(false);
       }
 
       // Tab switch: fade in entire screen
@@ -121,8 +130,21 @@ export default function HomeScreen() {
       }
     });
 
-    return unsubscribe;
-  }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity]);
+    const unsubscribeBlur = tabsNavigation.addListener('blur', () => {
+      // Pause LFO when switching away from home tab (saves battery/CPU)
+      // Only if not already paused (preserve manual pause state)
+      if (!isPaused && isLFORunning()) {
+        pausedDueToTabSwitchRef.current = true;
+        stopLFO();
+        setIsPaused(true);
+      }
+    });
+
+    return () => {
+      unsubscribeFocus();
+      unsubscribeBlur();
+    };
+  }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity, isPaused, isLFORunning, startLFO, stopLFO, setIsPaused]);
 
   // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);
