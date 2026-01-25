@@ -70,7 +70,7 @@ export default function MidiScreen() {
                 <View style={styles.settingTextContainer}>
                   <Text style={styles.settingLabel}>Receive Transport</Text>
                   <Text style={styles.settingDescription}>
-                    Respond to play/stop messages
+                    Listen to play/stop messages (not used yet)
                   </Text>
                 </View>
                 <Switch
@@ -100,8 +100,8 @@ export default function MidiScreen() {
 
         {/* Info */}
         <Text style={styles.infoText}>
-          Connect to Elektron Digitakt II to sync LFO timing. Transport messages
-          control play/stop state, and clock messages set the tempo.
+          Connect to Elektron Digitakt II to sync LFO timing. Clock messages
+          set the tempo. Transport messages are received but not used yet.
         </Text>
       </ScrollView>
     </>

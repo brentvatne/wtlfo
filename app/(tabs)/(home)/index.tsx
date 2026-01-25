@@ -57,10 +57,8 @@ export default function HomeScreen() {
   // Start at 1 (visible) - useFocusEffect will handle the initial fade if needed
   const screenOpacity = useSharedValue(1);
   // Visualization fade - wraps just the visualizer row
-  // Start at tabSwitchFadeOpacity when paused (waiting for MIDI), or 0 for normal fade-in
-  const visualizerOpacity = useSharedValue(
-    isPaused && fadeInVisualization ? tabSwitchFadeOpacity : (fadeInVisualization ? 0 : 1)
-  );
+  // Start at 0 for fade-in, or 1 if fade disabled
+  const visualizerOpacity = useSharedValue(fadeInVisualization ? 0 : 1);
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
@@ -117,27 +115,21 @@ export default function HomeScreen() {
   const prevIsPausedRef = useRef(isPaused);
 
   useEffect(() => {
-    // Initial fade-in on app open (only if not starting paused)
+    // Initial fade-in on app open
     if (!hasInitializedVisualization.current && fadeInVisualization) {
-      if (isPaused) {
-        // Starting paused (e.g., waiting for MIDI) - stay at tabSwitchFadeOpacity
-        visualizerOpacity.value = tabSwitchFadeOpacity;
-      } else {
-        // Not paused - do normal fade from 0
-        visualizerOpacity.value = 0;
-        visualizerOpacity.value = withTiming(1, {
-          duration: visualizationFadeDuration,
-          easing: Easing.out(Easing.ease),
-        });
-      }
+      visualizerOpacity.value = 0;
+      visualizerOpacity.value = withTiming(1, {
+        duration: visualizationFadeDuration,
+        easing: Easing.out(Easing.ease),
+      });
       hasInitializedVisualization.current = true;
     } else if (!fadeInVisualization) {
       visualizerOpacity.value = 1;
       hasInitializedVisualization.current = true;
     }
-  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity, isPaused, tabSwitchFadeOpacity]);
+  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
-  // Fade in visualization when playing starts (unpausing from MIDI wait or user tap)
+  // Fade in visualization when user unpauses (taps to resume)
   useEffect(() => {
     const wasPaused = prevIsPausedRef.current;
     prevIsPausedRef.current = isPaused;

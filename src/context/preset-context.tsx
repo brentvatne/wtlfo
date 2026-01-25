@@ -337,8 +337,6 @@ interface PresetContextValue {
   effectiveBpm: number;
   /** True when using external MIDI clock for tempo */
   usingMidiClock: boolean;
-  /** True when MIDI transport is controlling playback */
-  usingMidiTransport: boolean;
 
   // LFO animation state - shared across tabs
   lfoPhase: SharedValue<number>;
@@ -417,32 +415,9 @@ const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
 const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
 const INITIAL_TAB_SWITCH_FADE_OPACITY = getInitialTabSwitchFadeOpacity();
 
-// Check if auto-connect is enabled - if so, start LFO paused
-// (waiting for MIDI transport start or user tap)
-const AUTO_CONNECT_KEY = 'midi_auto_connect';
-function getInitialPaused(): boolean {
-  try {
-    const autoConnect = Storage.getItemSync(AUTO_CONNECT_KEY);
-    return autoConnect === 'true';
-  } catch {
-    return false;
-  }
-}
-const INITIAL_PAUSED = getInitialPaused();
-
 export function PresetProvider({ children }: { children: React.ReactNode }) {
-  // MIDI sync state
-  const {
-    transportRunning,
-    lastTransportMessage,
-    externalBpm,
-    receiveTransport,
-    receiveClock,
-    connected: midiConnected,
-    initialCheckComplete: midiInitialCheckComplete,
-    digitaktAvailable,
-    autoConnect,
-  } = useMidi();
+  // MIDI clock sync - only use external BPM when connected and enabled
+  const { externalBpm, receiveClock } = useMidi();
 
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
   const [currentConfig, setCurrentConfig] = useState<LFOPresetConfig>(() => ({ ...INITIAL_CONFIG }));
@@ -452,7 +427,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Effective BPM: use external MIDI clock when enabled and available
   const effectiveBpm = receiveClock && externalBpm > 0 ? Math.round(externalBpm) : bpm;
   const [isEditing, setIsEditing] = useState(false);
-  const [isPaused, setIsPaused] = useState(INITIAL_PAUSED);
+  const [isPaused, setIsPaused] = useState(false);
   const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
   const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
@@ -480,13 +455,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Synchronously initialize LFO on first render
   if (lfoRef.current === null) {
     lfoRef.current = new LFO(INITIAL_CONFIG, INITIAL_BPM);
-    // Auto-trigger for modes that need it, but only if not starting paused (auto-connect enabled)
-    if (!INITIAL_PAUSED && (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF')) {
+    // Auto-trigger for modes that need it
+    if (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF') {
       lfoRef.current.trigger();
-    }
-    // If starting paused (auto-connect enabled), stop the LFO engine
-    if (INITIAL_PAUSED) {
-      lfoRef.current.stop();
     }
   }
   const animationRef = useRef<number>(0);
@@ -937,14 +908,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, [debouncedConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange]);
 
   // Animation loop - runs at provider level, independent of tabs
-  // Only starts if not initially paused (auto-connect enabled = start paused)
   useEffect(() => {
     hasMainLoopStarted.current = true;
-
-    // Don't start animation loop if we're starting paused (waiting for MIDI transport or user tap)
-    if (INITIAL_PAUSED) {
-      return;
-    }
 
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
@@ -1028,130 +993,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
-  // MIDI auto-connect startup flow: Wait for initial device check, then decide whether to stay paused
-  // If auto-connect is enabled but no Digitakt found after initial check, start running
-  const hasHandledInitialCheckRef = useRef(false);
-  useEffect(() => {
-    // Only run once after initial check completes
-    if (!midiInitialCheckComplete || hasHandledInitialCheckRef.current) return;
-    hasHandledInitialCheckRef.current = true;
-
-    // If auto-connect is enabled but no Digitakt available, start running
-    if (autoConnect && !digitaktAvailable && !midiConnected) {
-      console.log('[LFO] Auto-connect enabled but no Digitakt found - starting LFO');
-
-      // Start the LFO engine
-      lfoRef.current?.trigger();
-      lfoRef.current?.resetTiming();
-      lfoRef.current?.start();
-
-      // Immediately update shared values
-      if (lfoRef.current) {
-        const initialState = lfoRef.current.update(performance.now());
-        lastTargetPhaseRef.current = initialState.phase;
-        lfoPhase.value = initialState.phase;
-        lfoOutput.value = initialState.output;
-        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
-      }
-
-      setIsPaused(false);
-
-      // Start animation loop if not running
-      if (animationRef.current === 0 && hasMainLoopStarted.current) {
-        const animate = (timestamp: number) => {
-          if (lfoRef.current) {
-            const state = lfoRef.current.update(timestamp);
-            updatePhaseRef.current(state.phase);
-            lfoOutput.value = state.output;
-            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-          }
-          animationRef.current = requestAnimationFrame(animate);
-        };
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    } else if (autoConnect && digitaktAvailable) {
-      console.log('[LFO] Digitakt found - waiting for MIDI transport or user tap');
-    }
-  }, [midiInitialCheckComplete, autoConnect, digitaktAvailable, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
-
-  // MIDI Transport sync - react to external transport start/stop
-  const prevTransportRunningRef = useRef<boolean | null>(null);
-  const prevMidiConnectedRef = useRef<boolean>(false);
-  useEffect(() => {
-    // Skip if transport receive is disabled or not connected
-    if (!receiveTransport || !midiConnected) {
-      prevTransportRunningRef.current = null;
-      prevMidiConnectedRef.current = midiConnected;
-      return;
-    }
-
-    // Handle initial connection - always start paused, wait for transport start or user tap
-    const justConnected = midiConnected && !prevMidiConnectedRef.current;
-    prevMidiConnectedRef.current = midiConnected;
-
-    if (justConnected) {
-      // When MIDI connects, pause the LFO and wait for transport start or user interaction
-      console.log('[MIDI] Connected - pausing LFO until transport start or user tap');
-      lfoRef.current?.stop();
-      setIsPaused(true);
-      prevTransportRunningRef.current = transportRunning;
-      return;
-    }
-
-    if (prevTransportRunningRef.current === null) {
-      // First time seeing transport state - just track it, don't change pause state
-      prevTransportRunningRef.current = transportRunning;
-      return;
-    }
-
-    // Detect transport state changes
-    if (transportRunning && !prevTransportRunningRef.current) {
-      // Transport started - check if it's Start (reset to beginning) or Continue (resume)
-      if (lastTransportMessage === 'start') {
-        // MIDI Start: Reset LFO to startPhase and start from beginning
-        console.log('[MIDI] Start received - resetting LFO to beginning');
-        lfoRef.current?.reset();
-      } else {
-        // MIDI Continue: Resume from current position
-        console.log('[MIDI] Continue received - resuming LFO from current position');
-      }
-      lfoRef.current?.resetTiming(); // Reset timing so next update has deltaMs=0
-      lfoRef.current?.start();
-
-      // Immediately update shared values so visualization syncs without waiting for next frame
-      if (lfoRef.current) {
-        const initialState = lfoRef.current.update(performance.now());
-        // Direct assignment for initialization (also resets lastTargetPhaseRef)
-        lastTargetPhaseRef.current = initialState.phase;
-        lfoPhase.value = initialState.phase;
-        lfoOutput.value = initialState.output;
-        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
-      }
-
-      setIsPaused(false);
-
-      // Restart animation loop if it was stopped
-      if (animationRef.current === 0 && hasMainLoopStarted.current) {
-        const animate = (timestamp: number) => {
-          if (lfoRef.current) {
-            const state = lfoRef.current.update(timestamp);
-            updatePhaseRef.current(state.phase);
-            lfoOutput.value = state.output;
-            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-          }
-          animationRef.current = requestAnimationFrame(animate);
-        };
-        animationRef.current = requestAnimationFrame(animate);
-      }
-    } else if (!transportRunning && prevTransportRunningRef.current) {
-      // Transport stopped (Stop message received)
-      lfoRef.current?.stop();
-      setIsPaused(true);
-    }
-
-    prevTransportRunningRef.current = transportRunning;
-  }, [transportRunning, lastTransportMessage, receiveTransport, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
-
   // LFO control methods
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
   const startLFO = useCallback(() => lfoRef.current?.start(), []);
@@ -1173,7 +1014,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setBPM,
     effectiveBpm,
     usingMidiClock: receiveClock && externalBpm > 0,
-    usingMidiTransport: receiveTransport && midiConnected,
     // LFO animation state
     lfoPhase,
     lfoOutput,
