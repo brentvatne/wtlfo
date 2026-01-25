@@ -24,6 +24,12 @@ export default function LearnLayout() {
         }}
       />
       <Stack.Screen
+        name="about"
+        options={{
+          title: 'About This App',
+        }}
+      />
+      <Stack.Screen
         name="intro"
         options={{
           title: 'What is an LFO?',
@@ -42,9 +48,15 @@ export default function LearnLayout() {
         }}
       />
       <Stack.Screen
-        name="speed"
+        name="timing"
         options={{
-          title: 'Speed & Timing',
+          title: 'Timing',
+        }}
+      />
+      <Stack.Screen
+        name="advanced"
+        options={{
+          title: 'Advanced',
         }}
       />
       <Stack.Screen
@@ -63,18 +75,6 @@ export default function LearnLayout() {
         name="destinations"
         options={{
           title: 'Destinations',
-        }}
-      />
-      <Stack.Screen
-        name="timing"
-        options={{
-          title: 'Timing Math',
-        }}
-      />
-      <Stack.Screen
-        name="presets"
-        options={{
-          title: 'Preset Recipes',
         }}
       />
     </Stack>

@@ -6,6 +6,7 @@ import { useNavigation } from '@react-navigation/native';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { usePreset } from '@/src/context/preset-context';
 import {
+  AboutIcon,
   QuestionWaveIcon,
   SlidersIcon,
   WaveformsIcon,
@@ -13,8 +14,6 @@ import {
   EnvelopeIcon,
   TriggersIcon,
   DestinationsIcon,
-  TimingMathIcon,
-  PresetsIcon,
 } from '@/src/components/learn';
 
 interface TopicCard {
@@ -26,6 +25,13 @@ interface TopicCard {
 }
 
 const TOPICS: TopicCard[] = [
+  {
+    id: 'about',
+    IconComponent: AboutIcon,
+    title: 'About This App',
+    description: 'What it does, limitations, and how to use it',
+    route: '/about',
+  },
   {
     id: 'intro',
     IconComponent: QuestionWaveIcon,
@@ -48,11 +54,11 @@ const TOPICS: TopicCard[] = [
     route: '/waveforms',
   },
   {
-    id: 'speed',
+    id: 'timing',
     IconComponent: SpeedometerIcon,
-    title: 'Speed & Timing',
+    title: 'Timing',
     description: 'How SPD and MULT control LFO rate',
-    route: '/speed',
+    route: '/timing',
   },
   {
     id: 'depth',
@@ -74,20 +80,6 @@ const TOPICS: TopicCard[] = [
     title: 'Destinations',
     description: 'Where LFOs can be routed',
     route: '/destinations',
-  },
-  {
-    id: 'timing',
-    IconComponent: TimingMathIcon,
-    title: 'Timing Math',
-    description: 'Formulas for calculating cycle times',
-    route: '/timing',
-  },
-  {
-    id: 'presets',
-    IconComponent: PresetsIcon,
-    title: 'Preset Recipes',
-    description: 'Ready-to-use LFO configurations',
-    route: '/presets',
   },
 ];
 
