@@ -164,8 +164,8 @@ const styles = StyleSheet.create({
   },
   audioIconContainer: {
     position: 'absolute',
-    top: 4,
-    right: 4,
+    top: 6,
+    right: 6,
   },
   destinationDisplay: {
     color: '#ffffff',
