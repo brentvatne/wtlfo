@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, StyleSheet } from 'react-native';
 import { useRouter } from 'expo-router';
 import { ParamBox } from './ParamBox';
@@ -51,10 +51,20 @@ function getStartPhaseLabel(waveform: string): string {
   return waveform === 'RND' ? 'SLEW' : 'SPH';
 }
 
+// All param routes to prefetch
+const PARAM_ROUTES: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
+
 export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
   const { currentConfig } = usePreset();
   const { activeDestinationId } = useModulation();
   const router = useRouter();
+
+  // Prefetch all param routes for instant modal opens
+  useEffect(() => {
+    PARAM_ROUTES.forEach(param => {
+      router.prefetch(`/param/${param}`);
+    });
+  }, [router]);
 
   // Get the display name for the active destination (show dash for none)
   const destination = getDestination(activeDestinationId);

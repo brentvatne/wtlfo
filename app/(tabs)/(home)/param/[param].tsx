@@ -1,7 +1,6 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import Animated, { FadeIn } from 'react-native-reanimated';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
@@ -208,13 +207,6 @@ export default function EditParamScreen() {
   // Use internal state for instant switching (no animation)
   const [activeParam, setActiveParam] = useState<ParamKey>(urlParam as ParamKey);
 
-  // Defer waveform table rendering to prevent frame drop on modal open
-  const [waveformTableReady, setWaveformTableReady] = useState(false);
-  useEffect(() => {
-    const timer = setTimeout(() => setWaveformTableReady(true), 150);
-    return () => clearTimeout(timer);
-  }, []);
-
   // Sync with URL param on mount or if URL changes externally
   useEffect(() => {
     if (urlParam && urlParam !== activeParam) {
@@ -403,8 +395,8 @@ export default function EditParamScreen() {
         {renderControl()}
       </View>
 
-      {info.waveformDetails && waveformTableReady && (
-        <Animated.View entering={FadeIn.duration(200)} style={styles.detailsSection}>
+      {info.waveformDetails && (
+        <View style={styles.detailsSection}>
           {info.waveformDetails.map((item) => (
             <View key={item.type} style={styles.waveformDetailRow}>
               <WaveformIcon waveform={item.type} size={18} color={colors.accent} />
@@ -412,7 +404,7 @@ export default function EditParamScreen() {
               <Text style={styles.waveformDesc}>{item.desc}</Text>
             </View>
           ))}
-        </Animated.View>
+        </View>
       )}
 
       {info.details && (
