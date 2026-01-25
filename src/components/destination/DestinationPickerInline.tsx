@@ -85,23 +85,23 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
                     accessibilityHint={`Select ${dest.name} as modulation destination`}
                     accessibilityState={{ checked: isSelected }}
                   >
-                    <View style={styles.destinationDisplayRow}>
-                      <Text
-                        style={[
-                          styles.destinationDisplay,
-                          isSelected && styles.destinationDisplaySelected,
-                        ]}
-                      >
-                        {dest.displayName}
-                      </Text>
-                      {showAudioIcon && (
+                    {showAudioIcon && (
+                      <View style={styles.audioIconContainer}>
                         <SymbolView
                           name="speaker.wave.2.fill"
-                          size={10}
+                          size={9}
                           tintColor={isSelected ? '#000000' : '#ff6600'}
                         />
-                      )}
-                    </View>
+                      </View>
+                    )}
+                    <Text
+                      style={[
+                        styles.destinationDisplay,
+                        isSelected && styles.destinationDisplaySelected,
+                      ]}
+                    >
+                      {dest.displayName}
+                    </Text>
                     <Text
                       style={[
                         styles.destinationName,
@@ -129,7 +129,8 @@ const styles = StyleSheet.create({
     flexDirection: 'row',
     alignItems: 'center',
     gap: 6,
-    marginBottom: -8,
+    marginTop: -4,
+    marginBottom: 4,
   },
   hintText: {
     color: '#8888a0',
@@ -156,14 +157,15 @@ const styles = StyleSheet.create({
     paddingHorizontal: 14,
     minWidth: 80,
     alignItems: 'center',
+    position: 'relative',
   },
   destinationItemSelected: {
     backgroundColor: '#ff6600',
   },
-  destinationDisplayRow: {
-    flexDirection: 'row',
-    alignItems: 'center',
-    gap: 4,
+  audioIconContainer: {
+    position: 'absolute',
+    top: 4,
+    right: 4,
   },
   destinationDisplay: {
     color: '#ffffff',
