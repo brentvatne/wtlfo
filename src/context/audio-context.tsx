@@ -343,11 +343,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isPaused, isPlaying, buildAudioGraph, destroyAudioGraph, updateAudioParams]);
 
-  // Reset audio params when destination changes to clear previous modulation effect
+  // Reset audio params when destination changes to remove modulation from previous destination
+  // This ensures switching from Volume->Filter resets volume, and switching to non-audio
+  // destinations removes all modulation effects
+  const prevDestinationRef = useRef<DestinationId>(activeDestinationId);
   useEffect(() => {
-    if (isPlaying) {
+    if (isPlaying && prevDestinationRef.current !== activeDestinationId) {
       resetAudioParams();
     }
+    prevDestinationRef.current = activeDestinationId;
   }, [activeDestinationId, isPlaying, resetAudioParams]);
 
   // Handle app background/foreground
