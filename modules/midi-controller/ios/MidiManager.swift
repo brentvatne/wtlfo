@@ -307,7 +307,7 @@ class MidiManager {
 
         // Create a simple MIDI packet list (legacy API works with output ports)
         var packetList = MIDIPacketList()
-        var packet = MIDIPacketListInit(&packetList)
+        let packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, cc & 0x7F, value & 0x7F]
         _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
@@ -319,7 +319,7 @@ class MidiManager {
 
         let status: UInt8 = 0x90 | (channel & 0x0F)
         var packetList = MIDIPacketList()
-        var packet = MIDIPacketListInit(&packetList)
+        let packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, note & 0x7F, velocity & 0x7F]
         _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
@@ -331,7 +331,7 @@ class MidiManager {
 
         let status: UInt8 = 0x80 | (channel & 0x0F)
         var packetList = MIDIPacketList()
-        var packet = MIDIPacketListInit(&packetList)
+        let packet = MIDIPacketListInit(&packetList)
         let midiData: [UInt8] = [status, note & 0x7F, 0]
         _ = MIDIPacketListAdd(&packetList, 1024, packet, 0, 3, midiData)
 
