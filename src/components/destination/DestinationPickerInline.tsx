@@ -1,13 +1,24 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
+import { SymbolView } from 'expo-symbols';
 import * as Haptics from 'expo-haptics';
 import { useModulation } from '@/src/context/modulation-context';
+import { useAudio } from '@/src/context/audio-context';
 import {
   CATEGORY_ORDER,
   CATEGORY_LABELS,
   getDestinationsByCategory,
 } from '@/src/data/destinations';
 import type { DestinationId } from '@/src/types/destination';
+
+// Destinations that can be heard with the test tone
+const AUDIO_SUPPORTED_DESTINATIONS: Set<DestinationId> = new Set([
+  'volume',
+  'filter_freq',
+  'filter_reso',
+  'pan',
+  'pitch',
+]);
 
 interface DestinationPickerInlineProps {
   // Callback that wraps the change - receives a function to execute after fade-out
@@ -16,6 +27,7 @@ interface DestinationPickerInlineProps {
 
 export function DestinationPickerInline({ onSelectionChange }: DestinationPickerInlineProps) {
   const { activeDestinationId, setActiveDestinationId } = useModulation();
+  const { isPlaying: isTonePlaying } = useAudio();
 
   const handleSelect = (id: DestinationId) => {
     Haptics.selectionAsync();
@@ -37,6 +49,12 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
       accessibilityLabel="Modulation destination selector"
       accessibilityRole="radiogroup"
     >
+      {isTonePlaying && (
+        <View style={styles.hintContainer}>
+          <SymbolView name="speaker.wave.2.fill" size={12} tintColor="#8888a0" />
+          <Text style={styles.hintText}>can be heard with test tone</Text>
+        </View>
+      )}
       {CATEGORY_ORDER.map(category => {
         const destinations = getDestinationsByCategory(category);
         return (
@@ -52,6 +70,8 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
             <View style={styles.categoryItems}>
               {destinations.map(dest => {
                 const isSelected = dest.id === activeDestinationId;
+                const supportsAudio = AUDIO_SUPPORTED_DESTINATIONS.has(dest.id);
+                const showAudioIcon = isTonePlaying && supportsAudio;
                 return (
                   <Pressable
                     key={dest.id}
@@ -60,19 +80,28 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
                       isSelected && styles.destinationItemSelected,
                     ]}
                     onPress={() => handleSelect(dest.id)}
-                    accessibilityLabel={`${dest.displayName}, ${dest.name}`}
+                    accessibilityLabel={`${dest.displayName}, ${dest.name}${showAudioIcon ? ', audio preview available' : ''}`}
                     accessibilityRole="radio"
                     accessibilityHint={`Select ${dest.name} as modulation destination`}
                     accessibilityState={{ checked: isSelected }}
                   >
-                    <Text
-                      style={[
-                        styles.destinationDisplay,
-                        isSelected && styles.destinationDisplaySelected,
-                      ]}
-                    >
-                      {dest.displayName}
-                    </Text>
+                    <View style={styles.destinationDisplayRow}>
+                      <Text
+                        style={[
+                          styles.destinationDisplay,
+                          isSelected && styles.destinationDisplaySelected,
+                        ]}
+                      >
+                        {dest.displayName}
+                      </Text>
+                      {showAudioIcon && (
+                        <SymbolView
+                          name="speaker.wave.2.fill"
+                          size={10}
+                          tintColor={isSelected ? '#000000' : '#ff6600'}
+                        />
+                      )}
+                    </View>
                     <Text
                       style={[
                         styles.destinationName,
@@ -95,6 +124,16 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
 const styles = StyleSheet.create({
   container: {
     gap: 20,
+  },
+  hintContainer: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    marginBottom: -8,
+  },
+  hintText: {
+    color: '#8888a0',
+    fontSize: 11,
   },
   categorySection: {
     gap: 10,
@@ -120,6 +159,11 @@ const styles = StyleSheet.create({
   },
   destinationItemSelected: {
     backgroundColor: '#ff6600',
+  },
+  destinationDisplayRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 4,
   },
   destinationDisplay: {
     color: '#ffffff',
