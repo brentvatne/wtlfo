@@ -27,7 +27,7 @@ export default function AboutScreen() {
 
       <Section title="Accuracy">
         <Text style={styles.paragraph}>
-          Verified against Digitakt II hardware. LFO behavior is the same across all Elektron devices.
+          Verified against Digitakt II hardware. LFO behavior is the same across all Elektron devices. Most behavior seems correct, but this is likely not a 100% accurate simulation as there is limited information available about the exact behavior of parameters like fade.
         </Text>
       </Section>
 
@@ -70,7 +70,7 @@ export default function AboutScreen() {
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Timing is approximate</Text>
               <Text style={styles.limitationText}>
-                LFO timing won't match your device's exact position. Use this to understand behavior, not to preview in sync.
+                LFO timing won't match your device's exact position—there's no way to sync the phase. Use this to understand behavior, not to preview in sync.
               </Text>
             </View>
           </View>
