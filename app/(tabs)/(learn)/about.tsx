@@ -18,9 +18,24 @@ export default function AboutScreen() {
       contentContainerStyle={styles.content}
       contentInsetAdjustmentBehavior="automatic"
     >
-      <Section title="What This App Does">
+      <Section title="What this app does">
         <Text style={styles.paragraph}>
-          This is an LFO simulator and visualizer for the Elektron Digitakt II. It helps you understand how LFO parameters interact before dialing them in on your hardware.
+          This is an LFO simulator and visualizer for the Elektron Digitakt II. It helps you understand what happens when you adjust each parameter, so you can learn how LFOs work and eventually not need the app at all.
+        </Text>
+      </Section>
+
+      <Section title="Accuracy">
+        <Text style={styles.paragraph}>
+          LFO calculations are based on the Elektron formula and verified against Digitakt II hardware. The visualizations accurately represent waveform shapes, timing relationships, and parameter interactions.
+        </Text>
+        <Text style={[styles.paragraph, { marginTop: 12 }]}>
+          While built for Digitakt II, LFO parameters work the same way across Elektron devices (Digitakt, Syntakt, Analog Four, etc.). The number of LFOs per track and available destinations vary by device.
+        </Text>
+      </Section>
+
+      <Section title="Test tone">
+        <Text style={styles.paragraph}>
+          Tap the speaker icon on the main screen to hear the LFO modulating a test tone. Supported destinations are marked with a speaker icon in the destination picker.
         </Text>
       </Section>
 
@@ -76,18 +91,6 @@ export default function AboutScreen() {
             </View>
           </View>
         </View>
-      </Section>
-
-      <Section title="Accuracy">
-        <Text style={styles.paragraph}>
-          LFO calculations are based on the Elektron formula and verified against Digitakt II hardware. The visualizations accurately represent waveform shapes, timing relationships, and parameter interactions.
-        </Text>
-      </Section>
-
-      <Section title="Test Tone">
-        <Text style={styles.paragraph}>
-          Tap the speaker icon on the main screen to hear the LFO modulating a test tone. Supported destinations are marked with a speaker icon in the destination picker.
-        </Text>
       </Section>
     </ScrollView>
   );

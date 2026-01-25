@@ -26,7 +26,7 @@ export default function LearnLayout() {
       <Stack.Screen
         name="about"
         options={{
-          title: 'About This App',
+          title: 'About this app',
         }}
       />
       <Stack.Screen

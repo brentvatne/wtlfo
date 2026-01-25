@@ -28,7 +28,7 @@ const TOPICS: TopicCard[] = [
   {
     id: 'about',
     IconComponent: AboutIcon,
-    title: 'About This App',
+    title: 'About this app',
     description: 'What it does, limitations, and how to use it',
     route: '/about',
   },
