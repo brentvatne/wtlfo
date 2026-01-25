@@ -32,6 +32,15 @@ const WAVEFORM_LABELS: Record<WaveformType, string> = {
   RND: 'Random/Sample & Hold',
 };
 
+// All waveform types for cache warming
+const ALL_WAVEFORMS: WaveformType[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
+
+// Icon sizes used in the app (for cache warming)
+export const WAVEFORM_ICON_SIZES = {
+  /** Size used in param modal waveform details */
+  PARAM_MODAL: 18,
+} as const;
+
 // Path cache for performance (waveforms are deterministic)
 const pathCache = new Map<string, ReturnType<typeof Skia.Path.Make>>();
 
@@ -84,6 +93,25 @@ function getCachedPath(
   }
 
   return pathCache.get(key)!;
+}
+
+/**
+ * Pre-warm the Skia path cache for all waveform types.
+ * Call this during app initialization to prevent frame drops
+ * when WaveformIcon is first rendered (e.g., in modals).
+ *
+ * @param sizes - Array of icon sizes to pre-generate (default: [18])
+ * @param strokeWidth - Stroke width to use (default: 1.5)
+ */
+export function warmPathCache(
+  sizes: number[] = [18],
+  strokeWidth: number = 1.5
+): void {
+  for (const size of sizes) {
+    for (const waveform of ALL_WAVEFORMS) {
+      getCachedPath(waveform, size, strokeWidth);
+    }
+  }
 }
 
 /**

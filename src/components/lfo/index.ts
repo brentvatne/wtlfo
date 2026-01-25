@@ -13,7 +13,7 @@ export { OutputValueDisplay } from './OutputValueDisplay';
 export { VisualizationPlaceholder } from './VisualizationPlaceholder';
 
 // Small inline waveform icon (sparkline-style)
-export { WaveformIcon } from './WaveformIcon';
+export { WaveformIcon, warmPathCache, WAVEFORM_ICON_SIZES } from './WaveformIcon';
 export type { WaveformIconProps } from './WaveformIcon';
 
 // Hooks
