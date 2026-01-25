@@ -432,12 +432,12 @@ const WAVEFORM_TESTS: TestConfig[] = [
     name: 'RND waveform',
     waveform: 'RND',
     speed: 16,
-    multiplier: 4,
+    multiplier: 4,   // 4 second cycle
     depth: 40,
     fade: 0,
     startPhase: 0,
     mode: 'TRG',
-    durationMs: 5000,
+    durationMs: 16000,  // 4 cycles for better random coverage
   },
 ];
 
