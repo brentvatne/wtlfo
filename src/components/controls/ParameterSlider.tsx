@@ -32,6 +32,14 @@ export function ParameterSlider({
   const [localValue, setLocalValue] = useState(value);
   const lastCommittedValue = useRef(value);
 
+  // Force slider re-render on mount to fix @react-native-community/slider
+  // not respecting initial value prop on iOS (especially for negative values).
+  // Supposedly fixed in https://github.com/callstack/react-native-slider/pull/483 but still occurs.
+  const [sliderKey, setSliderKey] = useState(0);
+  React.useEffect(() => {
+    setSliderKey(1);
+  }, []);
+
   // Sync local value when prop changes externally
   React.useEffect(() => {
     if (value !== lastCommittedValue.current) {
@@ -73,6 +81,7 @@ export function ParameterSlider({
         <Text style={styles.value}>{formatValue(localValue)}</Text>
       </View>
       <Slider
+        key={sliderKey}
         style={styles.slider}
         minimumValue={min}
         maximumValue={max}
