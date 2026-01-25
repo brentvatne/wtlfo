@@ -120,6 +120,13 @@
 - Higher |FADE| = SLOWER fade (more cycles to complete)
 - NO "disabled" threshold - even |FADE|=63 fades, just very slowly (~3000 cycles)
 - Fade does NOT work in FRE mode (requires trigger to initiate)
+- **Fade-out timing**: Cycle 1 has full amplitude; fade starts from cycle 2
+- **Retrigger behavior**: Each trigger resets fade progress to 0
+
+**Formula validated at extremes:**
+- FADE=-48 (304 cycles): 60-cycle test showed 20% progress as expected
+- FADE=-56 (1043 cycles): 60-cycle test showed 6% progress as expected
+- FADE=-63 (3066 cycles): 60-cycle test showed 2% progress as expected
 
 **Measured values:**
 | FADE | Cycles |
@@ -131,6 +138,18 @@
 | 32   | ~26    |
 | 48   | ~300   |
 | 63   | ~3000  |
+
+### RND Waveform Behavior
+- Random values are unpredictable - can't verify direction or exact range coverage
+- Only verify: values stay within expected bounds (center ± depth)
+- Multiple cycles help ensure better random coverage but don't guarantee hitting min/max
+
+### Edge Case Limitations
+**Extreme speed (SPD ≤ 1) or multiplier (MULT ≥ 1024):**
+- Hardware timing precision is limited at these extremes
+- Observed cycle times may diverge significantly from formula
+- Tests use lenient thresholds (25% instead of 85%) for these cases
+- Behavior is correct but timing accuracy is reduced
 
 ## Technical Debt
 
