@@ -1434,10 +1434,15 @@ export function useLfoVerification() {
       // (TRI: goes from center to peak/trough only, SIN: goes from 0 to peak only)
       modeRangeMultiplier = 0.5;
       expectedRangeSize = fullRangeSize * modeRangeMultiplier;
+    } else if (config.mode === 'HLD') {
+      // HLD mode holds a constant value - expect nearly zero range
+      // The held value can be anywhere within the valid range, but it shouldn't vary
+      modeRangeMultiplier = 0;
+      expectedRangeSize = 5; // Allow small tolerance for noise
     }
     // ONE mode completes a full cycle, so it should see full range
     // FRE mode is continuous, sees full range
-    // TRG and HLD modes see full range (TRG resets, HLD holds constant)
+    // TRG mode resets and sees full range
 
     // For fade tests, adjust expected range based on how far fade should progress
     // during the test duration
