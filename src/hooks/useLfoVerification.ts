@@ -174,14 +174,17 @@ function calculateExpectedAmplitudeAtCycle(
   const fadeCycles = calculateFadeCycles(fadeValue);
   if (!isFinite(fadeCycles)) return 0; // Disabled fade
 
-  // Progress through fade at end of this cycle
-  const progress = Math.min(1, cycleNumber / fadeCycles);
-
   if (fadeValue < 0) {
     // Fade IN: amplitude increases from 0 to full
+    // Progress through fade at end of this cycle
+    const progress = Math.min(1, cycleNumber / fadeCycles);
     return fullAmplitude * progress;
   } else {
     // Fade OUT: amplitude decreases from full to 0
+    // Hardware observation: Cycle 1 has full amplitude, fade starts from cycle 2
+    // So we offset the cycle number by 1 for fade-out calculation
+    if (cycleNumber <= 1) return fullAmplitude; // First cycle is full amplitude
+    const progress = Math.min(1, (cycleNumber - 1) / fadeCycles);
     return fullAmplitude * (1 - progress);
   }
 }
@@ -1602,8 +1605,25 @@ export function useLfoVerification() {
       // The held value can be anywhere within the valid range, but it shouldn't vary
       modeRangeMultiplier = 0;
       expectedRangeSize = 5; // Allow small tolerance for noise
+    } else if (config.mode === 'ONE') {
+      // ONE mode stops on phase wrap (cycleCount >= 1), NOT when returning to startPhase
+      // This means non-zero startPhase results in partial amplitude coverage:
+      // - Phase=0 or 32: full waveform traversed before wrap = full range
+      // - Phase=64 (180°): starts at middle, goes down then up to middle = half range
+      // - Phase=96 (270°): starts at trough, goes up to middle = half range
+      // Hardware-verified behavior (January 2026)
+      const normalizedPhase = config.startPhase / 128; // 0-1 range
+      if (normalizedPhase >= 0.4 && normalizedPhase <= 0.6) {
+        // Around 180° (phase 64) - half range
+        modeRangeMultiplier = 0.5;
+        expectedRangeSize = fullRangeSize * modeRangeMultiplier;
+      } else if (normalizedPhase >= 0.7 && normalizedPhase <= 0.8) {
+        // Around 270° (phase 96) - half range
+        modeRangeMultiplier = 0.5;
+        expectedRangeSize = fullRangeSize * modeRangeMultiplier;
+      }
+      // Phase 0 or 32 (0° or 90°) = full range (default)
     }
-    // ONE mode completes a full cycle, so it should see full range
     // FRE mode is continuous, sees full range
     // TRG mode resets and sees full range
 
@@ -2020,8 +2040,11 @@ export function useLfoVerification() {
       // ============================================
       // PER-CYCLE AMPLITUDE COMPARISON FOR FADE TESTS
       // Compare observed amplitude per cycle against engine expectations
+      // NOTE: Skip for tests with retriggers since fade resets on each trigger,
+      // making global cycle comparison invalid
       // ============================================
-      if (config.fade !== 0) {
+      const hasRetriggers = (config.retriggerCount ?? 1) > 1;
+      if (config.fade !== 0 && !hasRetriggers) {
         console.log(`[FADE] ════════════════════════════════════════`);
         console.log(`[FADE] Fade analysis for FADE=${config.fade}`);
         console.log(`[FADE] Expected cycle: ${expectedCycleMs.toFixed(0)}ms`);
@@ -2115,6 +2138,11 @@ export function useLfoVerification() {
         }
 
         console.log(`[FADE] ════════════════════════════════════════`);
+      } else if (config.fade !== 0 && hasRetriggers) {
+        // Log that fade verification was skipped for retrigger tests
+        const fadeIcon = config.fade < 0 ? '🔺' : '🔻';
+        const fadeDir = config.fade < 0 ? 'Fade-in' : 'Fade-out';
+        log(`${fadeIcon} ${fadeDir}: skipped (retriggers reset fade)`, 'info');
       }
 
       // Human-readable summary in UI - TIMING (informational only)
