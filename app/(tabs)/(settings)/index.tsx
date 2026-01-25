@@ -46,10 +46,15 @@ function CollapsibleSection({
 }) {
   const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
   const chevronRotation = useSharedValue(defaultCollapsed ? 0 : 1);
+  const bottomRadius = useSharedValue(defaultCollapsed ? 12 : 0);
 
   const toggleCollapsed = () => {
     setIsCollapsed(!isCollapsed);
     chevronRotation.value = withTiming(isCollapsed ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+    });
+    bottomRadius.value = withTiming(isCollapsed ? 0 : 12, {
       duration: 200,
       easing: Easing.out(Easing.ease),
     });
@@ -59,9 +64,17 @@ function CollapsibleSection({
     transform: [{ rotate: `${chevronRotation.value * 90}deg` }],
   }));
 
+  const headerStyle = useAnimatedStyle(() => ({
+    borderBottomLeftRadius: bottomRadius.value,
+    borderBottomRightRadius: bottomRadius.value,
+  }));
+
   return (
-    <Animated.View style={styles.section} layout={LinearTransition.duration(250)}>
-      <View style={styles.collapsibleHeader}>
+    <Animated.View
+      style={[styles.collapsibleSection, isCollapsed && styles.collapsibleSectionCollapsed]}
+      layout={LinearTransition.duration(250)}
+    >
+      <Animated.View style={[styles.collapsibleHeader, headerStyle]}>
         <Pressable
           onPress={toggleCollapsed}
           hitSlop={{ left: 16, right: 24, top: 8, bottom: 8 }}
@@ -81,7 +94,7 @@ function CollapsibleSection({
             </Animated.Text>
           </Pressable>
         </View>
-      </View>
+      </Animated.View>
       {!isCollapsed && (
         <Animated.View
           entering={FadeIn.duration(200)}
@@ -586,6 +599,15 @@ const styles = StyleSheet.create({
     fontSize: 24,
     fontWeight: '300',
   },
+  collapsibleSection: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    marginBottom: 16,
+    overflow: 'hidden',
+  },
+  collapsibleSectionCollapsed: {
+    backgroundColor: 'transparent',
+  },
   collapsibleHeader: {
     flexDirection: 'row',
     justifyContent: 'space-between',
@@ -594,8 +616,8 @@ const styles = StyleSheet.create({
     paddingLeft: 16,
     paddingRight: 8,
     paddingVertical: 10,
-    marginHorizontal: -16,
-    marginTop: -16,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
   },
   collapsibleTitlePressable: {
     paddingVertical: 4,
@@ -615,7 +637,9 @@ const styles = StyleSheet.create({
     fontWeight: '300',
   },
   collapsibleContent: {
+    paddingHorizontal: 16,
     paddingTop: 16,
+    paddingBottom: 8,
   },
   settingTextContainer: {
     flex: 1,
