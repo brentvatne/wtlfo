@@ -57,7 +57,10 @@ export default function HomeScreen() {
   // Start at 1 (visible) - useFocusEffect will handle the initial fade if needed
   const screenOpacity = useSharedValue(1);
   // Visualization fade - wraps just the visualizer row
-  const visualizerOpacity = useSharedValue(fadeInVisualization ? 0 : 1);
+  // Start at tabSwitchFadeOpacity when paused (waiting for MIDI), or 0 for normal fade-in
+  const visualizerOpacity = useSharedValue(
+    isPaused && fadeInVisualization ? tabSwitchFadeOpacity : (fadeInVisualization ? 0 : 1)
+  );
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
@@ -111,21 +114,42 @@ export default function HomeScreen() {
   // Visualization fade - triggers on app open and returning from background
   const appStateRef = useRef(AppState.currentState);
   const hasInitializedVisualization = useRef(false);
+  const prevIsPausedRef = useRef(isPaused);
 
   useEffect(() => {
-    // Initial fade-in on app open
+    // Initial fade-in on app open (only if not starting paused)
     if (!hasInitializedVisualization.current && fadeInVisualization) {
-      visualizerOpacity.value = 0;
-      visualizerOpacity.value = withTiming(1, {
-        duration: visualizationFadeDuration,
-        easing: Easing.out(Easing.ease),
-      });
+      if (isPaused) {
+        // Starting paused (e.g., waiting for MIDI) - stay at tabSwitchFadeOpacity
+        visualizerOpacity.value = tabSwitchFadeOpacity;
+      } else {
+        // Not paused - do normal fade from 0
+        visualizerOpacity.value = 0;
+        visualizerOpacity.value = withTiming(1, {
+          duration: visualizationFadeDuration,
+          easing: Easing.out(Easing.ease),
+        });
+      }
       hasInitializedVisualization.current = true;
     } else if (!fadeInVisualization) {
       visualizerOpacity.value = 1;
       hasInitializedVisualization.current = true;
     }
-  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
+  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity, isPaused, tabSwitchFadeOpacity]);
+
+  // Fade in visualization when playing starts (unpausing from MIDI wait or user tap)
+  useEffect(() => {
+    const wasPaused = prevIsPausedRef.current;
+    prevIsPausedRef.current = isPaused;
+
+    // Only fade in when transitioning from paused to playing
+    if (wasPaused && !isPaused && fadeInVisualization && hasInitializedVisualization.current) {
+      visualizerOpacity.value = withTiming(1, {
+        duration: visualizationFadeDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [isPaused, fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {

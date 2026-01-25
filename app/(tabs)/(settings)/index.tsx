@@ -294,7 +294,6 @@ export default function SettingsScreen() {
               Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
               Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
               Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
-              smoothPhaseAnimation !== false ||
               Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
               Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
               Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
@@ -306,7 +305,6 @@ export default function SettingsScreen() {
                   setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
                   setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
                   setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
-                  setSmoothPhaseAnimation(false);
                   setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
                   setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
                   setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);

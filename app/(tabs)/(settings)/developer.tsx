@@ -1,4 +1,4 @@
-import React, { useRef, useState } from 'react';
+import React, { useState } from 'react';
 import { View, Text, Pressable, StyleSheet, Switch } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
@@ -6,44 +6,29 @@ import { SymbolView } from 'expo-symbols';
 import { useMidi } from '@/src/context/midi-context';
 import { DigitaktConnection } from '@/src/components/settings/DigitaktConnection';
 import { useLfoVerification, TestSuiteKey } from '@/src/hooks/useLfoVerification';
-import { usePerformanceBenchmark } from '@/src/hooks/usePerformanceBenchmark';
 import { useFrameRate } from '@/src/context/frame-rate-context';
 
 type TabType = 'verification' | 'performance';
 
 export default function DeveloperScreen() {
   const { connected } = useMidi();
-  const { logs, isRunning, testSuites, runSuiteByKey, runAllSuites, clearLogs } = useLfoVerification();
-  const {
-    logs: perfLogs,
-    isRunning: perfRunning,
-    results: perfResults,
-    runAllBenchmarks,
-    clearLogs: clearPerfLogs,
-  } = usePerformanceBenchmark();
+  const { testSuites } = useLfoVerification();
   const { showOverlay, setShowOverlay } = useFrameRate();
   const [selectedSuite, setSelectedSuite] = useState<TestSuiteKey | 'all'>('all');
   const [activeTab, setActiveTab] = useState<TabType>('verification');
-  const scrollViewRef = useRef<ScrollView>(null);
-  const perfScrollViewRef = useRef<ScrollView>(null);
 
-  // Auto-scroll when logs update
-  const handleContentSizeChange = () => {
+  const runTests = () => {
     if (activeTab === 'verification') {
-      scrollViewRef.current?.scrollToEnd({ animated: true });
+      router.push({
+        pathname: '/(tabs)/(settings)/test-run',
+        params: { type: 'verification', suite: selectedSuite },
+      });
     } else {
-      perfScrollViewRef.current?.scrollToEnd({ animated: true });
+      router.push({
+        pathname: '/(tabs)/(settings)/test-run',
+        params: { type: 'performance' },
+      });
     }
-  };
-
-  const formatTime = (timestamp: number) => {
-    const date = new Date(timestamp);
-    return date.toLocaleTimeString('en-US', {
-      hour12: false,
-      hour: '2-digit',
-      minute: '2-digit',
-      second: '2-digit',
-    });
   };
 
   return (
@@ -99,185 +84,67 @@ export default function DeveloperScreen() {
         </View>
 
         {activeTab === 'verification' ? (
-          <>
-            {/* Verification Test Card */}
-            <View style={styles.testCard}>
-              <Text style={styles.testTitle}>LFO Verification</Text>
-              <Text style={styles.testDescription}>
-                Setup: Digitakt at 120 BPM{'\n'}
-                MIDI track, LFO DEST=CC1, VAL1=64
-              </Text>
+          <View style={styles.testCard}>
+            <Text style={styles.testTitle}>LFO Verification</Text>
+            <Text style={styles.testDescription}>
+              Setup: Digitakt at 120 BPM{'\n'}
+              MIDI track, LFO DEST=CC1, VAL1=64
+            </Text>
 
-              {/* Test Suite Selector */}
-              <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suiteScroller}>
+            {/* Test Suite Selector */}
+            <ScrollView horizontal showsHorizontalScrollIndicator={false} style={styles.suiteScroller}>
+              <Pressable
+                style={[styles.suiteChip, selectedSuite === 'all' && styles.suiteChipSelected]}
+                onPress={() => setSelectedSuite('all')}
+              >
+                <Text style={[styles.suiteChipText, selectedSuite === 'all' && styles.suiteChipTextSelected]}>
+                  All (75)
+                </Text>
+              </Pressable>
+              {(Object.entries(testSuites) as [TestSuiteKey, { name: string; tests: unknown[] }][]).map(([key, suite]) => (
                 <Pressable
-                  style={[styles.suiteChip, selectedSuite === 'all' && styles.suiteChipSelected]}
-                  onPress={() => setSelectedSuite('all')}
+                  key={key}
+                  style={[styles.suiteChip, selectedSuite === key && styles.suiteChipSelected]}
+                  onPress={() => setSelectedSuite(key)}
                 >
-                  <Text style={[styles.suiteChipText, selectedSuite === 'all' && styles.suiteChipTextSelected]}>
-                    All (75)
+                  <Text style={[styles.suiteChipText, selectedSuite === key && styles.suiteChipTextSelected]}>
+                    {suite.name.replace(' Tests', '')} ({suite.tests.length})
                   </Text>
                 </Pressable>
-                {(Object.entries(testSuites) as [TestSuiteKey, { name: string; tests: unknown[] }][]).map(([key, suite]) => (
-                  <Pressable
-                    key={key}
-                    style={[styles.suiteChip, selectedSuite === key && styles.suiteChipSelected]}
-                    onPress={() => setSelectedSuite(key)}
-                  >
-                    <Text style={[styles.suiteChipText, selectedSuite === key && styles.suiteChipTextSelected]}>
-                      {suite.name.replace(' Tests', '')} ({suite.tests.length})
-                    </Text>
-                  </Pressable>
-                ))}
-              </ScrollView>
+              ))}
+            </ScrollView>
 
-              <Pressable
-                style={[styles.runButton, (!connected || isRunning) && styles.runButtonDisabled]}
-                onPress={() => {
-                  if (selectedSuite === 'all') {
-                    runAllSuites();
-                  } else {
-                    runSuiteByKey(selectedSuite);
-                  }
-                }}
-                disabled={!connected || isRunning}
-              >
-                <Text style={styles.runButtonText}>
-                  {isRunning ? 'Running...' : `Run ${selectedSuite === 'all' ? 'All Tests' : testSuites[selectedSuite].name}`}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Verification Log Output */}
-            <View style={styles.logSection}>
-              <View style={styles.logHeader}>
-                <Text style={styles.logTitle}>Log Output</Text>
-                <Pressable onPress={clearLogs} style={styles.clearButton}>
-                  <Text style={styles.clearButtonText}>Clear</Text>
-                </Pressable>
-              </View>
-              <ScrollView
-                ref={scrollViewRef}
-                style={styles.logContainer}
-                contentContainerStyle={styles.logContent}
-                onContentSizeChange={handleContentSizeChange}
-              >
-                {logs.length === 0 ? (
-                  <Text style={styles.logPlaceholder}>
-                    Digitakt setup required:{'\n'}
-                    • Set tempo to 120 BPM{'\n'}
-                    • Select a track, set to MIDI machine{'\n'}
-                    • CC SEL page: SEL1 = 1{'\n'}
-                    • CC VAL page: VAL1 = 64{'\n'}
-                    • LFO page: DEST = CC1{'\n\n'}
-                    Test will configure LFO, send trigger,{'\n'}
-                    and compare CC output with engine.
-                  </Text>
-                ) : (
-                  logs.map((entry, index) => (
-                    <Text
-                      key={index}
-                      style={[
-                        styles.logEntry,
-                        entry.type === 'success' && styles.logSuccess,
-                        entry.type === 'error' && styles.logError,
-                        entry.type === 'data' && styles.logData,
-                      ]}
-                      selectable
-                    >
-                      <Text style={styles.logTime}>[{formatTime(entry.timestamp)}]</Text> {entry.message}
-                    </Text>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-          </>
-        ) : (
-          <>
-            {/* Performance Test Card */}
-            <View style={styles.testCard}>
-              <Text style={styles.testTitle}>Performance Benchmarks</Text>
-              <Text style={styles.testDescription}>
-                Measures path generation, waveform{'\n'}
-                sampling, and slider drag performance
+            <Pressable
+              style={[styles.runButton, !connected && styles.runButtonDisabled]}
+              onPress={runTests}
+              disabled={!connected}
+            >
+              <Text style={styles.runButtonText}>
+                Run {selectedSuite === 'all' ? 'All Tests' : testSuites[selectedSuite].name}
               </Text>
+            </Pressable>
 
-              <Pressable
-                style={[styles.runButton, perfRunning && styles.runButtonDisabled]}
-                onPress={runAllBenchmarks}
-                disabled={perfRunning}
-              >
-                <Text style={styles.runButtonText}>
-                  {perfRunning ? 'Running...' : 'Run Benchmarks'}
-                </Text>
-              </Pressable>
-            </View>
-
-            {/* Results Summary */}
-            {perfResults.length > 0 && (
-              <View style={styles.resultsCard}>
-                <Text style={styles.resultsTitle}>Results</Text>
-                <ScrollView style={styles.resultsScroll} contentContainerStyle={styles.resultsScrollContent} nestedScrollEnabled>
-                  {perfResults.map((result, index) => (
-                    <View key={index} style={styles.resultRow}>
-                      <View style={styles.resultInfo}>
-                        <Text style={styles.resultName}>{result.name}</Text>
-                        <Text style={styles.resultDetails}>
-                          {result.avgMs.toFixed(2)}ms avg, {result.maxMs.toFixed(2)}ms max
-                        </Text>
-                      </View>
-                      <View style={[styles.resultBadge, result.passed ? styles.resultPass : styles.resultFail]}>
-                        <Text style={styles.resultBadgeText}>{result.passed ? 'PASS' : 'FAIL'}</Text>
-                      </View>
-                    </View>
-                  ))}
-                </ScrollView>
-              </View>
+            {!connected && (
+              <Text style={styles.requiresConnection}>
+                Requires MIDI connection
+              </Text>
             )}
+          </View>
+        ) : (
+          <View style={styles.testCard}>
+            <Text style={styles.testTitle}>Performance Benchmarks</Text>
+            <Text style={styles.testDescription}>
+              Measures path generation, waveform{'\n'}
+              sampling, and slider drag performance
+            </Text>
 
-            {/* Performance Log Output */}
-            <View style={styles.logSection}>
-              <View style={styles.logHeader}>
-                <Text style={styles.logTitle}>Log Output</Text>
-                <Pressable onPress={clearPerfLogs} style={styles.clearButton}>
-                  <Text style={styles.clearButtonText}>Clear</Text>
-                </Pressable>
-              </View>
-              <ScrollView
-                ref={perfScrollViewRef}
-                style={styles.logContainer}
-                contentContainerStyle={styles.logContent}
-                onContentSizeChange={handleContentSizeChange}
-              >
-                {perfLogs.length === 0 ? (
-                  <Text style={styles.logPlaceholder}>
-                    Tap "Run Benchmarks" to measure{'\n'}
-                    visualization performance.{'\n\n'}
-                    Tests include:{'\n'}
-                    • Waveform path generation{'\n'}
-                    • Per-waveform comparison{'\n'}
-                    • Throttle efficiency{'\n'}
-                    • Slider drag simulation
-                  </Text>
-                ) : (
-                  perfLogs.map((entry, index) => (
-                    <Text
-                      key={index}
-                      style={[
-                        styles.logEntry,
-                        entry.type === 'success' && styles.logSuccess,
-                        entry.type === 'error' && styles.logError,
-                        entry.type === 'data' && styles.logData,
-                      ]}
-                      selectable
-                    >
-                      <Text style={styles.logTime}>[{formatTime(entry.timestamp)}]</Text> {entry.message}
-                    </Text>
-                  ))
-                )}
-              </ScrollView>
-            </View>
-          </>
+            <Pressable
+              style={styles.runButton}
+              onPress={runTests}
+            >
+              <Text style={styles.runButtonText}>Run Benchmarks</Text>
+            </Pressable>
+          </View>
         )}
       </View>
     </>
@@ -343,7 +210,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#1a1a1a',
     borderRadius: 12,
     padding: 16,
-    marginBottom: 16,
   },
   testTitle: {
     color: '#ffffff',
@@ -394,119 +260,10 @@ const styles = StyleSheet.create({
     fontSize: 14,
     fontWeight: '600',
   },
-  resultsCard: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  resultsTitle: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '600',
-    marginBottom: 12,
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  resultsScroll: {
-    maxHeight: 250,
-  },
-  resultsScrollContent: {
-    paddingBottom: 40,
-  },
-  resultRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingVertical: 8,
-    borderBottomWidth: 1,
-    borderBottomColor: '#2a2a2a',
-  },
-  resultInfo: {
-    flex: 1,
-  },
-  resultName: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '500',
-  },
-  resultDetails: {
+  requiresConnection: {
     color: '#888899',
-    fontSize: 11,
-    marginTop: 2,
-  },
-  resultBadge: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
-    borderRadius: 4,
-  },
-  resultPass: {
-    backgroundColor: '#166534',
-  },
-  resultFail: {
-    backgroundColor: '#991b1b',
-  },
-  resultBadgeText: {
-    color: '#ffffff',
-    fontSize: 10,
-    fontWeight: '700',
-  },
-  logSection: {
-    flex: 1,
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    overflow: 'hidden',
-  },
-  logHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    paddingHorizontal: 16,
-    paddingVertical: 12,
-    backgroundColor: '#252525',
-  },
-  logTitle: {
-    color: '#ffffff',
-    fontSize: 13,
-    fontWeight: '600',
-    textTransform: 'uppercase',
-    letterSpacing: 1,
-  },
-  clearButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 4,
-  },
-  clearButtonText: {
-    color: '#888899',
-    fontSize: 13,
-  },
-  logContainer: {
-    flex: 1,
-  },
-  logContent: {
-    padding: 12,
-  },
-  logPlaceholder: {
-    color: '#555',
-    fontSize: 13,
-    lineHeight: 20,
-  },
-  logEntry: {
-    color: '#cccccc',
     fontSize: 12,
-    fontFamily: 'Menlo',
-    lineHeight: 18,
-  },
-  logTime: {
-    color: '#666',
-  },
-  logSuccess: {
-    color: '#4ade80',
-  },
-  logError: {
-    color: '#f87171',
-  },
-  logData: {
-    color: '#60a5fa',
+    textAlign: 'center',
+    marginTop: 12,
   },
 });

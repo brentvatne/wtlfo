@@ -7,6 +7,7 @@ import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import { Storage } from 'expo-sqlite/kv-store';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
+import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Sentry from '@sentry/react-native';
 
 Sentry.init({
@@ -45,30 +46,32 @@ configureReanimatedLogger({
 
 export default Sentry.wrap(function RootLayout() {
   return (
-    <ErrorBoundary>
-      <FrameRateProvider>
-        <MidiProvider>
-          <PresetProvider>
-            <ModulationProvider>
-              <Stack screenOptions={{ headerShown: false }}>
-                <Stack.Screen name="(tabs)" />
-                <Stack.Screen
-                  name="midi"
-                  options={{
-                    title: 'MIDI Sync',
-                    presentation: 'modal',
-                    headerShown: true,
-                    headerStyle: { backgroundColor: '#0a0a0a' },
-                    headerTintColor: '#ff6600',
-                    headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
-                    contentStyle: { backgroundColor: '#0a0a0a' },
-                  }}
-                />
-              </Stack>
-            </ModulationProvider>
-          </PresetProvider>
-        </MidiProvider>
-      </FrameRateProvider>
-    </ErrorBoundary>
+    <GestureHandlerRootView style={{ flex: 1 }}>
+      <ErrorBoundary>
+        <FrameRateProvider>
+          <MidiProvider>
+            <PresetProvider>
+              <ModulationProvider>
+                <Stack screenOptions={{ headerShown: false }}>
+                  <Stack.Screen name="(tabs)" />
+                  <Stack.Screen
+                    name="midi"
+                    options={{
+                      title: 'MIDI Sync',
+                      presentation: 'modal',
+                      headerShown: true,
+                      headerStyle: { backgroundColor: '#0a0a0a' },
+                      headerTintColor: '#ff6600',
+                      headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
+                      contentStyle: { backgroundColor: '#0a0a0a' },
+                    }}
+                  />
+                </Stack>
+              </ModulationProvider>
+            </PresetProvider>
+          </MidiProvider>
+        </FrameRateProvider>
+      </ErrorBoundary>
+    </GestureHandlerRootView>
   );
 });

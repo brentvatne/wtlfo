@@ -275,7 +275,7 @@ function getInitialSmoothPhaseAnimation(): boolean {
   } catch {
     console.warn('Failed to load smooth phase animation setting');
   }
-  return false; // Default to disabled - direct phase updates
+  return true; // Default to enabled - smooth phase interpolation
 }
 
 // Load initial phase animation duration synchronously
@@ -439,6 +439,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     receiveTransport,
     receiveClock,
     connected: midiConnected,
+    initialCheckComplete: midiInitialCheckComplete,
+    digitaktAvailable,
+    autoConnect,
   } = useMidi();
 
   const [activePreset, setActivePresetState] = useState(INITIAL_PRESET_INDEX);
@@ -1024,6 +1027,52 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       subscription.remove();
     };
   }, [lfoPhase, lfoOutput, lfoFadeMultiplier]);
+
+  // MIDI auto-connect startup flow: Wait for initial device check, then decide whether to stay paused
+  // If auto-connect is enabled but no Digitakt found after initial check, start running
+  const hasHandledInitialCheckRef = useRef(false);
+  useEffect(() => {
+    // Only run once after initial check completes
+    if (!midiInitialCheckComplete || hasHandledInitialCheckRef.current) return;
+    hasHandledInitialCheckRef.current = true;
+
+    // If auto-connect is enabled but no Digitakt available, start running
+    if (autoConnect && !digitaktAvailable && !midiConnected) {
+      console.log('[LFO] Auto-connect enabled but no Digitakt found - starting LFO');
+
+      // Start the LFO engine
+      lfoRef.current?.trigger();
+      lfoRef.current?.resetTiming();
+      lfoRef.current?.start();
+
+      // Immediately update shared values
+      if (lfoRef.current) {
+        const initialState = lfoRef.current.update(performance.now());
+        lastTargetPhaseRef.current = initialState.phase;
+        lfoPhase.value = initialState.phase;
+        lfoOutput.value = initialState.output;
+        lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+      }
+
+      setIsPaused(false);
+
+      // Start animation loop if not running
+      if (animationRef.current === 0 && hasMainLoopStarted.current) {
+        const animate = (timestamp: number) => {
+          if (lfoRef.current) {
+            const state = lfoRef.current.update(timestamp);
+            updatePhaseRef.current(state.phase);
+            lfoOutput.value = state.output;
+            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+          }
+          animationRef.current = requestAnimationFrame(animate);
+        };
+        animationRef.current = requestAnimationFrame(animate);
+      }
+    } else if (autoConnect && digitaktAvailable) {
+      console.log('[LFO] Digitakt found - waiting for MIDI transport or user tap');
+    }
+  }, [midiInitialCheckComplete, autoConnect, digitaktAvailable, midiConnected, lfoPhase, lfoOutput, lfoFadeMultiplier]);
 
   // MIDI Transport sync - react to external transport start/stop
   const prevTransportRunningRef = useRef<boolean | null>(null);

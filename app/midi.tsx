@@ -1,4 +1,4 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
@@ -15,7 +15,13 @@ export default function MidiScreen() {
     setReceiveTransport,
     receiveClock,
     setReceiveClock,
+    refreshDevices,
   } = useMidi();
+
+  // Refresh device list when screen opens
+  useEffect(() => {
+    refreshDevices();
+  }, [refreshDevices]);
 
   return (
     <>

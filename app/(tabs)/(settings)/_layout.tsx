@@ -30,6 +30,12 @@ export default function SettingsLayout() {
           presentation: 'modal',
         }}
       />
+      <Stack.Screen
+        name="test-run"
+        options={{
+          title: 'Test Run',
+        }}
+      />
     </Stack>
   );
 }

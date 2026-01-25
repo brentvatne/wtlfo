@@ -22,6 +22,8 @@ interface MidiContextType {
   connected: boolean;
   connectedDeviceName: string | null;
   connecting: boolean;
+  /** True once initial device check is complete (for auto-connect startup) */
+  initialCheckComplete: boolean;
 
   // Transport state (from native module)
   transportRunning: boolean;
@@ -35,6 +37,9 @@ interface MidiContextType {
   setReceiveTransport: (value: boolean) => void;
   receiveClock: boolean;
   setReceiveClock: (value: boolean) => void;
+
+  // Actions
+  refreshDevices: () => void;
 }
 
 const MidiContext = createContext<MidiContextType | null>(null);
@@ -45,6 +50,12 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+  // Track whether initial device check is complete (for auto-connect startup flow)
+  // Initialize to true if auto-connect is disabled (no need to wait)
+  const [initialCheckComplete, setInitialCheckComplete] = useState(() => {
+    const autoConnectSaved = Storage.getItemSync(AUTO_CONNECT_KEY);
+    return autoConnectSaved !== 'true'; // If auto-connect disabled, start as true
+  });
 
   // Find Elektron Digitakt II in available devices
   const digitakt = devices.find(d => DIGITAKT_PATTERN.test(d.name));
@@ -66,6 +77,42 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   // Track if we're in the middle of an auto-connect attempt
   const autoConnectingRef = useRef(false);
+  // Track if we've done the initial device check
+  const hasCheckedDevicesRef = useRef(false);
+
+  // Mark initial device check complete after first devices update
+  // This happens once useMidiDevices returns (even if empty array)
+  useEffect(() => {
+    // useMidiDevices returns devices array on mount - this effect runs after that
+    // If auto-connect is disabled, mark as complete immediately
+    if (!autoConnect) {
+      setInitialCheckComplete(true);
+      hasCheckedDevicesRef.current = true;
+      return;
+    }
+
+    // For auto-connect, we want to wait a bit to give devices time to enumerate
+    // But if we already found a Digitakt, we're done
+    if (digitaktAvailable && !hasCheckedDevicesRef.current) {
+      setInitialCheckComplete(true);
+      hasCheckedDevicesRef.current = true;
+      return;
+    }
+
+    // If no Digitakt found yet, wait a short time then mark complete
+    // This gives USB devices time to enumerate on app launch
+    if (!hasCheckedDevicesRef.current) {
+      const timeout = setTimeout(() => {
+        if (!hasCheckedDevicesRef.current) {
+          console.log('[MIDI] Initial device check timeout - marking complete');
+          setInitialCheckComplete(true);
+          hasCheckedDevicesRef.current = true;
+        }
+      }, 1000); // Wait 1 second for devices to enumerate
+
+      return () => clearTimeout(timeout);
+    }
+  }, [autoConnect, digitaktAvailable]);
 
   // Sync with native disconnect events
   useEffect(() => {
@@ -125,7 +172,11 @@ export function MidiProvider({ children }: { children: ReactNode }) {
   const setAutoConnect = useCallback((value: boolean) => {
     setAutoConnectState(value);
     Storage.setItemSync(AUTO_CONNECT_KEY, String(value));
-  }, []);
+    // Immediately refresh device list when enabling auto-connect
+    if (value) {
+      refreshDevices();
+    }
+  }, [refreshDevices]);
 
   const setReceiveTransport = useCallback((value: boolean) => {
     setReceiveTransportState(value);
@@ -142,6 +193,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
     connected: connectedDeviceName !== null,
     connectedDeviceName,
     connecting,
+    initialCheckComplete,
     transportRunning: receiveTransport ? transportRunning : false,
     lastTransportMessage: receiveTransport ? lastMessage : null,
     externalBpm: receiveClock ? externalBpm : 0,
@@ -151,6 +203,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
     setReceiveTransport,
     receiveClock,
     setReceiveClock,
+    refreshDevices,
   };
 
   return (

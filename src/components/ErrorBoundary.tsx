@@ -1,6 +1,5 @@
 import React, { Component, ErrorInfo, ReactNode } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import { ScrollView } from 'react-native-gesture-handler';
+import { View, Text, StyleSheet, Pressable, ScrollView } from 'react-native';
 import * as Updates from 'expo-updates';
 import * as Sentry from '@sentry/react-native';
 

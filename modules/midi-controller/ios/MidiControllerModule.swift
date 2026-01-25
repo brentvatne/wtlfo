@@ -4,35 +4,26 @@ public class MidiControllerModule: Module {
     private lazy var midiManager = MidiManager()
     private var isSetup = false
 
-    public func definition() -> ModuleDefinition {
-        Name("MidiController")
+    private func ensureSetup() {
+        guard !isSetup else { return }
+        do {
+            try midiManager.setup()
+            isSetup = true
 
-        // Events - no clock ticks (too frequent), only state changes
-        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onConnect", "onDisconnect", "onCcChange")
-
-        OnStartObserving {
-            guard !self.isSetup else { return }
-            do {
-                try self.midiManager.setup()
-                self.isSetup = true
-            } catch {
-                print("MIDI setup failed: \(error)")
-                return
-            }
-
-            self.midiManager.onTransportChange = { [weak self] running, message in
+            // Set up event callbacks
+            midiManager.onTransportChange = { [weak self] running, message in
                 self?.sendEvent("onTransportChange", ["running": running, "message": message])
             }
-            self.midiManager.onBpmUpdate = { [weak self] bpm in
+            midiManager.onBpmUpdate = { [weak self] bpm in
                 self?.sendEvent("onBpmUpdate", ["bpm": bpm])
             }
-            self.midiManager.onDevicesChanged = { [weak self] in
+            midiManager.onDevicesChanged = { [weak self] in
                 self?.sendEvent("onDevicesChanged", [:])
             }
-            self.midiManager.onDisconnect = { [weak self] in
+            midiManager.onDisconnect = { [weak self] in
                 self?.sendEvent("onDisconnect", [:])
             }
-            self.midiManager.onCcReceived = { [weak self] channel, cc, value, timestamp in
+            midiManager.onCcReceived = { [weak self] channel, cc, value, timestamp in
                 self?.sendEvent("onCcChange", [
                     "channel": channel,
                     "cc": cc,
@@ -40,6 +31,19 @@ public class MidiControllerModule: Module {
                     "timestamp": timestamp
                 ])
             }
+        } catch {
+            print("MIDI setup failed: \(error)")
+        }
+    }
+
+    public func definition() -> ModuleDefinition {
+        Name("MidiController")
+
+        // Events - no clock ticks (too frequent), only state changes
+        Events("onTransportChange", "onBpmUpdate", "onDevicesChanged", "onConnect", "onDisconnect", "onCcChange")
+
+        OnStartObserving {
+            self.ensureSetup()
         }
 
         OnDestroy {
@@ -52,6 +56,7 @@ public class MidiControllerModule: Module {
         }
 
         Function("getDevices") { () -> [[String: Any]] in
+            self.ensureSetup()  // Ensure MIDI client is ready to receive device notifications
             return self.midiManager.getAvailableDevices()
         }
 
