@@ -10,6 +10,7 @@ export { GridLines } from './GridLines';
 export { ParameterBadges } from './ParameterBadges';
 export { TimingInfo } from './TimingInfo';
 export { OutputValueDisplay } from './OutputValueDisplay';
+export { VisualizationPlaceholder } from './VisualizationPlaceholder';
 
 // Small inline waveform icon (sparkline-style)
 export { WaveformIcon } from './WaveformIcon';

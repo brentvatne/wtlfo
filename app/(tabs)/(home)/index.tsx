@@ -3,16 +3,17 @@ import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from
 import { ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing, FadeIn } from 'react-native-reanimated';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
   sampleWaveformWorklet,
   TimingInfo,
+  VisualizationPlaceholder,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
-import { DestinationMeter, CenterValueSlider } from '@/src/components/destination';
+import { DestinationMeter, CenterValueSlider, MeterPlaceholder } from '@/src/components/destination';
 import { TestTone } from '@/src/components/audio';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
@@ -52,14 +53,16 @@ export default function HomeScreen() {
     isLFORunning,
     isPaused,
     setIsPaused,
+    splashFadeDuration,
   } = usePreset();
 
   // Tab switch fade - wraps entire screen content
   // Start at 1 (visible) - useFocusEffect will handle the initial fade if needed
   const screenOpacity = useSharedValue(1);
   // Visualization fade - wraps just the visualizer row
-  // Start at 0 for fade-in, or 1 if fade disabled
-  const visualizerOpacity = useSharedValue(fadeInVisualization ? 0 : 1);
+  // Start at 1 - initial fade-in is handled by FadeIn on Skia components
+  // This is only used for background/foreground transitions now
+  const visualizerOpacity = useSharedValue(1);
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
@@ -67,6 +70,17 @@ export default function HomeScreen() {
   const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
   const navigation = useNavigation();
+
+  // Track when splash fade completes to defer expensive Skia rendering
+  const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
+  useEffect(() => {
+    if (!fadeInVisualization) {
+      setVisualizationsReady(true);
+      return;
+    }
+    const timer = setTimeout(() => setVisualizationsReady(true), splashFadeDuration);
+    return () => clearTimeout(timer);
+  }, [fadeInVisualization, splashFadeDuration]);
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
@@ -116,19 +130,9 @@ export default function HomeScreen() {
   const prevIsPausedRef = useRef(isPaused);
 
   useEffect(() => {
-    // Initial fade-in on app open
-    if (!hasInitializedVisualization.current && fadeInVisualization) {
-      visualizerOpacity.value = 0;
-      visualizerOpacity.value = withTiming(1, {
-        duration: visualizationFadeDuration,
-        easing: Easing.out(Easing.ease),
-      });
-      hasInitializedVisualization.current = true;
-    } else if (!fadeInVisualization) {
-      visualizerOpacity.value = 1;
-      hasInitializedVisualization.current = true;
-    }
-  }, [fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
+    // Mark as initialized - initial fade-in is handled by FadeIn on Skia components
+    hasInitializedVisualization.current = true;
+  }, []);
 
   // Fade in visualization when user unpauses (taps to resume)
   useEffect(() => {
@@ -305,36 +309,42 @@ export default function HomeScreen() {
               accessibilityState={{ selected: isPaused }}
               accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
             >
-              <LFOVisualizer
-                phase={displayPhase}
-                output={lfoOutput}
-                waveform={currentConfig.waveform as WaveformType}
-                speed={currentConfig.speed}
-                multiplier={currentConfig.multiplier}
-                startPhase={currentConfig.startPhase}
-                mode={currentConfig.mode as TriggerMode}
-                depth={currentConfig.depth}
-                fade={currentConfig.fade}
-                bpm={effectiveBpm}
-                cycleTimeMs={timingInfo.cycleTimeMs}
-                noteValue={timingInfo.noteValue}
-                steps={timingInfo.steps}
-                width={visualizerWidth}
-                height={METER_HEIGHT}
-                theme={ELEKTRON_THEME}
-                showParameters={false}
-                showTiming={false}
-                showOutput={false}
-                isEditing={isEditing}
-                hideValuesWhileEditing={hideValuesWhileEditing}
-                showFillsWhenEditing={showFillsWhenEditing}
-                editFadeOutDuration={editFadeOutDuration}
-                editFadeInDuration={editFadeInDuration}
-                strokeWidth={2.5}
-                showFadeEnvelope={showFadeEnvelope}
-                depthAnimationDuration={depthAnimationDuration}
-                showPhaseIndicator={!isBackgrounded}
-              />
+              {visualizationsReady ? (
+                <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
+                  <LFOVisualizer
+                    phase={displayPhase}
+                    output={lfoOutput}
+                    waveform={currentConfig.waveform as WaveformType}
+                    speed={currentConfig.speed}
+                    multiplier={currentConfig.multiplier}
+                    startPhase={currentConfig.startPhase}
+                    mode={currentConfig.mode as TriggerMode}
+                    depth={currentConfig.depth}
+                    fade={currentConfig.fade}
+                    bpm={effectiveBpm}
+                    cycleTimeMs={timingInfo.cycleTimeMs}
+                    noteValue={timingInfo.noteValue}
+                    steps={timingInfo.steps}
+                    width={visualizerWidth}
+                    height={METER_HEIGHT}
+                    theme={ELEKTRON_THEME}
+                    showParameters={false}
+                    showTiming={false}
+                    showOutput={false}
+                    isEditing={isEditing}
+                    hideValuesWhileEditing={hideValuesWhileEditing}
+                    showFillsWhenEditing={showFillsWhenEditing}
+                    editFadeOutDuration={editFadeOutDuration}
+                    editFadeInDuration={editFadeInDuration}
+                    strokeWidth={2.5}
+                    showFadeEnvelope={showFadeEnvelope}
+                    depthAnimationDuration={depthAnimationDuration}
+                    showPhaseIndicator={!isBackgrounded}
+                  />
+                </Animated.View>
+              ) : (
+                <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
+              )}
             </Pressable>
             {/* Timing info outside pressable - tapping here won't pause */}
             <View style={[styles.timingContainer, { width: visualizerWidth }]}>
@@ -361,26 +371,32 @@ export default function HomeScreen() {
             accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
             accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
           >
-            <DestinationMeter
-              lfoOutput={displayOutput}
-              destination={activeDestination}
-              centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
-              depth={currentConfig.depth}
-              fade={currentConfig.fade}
-              mode={currentConfig.mode as TriggerMode}
-              fadeMultiplier={displayFadeMultiplier}
-              waveform={currentConfig.waveform as WaveformType}
-              startPhase={currentConfig.startPhase}
-              width={METER_WIDTH}
-              height={METER_HEIGHT}
-              showValue
-              isEditing={isEditing}
-              hideValuesWhileEditing={hideValuesWhileEditing}
-              showFillsWhenEditing={showFillsWhenEditing}
-              editFadeOutDuration={editFadeOutDuration}
-              editFadeInDuration={editFadeInDuration}
-              isPaused={isPaused}
-            />
+            {visualizationsReady ? (
+              <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
+                <DestinationMeter
+                  lfoOutput={displayOutput}
+                  destination={activeDestination}
+                  centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+                  depth={currentConfig.depth}
+                  fade={currentConfig.fade}
+                  mode={currentConfig.mode as TriggerMode}
+                  fadeMultiplier={displayFadeMultiplier}
+                  waveform={currentConfig.waveform as WaveformType}
+                  startPhase={currentConfig.startPhase}
+                  width={METER_WIDTH}
+                  height={METER_HEIGHT}
+                  showValue
+                  isEditing={isEditing}
+                  hideValuesWhileEditing={hideValuesWhileEditing}
+                  showFillsWhenEditing={showFillsWhenEditing}
+                  editFadeOutDuration={editFadeOutDuration}
+                  editFadeInDuration={editFadeInDuration}
+                  isPaused={isPaused}
+                />
+              </Animated.View>
+            ) : (
+              <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
+            )}
           </Pressable>
         </Animated.View>
 
