@@ -22,6 +22,9 @@ export { useSlowMotionPhase } from './hooks/useSlowMotionPhase';
 
 // Slow motion visualization
 export { SlowMotionBadge } from './SlowMotionBadge';
+
+// Play/pause indicator overlay
+export { PlayPauseIndicator } from './PlayPauseIndicator';
 export { getSlowdownInfo, getSlowdownFactor, DEFAULT_SLOWDOWN_CONFIG } from './utils/getSlowdownInfo';
 export type { SlowdownInfo, SlowdownConfig } from './utils/getSlowdownInfo';
 

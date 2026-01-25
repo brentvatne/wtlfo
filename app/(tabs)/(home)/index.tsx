@@ -10,6 +10,7 @@ import {
   sampleWaveformWorklet,
   TimingInfo,
   VisualizationPlaceholder,
+  PlayPauseIndicator,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -70,6 +71,8 @@ export default function HomeScreen() {
   const pausedDueToTabSwitchRef = useRef(false);
   // Track whether app is backgrounded to hide phase indicator
   const [isBackgrounded, setIsBackgrounded] = useState(false);
+  // Track user-initiated play/pause action for indicator
+  const [playPauseAction, setPlayPauseAction] = useState<'play' | 'pause' | null>(null);
   const pathname = usePathname();
   const navigation = useNavigation();
 
@@ -302,6 +305,7 @@ export default function HomeScreen() {
       // Resume from manual pause
       startLFO();
       setIsPaused(false);
+      setPlayPauseAction('play');
     } else if (!isLFORunning()) {
       // Stopped (ONE/HLF completed) - restart
       triggerLFO();
@@ -309,8 +313,14 @@ export default function HomeScreen() {
       // Currently running - pause it
       stopLFO();
       setIsPaused(true);
+      setPlayPauseAction('pause');
     }
   };
+
+  // Clear play/pause action after animation completes
+  const handlePlayPauseAnimationComplete = useCallback(() => {
+    setPlayPauseAction(null);
+  }, []);
 
   return (
     <ScrollView
@@ -367,6 +377,10 @@ export default function HomeScreen() {
               ) : (
                 <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
               )}
+              <PlayPauseIndicator
+                action={playPauseAction}
+                onAnimationComplete={handlePlayPauseAnimationComplete}
+              />
             </Pressable>
             {/* Timing info outside pressable - tapping here won't pause */}
             <View style={[styles.timingContainer, { width: visualizerWidth }]}>
