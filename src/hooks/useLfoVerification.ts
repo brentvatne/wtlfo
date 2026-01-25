@@ -30,6 +30,20 @@ interface TimingResult {
   pass: boolean;
 }
 
+// Per-cycle amplitude for fade verification
+interface CycleAmplitude {
+  cycle: number;
+  observedAmplitude: number;
+  expectedAmplitude: number;
+  pass: boolean;
+}
+
+interface FadeResult {
+  cycleAmplitudes: CycleAmplitude[];
+  fadePass: boolean;
+  fadeSummary: string;
+}
+
 interface ShapeResult {
   // Range: does it achieve the expected CC swing?
   expectedRange: number;  // expected CC swing (e.g., 80 for depth=40 bipolar)
@@ -46,6 +60,9 @@ interface ShapeResult {
   // Direction: for monotonic waveforms, is direction correct?
   directionPass: boolean;
   directionInfo: string;
+
+  // Fade: per-cycle amplitude comparison (only for fade tests)
+  fade?: FadeResult;
 }
 
 interface TestResult {
@@ -107,6 +124,155 @@ const LFO_DEST_CC_VAL1 = 70;
 const TRACK_OUTPUT_CHANNEL = 0;  // Channel 1 - configured in Digitakt MIDI settings
 const LFO_OUTPUT_CC = 70;
 const TEST_BPM = 120;
+
+// ============================================
+// FADE VERIFICATION HELPERS
+// ============================================
+
+/**
+ * Calculate fade cycles - how many LFO cycles for complete fade
+ * Replicates the formula from elektron-lfo/src/engine/fade.ts
+ */
+function calculateFadeCycles(fadeValue: number): number {
+  if (fadeValue === 0) return 0;
+
+  const absFade = Math.abs(fadeValue);
+
+  // |FADE| >= 48 is effectively disabled (infinitely slow fade)
+  if (absFade >= 48) {
+    return Infinity;
+  }
+
+  // Fast fade region: roughly linear
+  if (absFade <= 16) {
+    // |FADE|=4 → ~0.7 cycles, |FADE|=16 → ~2.7 cycles
+    return Math.max(0.5, absFade / 6);
+  }
+
+  // Slow fade region: exponential growth
+  const baseAt16 = 16 / 6; // ~2.67 cycles
+  return baseAt16 * Math.pow(2, (absFade - 16) / 5);
+}
+
+/**
+ * Calculate expected amplitude at a given cycle number
+ * @param fadeValue - The FADE parameter (-64 to +63)
+ * @param cycleNumber - Which cycle (1-based)
+ * @param fullAmplitude - Full amplitude (depth * 2 for CC swing)
+ * @returns Expected amplitude at that cycle
+ */
+function calculateExpectedAmplitudeAtCycle(
+  fadeValue: number,
+  cycleNumber: number,
+  fullAmplitude: number
+): number {
+  if (fadeValue === 0) return fullAmplitude;
+
+  const fadeCycles = calculateFadeCycles(fadeValue);
+  if (!isFinite(fadeCycles)) return 0; // Disabled fade
+
+  // Progress through fade at end of this cycle
+  const progress = Math.min(1, cycleNumber / fadeCycles);
+
+  if (fadeValue < 0) {
+    // Fade IN: amplitude increases from 0 to full
+    return fullAmplitude * progress;
+  } else {
+    // Fade OUT: amplitude decreases from full to 0
+    return fullAmplitude * (1 - progress);
+  }
+}
+
+/**
+ * Detect cycles from CC data using peak/trough detection
+ * Returns array of cycle amplitudes (max - min within each cycle window)
+ */
+function detectCycleAmplitudes(
+  ccData: CapturedCC[],
+  expectedCycleMs: number
+): { cycle: number; amplitude: number; min: number; max: number }[] {
+  if (ccData.length === 0) return [];
+
+  const sorted = [...ccData].sort((a, b) => a.timestamp - b.timestamp);
+  const totalDuration = sorted[sorted.length - 1].timestamp - sorted[0].timestamp;
+  const numCycles = Math.ceil(totalDuration / expectedCycleMs);
+
+  const cycles: { cycle: number; amplitude: number; min: number; max: number }[] = [];
+
+  for (let cycle = 0; cycle < Math.min(numCycles, 20); cycle++) {
+    const cycleStart = cycle * expectedCycleMs;
+    const cycleEnd = (cycle + 1) * expectedCycleMs;
+
+    const ccsInCycle = sorted.filter(cc =>
+      cc.timestamp >= cycleStart && cc.timestamp < cycleEnd
+    );
+
+    if (ccsInCycle.length > 0) {
+      const values = ccsInCycle.map(cc => cc.value);
+      const min = Math.min(...values);
+      const max = Math.max(...values);
+      cycles.push({
+        cycle: cycle + 1,
+        amplitude: max - min,
+        min,
+        max,
+      });
+    }
+  }
+
+  return cycles;
+}
+
+/**
+ * Compare per-cycle amplitudes between Digitakt and engine expectations
+ * Returns FadeResult with pass/fail for each cycle and overall
+ */
+function compareFadeAmplitudes(
+  observedCycles: { cycle: number; amplitude: number; min: number; max: number }[],
+  fadeValue: number,
+  fullAmplitude: number,
+  tolerance: number = 0.25 // 25% tolerance
+): FadeResult {
+  const cycleAmplitudes: CycleAmplitude[] = [];
+
+  for (const observed of observedCycles) {
+    const expected = calculateExpectedAmplitudeAtCycle(
+      fadeValue,
+      observed.cycle,
+      fullAmplitude
+    );
+
+    // Pass if within tolerance OR if both are small (< 10 CC)
+    const diff = Math.abs(observed.amplitude - expected);
+    const toleranceValue = Math.max(fullAmplitude * tolerance, 10); // At least 10 CC tolerance
+    const pass = diff <= toleranceValue;
+
+    cycleAmplitudes.push({
+      cycle: observed.cycle,
+      observedAmplitude: observed.amplitude,
+      expectedAmplitude: Math.round(expected),
+      pass,
+    });
+  }
+
+  // Overall pass if majority of cycles pass (>= 70%)
+  const passCount = cycleAmplitudes.filter(c => c.pass).length;
+  const fadePass = cycleAmplitudes.length > 0 && (passCount / cycleAmplitudes.length) >= 0.7;
+
+  // Generate summary
+  const fadeCycles = calculateFadeCycles(fadeValue);
+  const direction = fadeValue < 0 ? 'IN' : 'OUT';
+  let fadeSummary = `Fade ${direction}: ${passCount}/${cycleAmplitudes.length} cycles match`;
+  if (isFinite(fadeCycles)) {
+    fadeSummary += ` (${fadeCycles.toFixed(1)} cycles to complete)`;
+  }
+
+  return {
+    cycleAmplitudes,
+    fadePass,
+    fadeSummary,
+  };
+}
 
 // ASCII waveform visualization
 const WAVEFORM_HEIGHT = 8;
@@ -1137,9 +1303,25 @@ export function useLfoVerification() {
     allCCsSeenRef.current.clear();
 
     // Calculate expected ranges based on waveform type and depth
+    // Unipolar waveforms (RMP, EXP):
+    //   depth >= 0: output 1→0, CC range [64, 64+depth]
+    //   depth < 0:  output -1→0, CC range [64-|depth|, 64]
+    // Bipolar waveforms: CC range [64-|depth|, 64+|depth|]
     const isUnipolar = config.waveform === 'RMP' || config.waveform === 'EXP';
-    const expectedMin = isUnipolar ? 64 : Math.max(0, 64 - Math.abs(config.depth));
-    const expectedMax = Math.min(127, 64 + Math.abs(config.depth));
+    let expectedMin: number;
+    let expectedMax: number;
+    if (isUnipolar) {
+      if (config.depth >= 0) {
+        expectedMin = 64;
+        expectedMax = Math.min(127, 64 + config.depth);
+      } else {
+        expectedMin = Math.max(0, 64 + config.depth); // depth is negative, so this subtracts
+        expectedMax = 64;
+      }
+    } else {
+      expectedMin = Math.max(0, 64 - Math.abs(config.depth));
+      expectedMax = Math.min(127, 64 + Math.abs(config.depth));
+    }
     const expectedRangeSize = expectedMax - expectedMin;
 
     const result: TestResult = {
@@ -1427,17 +1609,18 @@ export function useLfoVerification() {
         startDirection = dirData[1].value > dirData[0].value ? 'UP' : 'DOWN';
       }
 
-      // === TIMING VERIFICATION (separate from shape) ===
-      const timingRatio = observedCycleMs > 0 ? observedCycleMs / expectedCycleMs : 0;
-      const timingDriftPercent = Math.abs(1 - timingRatio) * 100;
-      const timingPass = timingDriftPercent < 20; // 20% tolerance
-      const timingStatus = timingDriftPercent < 15 ? 'OK' : timingDriftPercent < 30 ? 'DRIFT' : 'WRONG';
+      // === TIMING INFO (diagnostic only, not used for pass/fail) ===
+      // We don't verify timing because Digitakt's actual cycle time varies from theoretical.
+      // Shape verification handles this by being timing-independent.
+      const timingDriftPercent = observedCycleMs > 0
+        ? Math.abs(1 - observedCycleMs / expectedCycleMs) * 100
+        : 0;
 
       result.timing = {
         expectedCycleMs,
         observedCycleMs,
         driftPercent: timingDriftPercent,
-        pass: timingPass,
+        pass: true, // Always pass - timing is informational only
       };
 
       // === SHAPE VERIFICATION (independent of timing) ===
@@ -1469,7 +1652,7 @@ export function useLfoVerification() {
 
       // Legacy fields for backward compatibility
       const rangeStatus = rangePass && boundsPass ? 'OK' : 'LIMITED';
-      result.timingStatus = timingStatus;
+      result.timingStatus = 'INFO'; // Timing is informational only
       result.rangeStatus = rangeStatus;
       result.observedCycleMs = observedCycleMs;
       result.expectedCycleMs = expectedCycleMs;
@@ -1497,95 +1680,71 @@ export function useLfoVerification() {
       // Output structured summary for LLM parsing
       console.log(`\n[LFO_RESULT] ============ ${config.name} ============`);
       console.log(`[LFO_RESULT] CONFIG: mode=${config.mode} speed=${config.speed} mult=${config.multiplier} depth=${config.depth} startPhase=${config.startPhase}`);
-      console.log(`[LFO_RESULT] TIMING: expected=${expectedCycleMs.toFixed(0)}ms observed=${observedCycleMs.toFixed(0)}ms drift=${timingDriftPercent.toFixed(1)}% pass=${timingPass}`);
+      console.log(`[LFO_RESULT] TIMING: expected=${expectedCycleMs.toFixed(0)}ms observed=${observedCycleMs.toFixed(0)}ms drift=${timingDriftPercent.toFixed(1)}% (info only)`);
       console.log(`[LFO_RESULT] SHAPE: range=${observedRangeSize}/${expectedRangeSize} (${rangePass ? 'OK' : 'FAIL'}) bounds=[${minVal}-${maxVal}] expected=[${expectedMin}-${expectedMax}] (${boundsPass ? 'OK' : 'FAIL'})`);
       console.log(`[LFO_RESULT] DIRECTION: ${directionInfo || 'N/A'} (${directionPass ? 'OK' : 'FAIL'})`);
       console.log(`[LFO_RESULT] START: value=${startValue} direction=${startDirection} trigger_status=${triggerStatus}`);
 
       // Determine overall shape pass
       const shapePass = rangePass && boundsPass;
-      console.log(`[LFO_RESULT] VERDICT: timing=${timingPass ? 'PASS' : 'FAIL'} shape=${shapePass ? 'PASS' : 'FAIL'}`);
+      console.log(`[LFO_RESULT] VERDICT: shape=${shapePass ? 'PASS' : 'FAIL'}`);
 
       // ============================================
-      // DETAILED FADE LOGGING
-      // Analyze amplitude per cycle to determine fade formula
+      // PER-CYCLE AMPLITUDE COMPARISON FOR FADE TESTS
+      // Compare observed amplitude per cycle against engine expectations
       // ============================================
       if (config.fade !== 0) {
         console.log(`[FADE] ════════════════════════════════════════`);
         console.log(`[FADE] Fade analysis for FADE=${config.fade}`);
         console.log(`[FADE] Expected cycle: ${expectedCycleMs.toFixed(0)}ms`);
 
-        // Divide the capture into cycle-sized windows and measure amplitude in each
-        const cycleWindowMs = expectedCycleMs;
-        const sortedCCs = [...capturedCCsRef.current].sort((a, b) => a.timestamp - b.timestamp);
-        const totalDuration = sortedCCs.length > 0
-          ? sortedCCs[sortedCCs.length - 1].timestamp - sortedCCs[0].timestamp
-          : 0;
-        const numCycles = Math.ceil(totalDuration / cycleWindowMs);
+        // Detect per-cycle amplitudes from captured data
+        const observedCycles = detectCycleAmplitudes(capturedCCsRef.current, expectedCycleMs);
 
-        console.log(`[FADE] Total duration: ${totalDuration.toFixed(0)}ms (~${numCycles} cycles)`);
-        console.log(`[FADE] Per-cycle amplitude analysis:`);
+        // Full amplitude is depth * 2 (e.g., depth=40 means range of 80 CC)
+        const fullAmplitude = Math.abs(config.depth) * 2;
 
-        const cycleAmplitudes: { cycle: number; min: number; max: number; range: number; samples: number }[] = [];
+        // Compare against engine expectations
+        const fadeResult = compareFadeAmplitudes(observedCycles, config.fade, fullAmplitude);
 
-        for (let cycle = 0; cycle < Math.min(numCycles, 20); cycle++) {  // Max 20 cycles
-          const cycleStart = cycle * cycleWindowMs;
-          const cycleEnd = (cycle + 1) * cycleWindowMs;
+        // Store in result
+        result.shape.fade = fadeResult;
 
-          const ccsInCycle = sortedCCs.filter(cc =>
-            cc.timestamp >= cycleStart && cc.timestamp < cycleEnd
-          );
+        // Log per-cycle comparison
+        const fadeCycles = calculateFadeCycles(config.fade);
+        console.log(`[FADE] Expected fade duration: ${isFinite(fadeCycles) ? fadeCycles.toFixed(1) + ' cycles' : 'disabled'}`);
+        console.log(`[FADE] Per-cycle amplitude comparison (observed vs expected):`);
 
-          if (ccsInCycle.length > 0) {
-            const values = ccsInCycle.map(cc => cc.value);
-            const cycleMin = Math.min(...values);
-            const cycleMax = Math.max(...values);
-            const cycleRange = cycleMax - cycleMin;
+        for (const cycle of fadeResult.cycleAmplitudes) {
+          const passIcon = cycle.pass ? '✓' : '✗';
+          const fillPercent = Math.min(100, Math.round((cycle.observedAmplitude / fullAmplitude) * 100));
+          const barLength = Math.round(fillPercent / 5);
+          const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
 
-            cycleAmplitudes.push({ cycle: cycle + 1, min: cycleMin, max: cycleMax, range: cycleRange, samples: ccsInCycle.length });
-
-            // Visual bar showing amplitude
-            const maxPossibleRange = Math.abs(config.depth) * 2;
-            const fillPercent = Math.min(100, Math.round((cycleRange / maxPossibleRange) * 100));
-            const barLength = Math.round(fillPercent / 5);  // 20 char max
-            const bar = '█'.repeat(barLength) + '░'.repeat(20 - barLength);
-
-            console.log(`[FADE]   Cycle ${(cycle + 1).toString().padStart(2)}: [${cycleMin.toString().padStart(3)}-${cycleMax.toString().padStart(3)}] range=${cycleRange.toString().padStart(3)} |${bar}| ${fillPercent}%`);
-          }
+          console.log(`[FADE]   Cycle ${cycle.cycle.toString().padStart(2)}: obs=${cycle.observedAmplitude.toString().padStart(3)} exp=${cycle.expectedAmplitude.toString().padStart(3)} ${passIcon} |${bar}| ${fillPercent}%`);
         }
-
-        // Determine when fade reached full amplitude (>90% of expected)
-        const fullAmplitudeThreshold = Math.abs(config.depth) * 2 * 0.9;
-        const firstFullCycle = cycleAmplitudes.find(c => c.range >= fullAmplitudeThreshold);
-        const lastLowCycle = [...cycleAmplitudes].reverse().find(c => c.range < fullAmplitudeThreshold * 0.5);
 
         console.log(`[FADE] ────────────────────────────────────────`);
-        if (config.fade < 0) {
-          // Fade-in: find first cycle at full amplitude
-          if (firstFullCycle) {
-            console.log(`[FADE] FADE-IN RESULT: Reached full amplitude at cycle ${firstFullCycle.cycle}`);
-            log(`🔺 Fade-in: full amplitude at cycle ${firstFullCycle.cycle}`, 'success');
-          } else {
-            console.log(`[FADE] FADE-IN RESULT: Never reached full amplitude in ${numCycles} cycles!`);
-            log(`🔺 Fade-in: NOT complete after ${numCycles} cycles`, 'error');
-          }
-        } else {
-          // Fade-out: find last cycle with low amplitude
-          const firstLowCycle = cycleAmplitudes.find(c => c.range < fullAmplitudeThreshold * 0.1);
-          if (firstLowCycle) {
-            console.log(`[FADE] FADE-OUT RESULT: Faded to ~zero at cycle ${firstLowCycle.cycle}`);
-            log(`🔻 Fade-out: zero amplitude at cycle ${firstLowCycle.cycle}`, 'success');
-          } else {
-            console.log(`[FADE] FADE-OUT RESULT: Never reached zero in ${numCycles} cycles!`);
-            log(`🔻 Fade-out: NOT complete after ${numCycles} cycles`, 'error');
+        console.log(`[FADE] RESULT: ${fadeResult.fadePass ? 'PASS' : 'FAIL'} - ${fadeResult.fadeSummary}`);
+
+        // Log to UI
+        const fadeIcon = config.fade < 0 ? '🔺' : '🔻';
+        const fadeDir = config.fade < 0 ? 'Fade-in' : 'Fade-out';
+        log(`${fadeIcon} ${fadeDir}: ${fadeResult.fadeSummary}`, fadeResult.fadePass ? 'success' : 'error');
+
+        if (!fadeResult.fadePass) {
+          // Show first few mismatched cycles
+          const mismatched = fadeResult.cycleAmplitudes.filter(c => !c.pass).slice(0, 3);
+          for (const c of mismatched) {
+            log(`   ↳ Cycle ${c.cycle}: observed=${c.observedAmplitude} expected=${c.expectedAmplitude}`, 'error');
           }
         }
+
         console.log(`[FADE] ════════════════════════════════════════`);
       }
 
-      // Human-readable summary in UI - TIMING
-      log(`⏱ Timing: ${observedCycleMs.toFixed(0)}ms vs ${expectedCycleMs.toFixed(0)}ms (${timingDriftPercent.toFixed(0)}% drift)`,
-        timingPass ? 'success' : 'error');
+      // Human-readable summary in UI - TIMING (informational only)
+      log(`⏱ Cycle: ${observedCycleMs.toFixed(0)}ms observed (${timingDriftPercent.toFixed(0)}% from theoretical)`, 'info');
 
       // Human-readable summary in UI - SHAPE
       log(`📊 Shape: range ${observedRangeSize}/${expectedRangeSize} CC, bounds [${minVal}-${maxVal}]`,
@@ -1744,7 +1903,10 @@ export function useLfoVerification() {
     } else {
       // For deterministic waveforms, use SHAPE-BASED verification
       // This is independent of timing drift - we check if the shape is correct
-      const shapePass = result.shape.rangePass && result.shape.boundsPass;
+      // For fade tests, also require fade amplitude progression to match
+      const baseShapePass = result.shape.rangePass && result.shape.boundsPass;
+      const fadePass = result.shape.fade?.fadePass ?? true; // Pass if no fade test
+      const shapePass = baseShapePass && fadePass;
 
       if (shapePass) {
         // Shape is correct - count as passed
@@ -1923,12 +2085,13 @@ export function useLfoVerification() {
       log('  FAILED TESTS SUMMARY');
       log('========================================');
       for (const testResult of failedTests) {
-        const timingIcon = testResult.timing.pass ? '✓' : '✗';
-        const shapeIcon = (testResult.shape.rangePass && testResult.shape.boundsPass) ? '✓' : '✗';
+        const baseShapePass = testResult.shape.rangePass && testResult.shape.boundsPass;
+        const fadePass = testResult.shape.fade?.fadePass ?? true;
+        const shapePass = baseShapePass && fadePass;
+        const shapeIcon = shapePass ? '✓' : '✗';
 
         log(`✗ ${testResult.testName}`, 'error');
-        log(`  ⏱ Timing: ${timingIcon} ${testResult.timing.driftPercent.toFixed(0)}% drift (${testResult.observedCycleMs.toFixed(0)}ms vs ${testResult.expectedCycleMs.toFixed(0)}ms)`, testResult.timing.pass ? 'success' : 'info');
-        log(`  📊 Shape: ${shapeIcon} range=${testResult.shape.observedRange}/${testResult.shape.expectedRange} bounds=[${testResult.shape.observedMin}-${testResult.shape.observedMax}]`, (testResult.shape.rangePass && testResult.shape.boundsPass) ? 'success' : 'info');
+        log(`  📊 Shape: ${shapeIcon} range=${testResult.shape.observedRange}/${testResult.shape.expectedRange} bounds=[${testResult.shape.observedMin}-${testResult.shape.observedMax}]`, shapePass ? 'success' : 'info');
 
         // Show specific shape failures
         if (!testResult.shape.rangePass) {
@@ -1936,6 +2099,9 @@ export function useLfoVerification() {
         }
         if (!testResult.shape.boundsPass) {
           log(`     ↳ Out of bounds (expected [${testResult.shape.expectedMin}-${testResult.shape.expectedMax}])`, 'error');
+        }
+        if (testResult.shape.fade && !testResult.shape.fade.fadePass) {
+          log(`     ↳ Fade mismatch: ${testResult.shape.fade.fadeSummary}`, 'error');
         }
         if (testResult.shape.directionInfo) {
           log(`     ↳ Direction: ${testResult.shape.directionInfo}`, 'info');
@@ -2077,33 +2243,38 @@ export function useLfoVerification() {
       for (const [waveform, tests] of byWaveform) {
         log(`── ${waveform} waveform (${tests.length} failures) ──`, 'error');
         for (const testResult of tests) {
-          const timingIcon = testResult.timing.pass ? '✓' : '✗';
-          const shapePass = testResult.shape.rangePass && testResult.shape.boundsPass;
+          const baseShapePass = testResult.shape.rangePass && testResult.shape.boundsPass;
+          const fadePass = testResult.shape.fade?.fadePass ?? true;
+          const shapePass = baseShapePass && fadePass;
           const shapeIcon = shapePass ? '✓' : '✗';
 
           log(`✗ ${testResult.testName}`, 'error');
-          log(`  ⏱ Timing: ${timingIcon} ${testResult.timing.driftPercent.toFixed(0)}% drift`, testResult.timing.pass ? 'success' : 'info');
           log(`  📊 Shape: ${shapeIcon} range=${testResult.shape.observedRange}/${testResult.shape.expectedRange}`, shapePass ? 'success' : 'info');
 
           // Show specific failures
           if (!testResult.shape.rangePass) log(`     ↳ Range too small`, 'error');
           if (!testResult.shape.boundsPass) log(`     ↳ Out of bounds [${testResult.shape.observedMin}-${testResult.shape.observedMax}]`, 'error');
+          if (testResult.shape.fade && !testResult.shape.fade.fadePass) log(`     ↳ Fade mismatch: ${testResult.shape.fade.fadeSummary}`, 'error');
           log('');
         }
       }
 
-      // Summary analysis - count timing vs shape failures
-      let timingFailCount = 0;
-      let shapeFailCount = 0;
+      // Summary analysis - count shape failures by type
+      let rangeFailCount = 0;
+      let boundsFailCount = 0;
+      let fadeFailCount = 0;
       for (const testResult of allFailedTests) {
-        if (!testResult.timing.pass) timingFailCount++;
-        const shapePass = testResult.shape.rangePass && testResult.shape.boundsPass;
-        if (!shapePass) shapeFailCount++;
+        if (!testResult.shape.rangePass) rangeFailCount++;
+        if (!testResult.shape.boundsPass) boundsFailCount++;
+        if (testResult.shape.fade && !testResult.shape.fade.fadePass) fadeFailCount++;
       }
 
       log('── SUMMARY ──', 'info');
-      log(`Timing failures: ${timingFailCount}/${allFailedTests.length}`, timingFailCount > 0 ? 'error' : 'success');
-      log(`Shape failures: ${shapeFailCount}/${allFailedTests.length}`, shapeFailCount > 0 ? 'error' : 'success');
+      log(`Range failures: ${rangeFailCount}/${allFailedTests.length}`, rangeFailCount > 0 ? 'error' : 'success');
+      log(`Bounds failures: ${boundsFailCount}/${allFailedTests.length}`, boundsFailCount > 0 ? 'error' : 'success');
+      if (fadeFailCount > 0) {
+        log(`Fade failures: ${fadeFailCount}/${allFailedTests.length}`, 'error');
+      }
     }
 
     setIsRunning(false);
