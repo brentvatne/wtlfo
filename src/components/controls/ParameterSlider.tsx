@@ -28,17 +28,20 @@ export function ParameterSlider({
   onSlidingStart,
   onSlidingEnd,
 }: ParameterSliderProps) {
-  // Local state for smooth visual updates during dragging
+  // Remap to positive range to work around @react-native-community/slider
+  // not respecting initial value prop on iOS for negative values.
+  // Supposedly fixed in https://github.com/callstack/react-native-slider/pull/483 but still occurs.
+  const offset = min < 0 ? -min : 0;
+  const sliderMin = min + offset; // Always 0 or positive
+  const sliderMax = max + offset;
+
+  // Convert between actual value and slider value
+  const toSliderValue = (v: number) => v + offset;
+  const fromSliderValue = (v: number) => v - offset;
+
+  // Local state for smooth visual updates during dragging (in actual value space)
   const [localValue, setLocalValue] = useState(value);
   const lastCommittedValue = useRef(value);
-
-  // Force slider re-render on mount to fix @react-native-community/slider
-  // not respecting initial value prop on iOS (especially for negative values).
-  // Supposedly fixed in https://github.com/callstack/react-native-slider/pull/483 but still occurs.
-  const [sliderKey, setSliderKey] = useState(0);
-  React.useEffect(() => {
-    setSliderKey(1);
-  }, []);
 
   // Sync local value when prop changes externally
   React.useEffect(() => {
@@ -49,15 +52,16 @@ export function ParameterSlider({
   }, [value]);
 
   // Handle slider changes - update local state immediately for smooth visuals
-  const handleValueChange = useCallback((newValue: number) => {
-    setLocalValue(newValue);
-    const rounded = Math.round(newValue);
+  const handleValueChange = useCallback((sliderValue: number) => {
+    const actualValue = fromSliderValue(sliderValue);
+    setLocalValue(actualValue);
+    const rounded = Math.round(actualValue);
     // Only call onChange if the rounded value changed
     if (rounded !== lastCommittedValue.current) {
       lastCommittedValue.current = rounded;
       onChange(rounded);
     }
-  }, [onChange]);
+  }, [onChange, fromSliderValue]);
 
   // Called when user starts dragging
   const handleSlidingStart = useCallback(() => {
@@ -65,14 +69,15 @@ export function ParameterSlider({
   }, [onSlidingStart]);
 
   // Commit final value when sliding completes (in case it wasn't sent yet)
-  const handleSlidingComplete = useCallback((newValue: number) => {
-    const rounded = Math.round(newValue);
+  const handleSlidingComplete = useCallback((sliderValue: number) => {
+    const actualValue = fromSliderValue(sliderValue);
+    const rounded = Math.round(actualValue);
     if (rounded !== lastCommittedValue.current) {
       lastCommittedValue.current = rounded;
       onChange(rounded);
     }
     onSlidingEnd?.();
-  }, [onChange, onSlidingEnd]);
+  }, [onChange, onSlidingEnd, fromSliderValue]);
 
   return (
     <View style={styles.container}>
@@ -81,11 +86,10 @@ export function ParameterSlider({
         <Text style={styles.value}>{formatValue(localValue)}</Text>
       </View>
       <Slider
-        key={sliderKey}
         style={styles.slider}
-        minimumValue={min}
-        maximumValue={max}
-        value={localValue}
+        minimumValue={sliderMin}
+        maximumValue={sliderMax}
+        value={toSliderValue(localValue)}
         onValueChange={handleValueChange}
         onSlidingStart={handleSlidingStart}
         onSlidingComplete={handleSlidingComplete}
