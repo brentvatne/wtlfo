@@ -61,7 +61,6 @@ function midiToPitch(value: number, baseFreq: number = BASE_FREQUENCY): number {
 
 interface AudioContextValue {
   isPlaying: boolean;
-  isInitializing: boolean;
   isSupported: boolean;
   start: () => void;
   stop: () => void;
@@ -88,8 +87,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   console.log('[AudioProvider] render, isPaused:', isPaused);
 
   const [isPlaying, setIsPlaying] = useState(false);
-  const [isInitializing, setIsInitializing] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
+
+  // Use ref instead of state to avoid re-renders during initialization
+  const isInitializingRef = useRef(false);
 
   // Cancellation flag for chunked initialization
   const initCancelledRef = useRef(false);
@@ -293,9 +294,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Start audio with chunked initialization
   const start = useCallback(async () => {
-    if (isPlaying || isInitializing) return;
+    if (isPlaying || isInitializingRef.current) return;
 
-    setIsInitializing(true);
+    isInitializingRef.current = true;
     initCancelledRef.current = false;
 
     // Build graph across multiple frames to prevent frame drops
@@ -303,7 +304,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     // Check if cancelled during initialization
     if (initCancelledRef.current || !success) {
-      setIsInitializing(false);
+      isInitializingRef.current = false;
       if (initCancelledRef.current) {
         destroyAudioGraph();
       }
@@ -331,31 +332,31 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to start audio:', error);
       destroyAudioGraph();
     } finally {
-      setIsInitializing(false);
+      isInitializingRef.current = false;
     }
-  }, [isPlaying, isInitializing, buildAudioGraphChunked, destroyAudioGraph]);
+  }, [isPlaying, buildAudioGraphChunked, destroyAudioGraph]);
 
   // Stop audio (also cancels initialization if in progress)
   const stop = useCallback(() => {
     // Cancel any in-progress initialization
-    if (isInitializing) {
+    if (isInitializingRef.current) {
       initCancelledRef.current = true;
     }
 
-    if (!isPlaying && !isInitializing) return;
+    if (!isPlaying && !isInitializingRef.current) return;
     setIsPlaying(false);
     stoppedDueToPauseRef.current = false; // User explicitly stopped
     destroyAudioGraph();
-  }, [isPlaying, isInitializing, destroyAudioGraph]);
+  }, [isPlaying, destroyAudioGraph]);
 
   // Toggle audio
   const toggle = useCallback(() => {
-    if (isPlaying || isInitializing) {
+    if (isPlaying || isInitializingRef.current) {
       stop();
     } else {
       start();
     }
-  }, [isPlaying, isInitializing, start, stop]);
+  }, [isPlaying, start, stop]);
 
   // Start update loop when playing
   useEffect(() => {
@@ -471,7 +472,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   const value: AudioContextValue = {
     isPlaying,
-    isInitializing,
     isSupported,
     start,
     stop,

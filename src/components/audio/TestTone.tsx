@@ -1,5 +1,5 @@
 import React from 'react';
-import { View, Text, StyleSheet, Switch, ActivityIndicator } from 'react-native';
+import { View, Text, StyleSheet, Switch } from 'react-native';
 import { useAudio } from '@/src/context/audio-context';
 import { colors } from '@/src/theme';
 
@@ -8,7 +8,7 @@ interface TestToneProps {
 }
 
 export function TestTone({ visible = true }: TestToneProps) {
-  const { isPlaying, isInitializing, isSupported, toggle } = useAudio();
+  const { isPlaying, isSupported, toggle } = useAudio();
 
   if (!visible || !isSupported) {
     return null;
@@ -20,13 +20,12 @@ export function TestTone({ visible = true }: TestToneProps) {
         <View style={styles.titleRow}>
           <Text style={styles.label}>Test Tone</Text>
           {isPlaying && <View style={styles.playingIndicator} />}
-          {isInitializing && <ActivityIndicator size="small" color={colors.accent} />}
         </View>
         <Text style={styles.subtitle}>Hear LFO modulation on a saw wave</Text>
         <Text style={styles.supported}>Supports: PITCH, AMP VOL, FLTF, FLTR, PAN</Text>
       </View>
       <Switch
-        value={isPlaying || isInitializing}
+        value={isPlaying}
         onValueChange={toggle}
         trackColor={{ false: '#3e3e3e', true: colors.accent }}
         thumbColor="#ffffff"
