@@ -39,7 +39,7 @@ export default function AboutScreen() {
 
       <Section title="Visualization controls">
         <Text style={styles.paragraph}>
-          Tap the visualization to retrigger the LFO (this has no effect in FREE mode since it runs continuously). Long press to pause. When paused, tap to resume—tap again to retrigger.
+          Tap or long press the visualization to pause. When paused, tap to resume.
         </Text>
       </Section>
 

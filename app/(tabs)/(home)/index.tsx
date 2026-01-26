@@ -1,10 +1,12 @@
-import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
-import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import React, { useRef, useEffect, useState, useLayoutEffect, useCallback } from 'react';
+import { View, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import AppMetrics from 'expo-eas-observe';
-import { ScrollView } from 'react-native-gesture-handler';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing, FadeIn, runOnJS } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeIn } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
+import { SymbolView } from 'expo-symbols';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -51,6 +53,7 @@ export default function HomeScreen() {
     triggerLFO,
     startLFO,
     stopLFO,
+    resetLFOTiming,
     isLFORunning,
     isPaused,
     setIsPaused,
@@ -352,27 +355,67 @@ export default function HomeScreen() {
   const destBoundsMin = Math.max(destMin, destCenterValue - destSwing);
   const destBoundsMax = Math.min(destMax, destCenterValue + destSwing);
 
-  // Tap handler - retrigger (when running) or unpause (when paused)
-  const handleTap = () => {
-    if (isPaused) {
-      // Resume from pause - don't retrigger, just unpause
-      startLFO();
-      setIsPaused(false);
-    } else {
-      // Running or stopped - retrigger (except FREE mode)
-      if (currentConfig.mode !== 'FRE') {
-        triggerLFO();
-      }
-    }
-  };
+  // Visual feedback state for gesture interactions
+  const [feedbackIcon, setFeedbackIcon] = useState<'pause' | 'play' | null>(null);
+  const feedbackOpacity = useSharedValue(0);
+  const feedbackTranslateY = useSharedValue(0);
 
-  // Long press handler - pause
-  const handleLongPress = () => {
-    if (!isPaused) {
-      stopLFO();
-      setIsPaused(true);
-    }
-  };
+  const feedbackAnimatedStyle = useAnimatedStyle(() => ({
+    opacity: feedbackOpacity.value,
+    transform: [{ translateY: feedbackTranslateY.value }],
+  }));
+
+  // Show feedback icon with fade in/out and upward movement
+  const showFeedback = useCallback((icon: 'pause' | 'play') => {
+    setFeedbackIcon(icon);
+    feedbackOpacity.value = 0;
+    feedbackTranslateY.value = 0;
+    feedbackOpacity.value = withSequence(
+      withTiming(1, { duration: 100 }),
+      withDelay(200, withTiming(0, { duration: 300 }))
+    );
+    feedbackTranslateY.value = withTiming(-20, { duration: 600, easing: Easing.out(Easing.ease) });
+  }, [feedbackOpacity, feedbackTranslateY]);
+
+  // Pause handler - called by tap or long press when not paused
+  const handlePause = useCallback(() => {
+    stopLFO();
+    setIsPaused(true);
+    showFeedback('pause');
+  }, [stopLFO, setIsPaused, showFeedback]);
+
+  // Resume handler - called by tap when paused
+  const handleResume = useCallback(() => {
+    resetLFOTiming(); // Prevent phase jump on resume
+    startLFO();
+    setIsPaused(false);
+    showFeedback('play');
+  }, [resetLFOTiming, startLFO, setIsPaused, showFeedback]);
+
+  // Gesture: tap to pause/resume, long press also pauses
+  const tapGesture = Gesture.Tap()
+    .onEnd((_event, success) => {
+      'worklet';
+      if (success) {
+        if (isPaused) {
+          scheduleOnRN(handleResume);
+        } else {
+          scheduleOnRN(handlePause);
+        }
+      }
+    });
+
+  const longPressGesture = Gesture.LongPress()
+    .minDuration(500)
+    .onStart(() => {
+      'worklet';
+      if (!isPaused) {
+        scheduleOnRN(handlePause);
+      }
+    });
+
+  // Long press has priority - if activated, tap won't fire
+  const visualizationGesture = Gesture.Exclusive(longPressGesture, tapGesture);
 
   return (
     <ScrollView
@@ -385,92 +428,102 @@ export default function HomeScreen() {
         <Animated.View style={visualizerFadeStyle}>
           <View style={styles.visualizerRow}>
             {/* LFO Visualizer - tappable canvas */}
-            <Pressable
-              style={[styles.visualizerContainer, isPaused && styles.paused]}
-              onPress={handleTap}
-              onLongPress={handleLongPress}
-              accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isPaused }}
-              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
-            >
-              {visualizationsReady ? (
-                <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
-                  <LFOVisualizer
-                    phase={displayPhase}
-                    output={lfoOutput}
-                    waveform={currentConfig.waveform as WaveformType}
-                    speed={currentConfig.speed}
-                    multiplier={currentConfig.multiplier}
-                    startPhase={currentConfig.startPhase}
-                    mode={currentConfig.mode as TriggerMode}
-                    depth={currentConfig.depth}
-                    fade={currentConfig.fade}
-                    bpm={effectiveBpm}
-                    cycleTimeMs={timingInfo.cycleTimeMs}
-                    noteValue={timingInfo.noteValue}
-                    steps={timingInfo.steps}
-                    width={visualizerWidth}
-                    height={METER_HEIGHT}
-                    theme={ELEKTRON_THEME}
-                    showParameters={false}
-                    showTiming={false}
-                    showOutput={false}
-                    isEditing={isEditing}
-                    hideValuesWhileEditing={hideValuesWhileEditing}
-                    showFillsWhenEditing={showFillsWhenEditing}
-                    editFadeOutDuration={editFadeOutDuration}
-                    editFadeInDuration={editFadeInDuration}
-                    strokeWidth={2.5}
-                    showFadeEnvelope={showFadeEnvelope}
-                    depthAnimationDuration={depthAnimationDuration}
-                    showPhaseIndicator={!isBackgrounded}
-                  />
-                </Animated.View>
-              ) : (
-                <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
-              )}
-            </Pressable>
+            <GestureDetector gesture={visualizationGesture}>
+              <Animated.View
+                style={[styles.visualizerContainer, isPaused && styles.paused]}
+                accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isPaused }}
+                accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
+              >
+                {visualizationsReady ? (
+                  <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
+                    <LFOVisualizer
+                      phase={displayPhase}
+                      output={lfoOutput}
+                      waveform={currentConfig.waveform as WaveformType}
+                      speed={currentConfig.speed}
+                      multiplier={currentConfig.multiplier}
+                      startPhase={currentConfig.startPhase}
+                      mode={currentConfig.mode as TriggerMode}
+                      depth={currentConfig.depth}
+                      fade={currentConfig.fade}
+                      bpm={effectiveBpm}
+                      cycleTimeMs={timingInfo.cycleTimeMs}
+                      noteValue={timingInfo.noteValue}
+                      steps={timingInfo.steps}
+                      width={visualizerWidth}
+                      height={METER_HEIGHT}
+                      theme={ELEKTRON_THEME}
+                      showParameters={false}
+                      showTiming={false}
+                      showOutput={false}
+                      isEditing={isEditing}
+                      hideValuesWhileEditing={hideValuesWhileEditing}
+                      showFillsWhenEditing={showFillsWhenEditing}
+                      editFadeOutDuration={editFadeOutDuration}
+                      editFadeInDuration={editFadeInDuration}
+                      strokeWidth={2.5}
+                      showFadeEnvelope={showFadeEnvelope}
+                      depthAnimationDuration={depthAnimationDuration}
+                      showPhaseIndicator={!isBackgrounded}
+                    />
+                  </Animated.View>
+                ) : (
+                  <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
+                )}
+                {/* Feedback icon overlay */}
+                {feedbackIcon && (
+                  <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
+                    <SymbolView
+                      name={feedbackIcon === 'pause' ? 'pause.fill' : 'play.fill'}
+                      size={48}
+                      tintColor="#ffffff"
+                    />
+                  </Animated.View>
+                )}
+              </Animated.View>
+            </GestureDetector>
 
             {/* Destination Meter - same height as visualizer canvas */}
-            <Pressable
-              style={styles.meterContainer}
-              onPress={handleTap}
-              onLongPress={handleLongPress}
-              accessibilityLabel={hasDestination
-                ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
-                : 'Destination meter, no destination selected'}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
-              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
-            >
-              {visualizationsReady ? (
-                <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
-                  <DestinationMeter
-                    lfoOutput={displayOutput}
-                    destination={activeDestination}
-                    centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
-                    depth={currentConfig.depth}
-                    fade={currentConfig.fade}
-                    mode={currentConfig.mode as TriggerMode}
-                    fadeMultiplier={displayFadeMultiplier}
-                    waveform={currentConfig.waveform as WaveformType}
-                    startPhase={currentConfig.startPhase}
-                    width={METER_WIDTH}
-                    height={METER_HEIGHT}
-                    showValue={false}
-                    isEditing={isEditing}
-                    hideValuesWhileEditing={hideValuesWhileEditing}
-                    showFillsWhenEditing={showFillsWhenEditing}
-                    editFadeOutDuration={editFadeOutDuration}
-                    editFadeInDuration={editFadeInDuration}
-                    isPaused={isPaused}
-                  />
-                </Animated.View>
-              ) : (
-                <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
-              )}
-            </Pressable>
+            <GestureDetector gesture={visualizationGesture}>
+              <Animated.View
+                style={styles.meterContainer}
+                accessibilityLabel={hasDestination
+                  ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
+                  : 'Destination meter, no destination selected'}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
+                accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
+              >
+                {visualizationsReady ? (
+                  <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
+                    <DestinationMeter
+                      lfoOutput={displayOutput}
+                      destination={activeDestination}
+                      centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+                      depth={currentConfig.depth}
+                      fade={currentConfig.fade}
+                      mode={currentConfig.mode as TriggerMode}
+                      fadeMultiplier={displayFadeMultiplier}
+                      waveform={currentConfig.waveform as WaveformType}
+                      startPhase={currentConfig.startPhase}
+                      width={METER_WIDTH}
+                      height={METER_HEIGHT}
+                      showValue={false}
+                      isEditing={isEditing}
+                      hideValuesWhileEditing={hideValuesWhileEditing}
+                      showFillsWhenEditing={showFillsWhenEditing}
+                      editFadeOutDuration={editFadeOutDuration}
+                      editFadeInDuration={editFadeInDuration}
+                      isPaused={isPaused}
+                    />
+                  </Animated.View>
+                ) : (
+                  <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
+                )}
+              </Animated.View>
+            </GestureDetector>
           </View>
 
           {/* Timing info - spans full width below visualization */}
@@ -539,6 +592,12 @@ const styles = StyleSheet.create({
   },
   paused: {
     opacity: 0.5,
+  },
+  feedbackOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    justifyContent: 'center',
+    alignItems: 'center',
+    backgroundColor: 'rgba(0, 0, 0, 0.3)',
   },
   gridContainer: {
     // Full width

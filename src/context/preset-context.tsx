@@ -349,6 +349,7 @@ interface PresetContextValue {
   triggerLFO: () => void;
   startLFO: () => void;
   stopLFO: () => void;
+  resetLFOTiming: () => void;
   isLFORunning: () => boolean;
 
   // Pause state for UI
@@ -1086,6 +1087,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
   const startLFO = useCallback(() => lfoRef.current?.start(), []);
   const stopLFO = useCallback(() => lfoRef.current?.stop(), []);
+  const resetLFOTiming = useCallback(() => lfoRef.current?.resetTiming(), []);
   const isLFORunning = useCallback(() => lfoRef.current?.isRunning() ?? false, []);
 
   const value: PresetContextValue = {
@@ -1113,6 +1115,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     triggerLFO,
     startLFO,
     stopLFO,
+    resetLFOTiming,
     isLFORunning,
     isPaused,
     setIsPaused,
