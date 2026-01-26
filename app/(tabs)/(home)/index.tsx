@@ -55,6 +55,7 @@ export default function HomeScreen() {
     isPaused,
     setIsPaused,
     splashFadeDuration,
+    isChangingPreset,
   } = usePreset();
 
   // Tab switch fade - wraps entire screen content
@@ -187,6 +188,23 @@ export default function HomeScreen() {
     }
   }, [isPaused, fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
+  // Fade visualization during preset change
+  useEffect(() => {
+    if (isChangingPreset) {
+      // Fade out
+      visualizerOpacity.value = withTiming(0, {
+        duration: visualizationFadeDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    } else {
+      // Fade in (preset has changed)
+      visualizerOpacity.value = withTiming(1, {
+        duration: visualizationFadeDuration,
+        easing: Easing.out(Easing.ease),
+      });
+    }
+  }, [isChangingPreset, visualizationFadeDuration, visualizerOpacity]);
+
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
       const wasActive = appStateRef.current === 'active';
@@ -284,6 +302,13 @@ export default function HomeScreen() {
   const startPhaseNormalized = currentConfig.startPhase / 128;
   const fadeApplies = fadeValue !== 0 && modeValue !== 'FRE';
 
+  // Destination bounds for display
+  const destMin = activeDestination?.min ?? 0;
+  const destMax = activeDestination?.max ?? 127;
+  const destRange = destMax - destMin;
+  const destMaxModulation = destRange / 2;
+  const destCenterValue = hasDestination ? getCenterValue(activeDestinationId) : 64;
+
   // Compute fade multiplier based on current phase
   const displayFadeMultiplier = useDerivedValue(() => {
     'worklet';
@@ -313,6 +338,20 @@ export default function HomeScreen() {
     return rawOutput * depthScaleForWorklet;
   }, [waveformForWorklet, depthScaleForWorklet, displayPhase]);
 
+  // Destination modulated value for TimingInfo display
+  const destinationDisplayValue = useDerivedValue(() => {
+    'worklet';
+    if (!hasDestination) return 64;
+    const fadeMult = displayFadeMultiplier.value;
+    const modulationAmount = displayOutput.value * destMaxModulation * fadeMult;
+    return Math.max(destMin, Math.min(destMax, destCenterValue + modulationAmount));
+  }, [hasDestination, displayOutput, displayFadeMultiplier, destMaxModulation, destMin, destMax, destCenterValue]);
+
+  // Calculate destination bounds (min/max based on depth)
+  const destSwing = destMaxModulation * Math.abs(depthScaleForWorklet);
+  const destBoundsMin = Math.max(destMin, destCenterValue - destSwing);
+  const destBoundsMax = Math.min(destMax, destCenterValue + destSwing);
+
   // Tap handler - pause/play/restart logic
   const handleTap = () => {
     if (isPaused) {
@@ -337,9 +376,9 @@ export default function HomeScreen() {
     >
       <Animated.View style={screenFadeStyle}>
         {/* LFO Visualizer + Destination Meter Row */}
-        <Animated.View style={[styles.visualizerRow, visualizerFadeStyle]}>
-          {/* LFO Visualizer column - canvas is tappable, timing info is not */}
-          <View style={styles.visualizerColumn}>
+        <Animated.View style={visualizerFadeStyle}>
+          <View style={styles.visualizerRow}>
+            {/* LFO Visualizer - tappable canvas */}
             <Pressable
               style={[styles.visualizerContainer, isPaused && styles.paused]}
               onPress={handleTap}
@@ -385,58 +424,63 @@ export default function HomeScreen() {
                 <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
               )}
             </Pressable>
-            {/* Timing info outside pressable - tapping here won't pause */}
-            <View style={[styles.timingContainer, { width: visualizerWidth }]}>
-              <TimingInfo
-                bpm={effectiveBpm}
-                cycleTimeMs={timingInfo.cycleTimeMs}
-                noteValue={timingInfo.noteValue}
-                steps={timingInfo.steps}
-                theme={ELEKTRON_THEME}
-                phase={lfoPhase}
-                startPhase={currentConfig.startPhase}
-              />
-            </View>
+
+            {/* Destination Meter - same height as visualizer canvas */}
+            <Pressable
+              style={styles.meterContainer}
+              onPress={handleTap}
+              accessibilityLabel={hasDestination
+                ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
+                : 'Destination meter, no destination selected'}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
+              accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
+            >
+              {visualizationsReady ? (
+                <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
+                  <DestinationMeter
+                    lfoOutput={displayOutput}
+                    destination={activeDestination}
+                    centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+                    depth={currentConfig.depth}
+                    fade={currentConfig.fade}
+                    mode={currentConfig.mode as TriggerMode}
+                    fadeMultiplier={displayFadeMultiplier}
+                    waveform={currentConfig.waveform as WaveformType}
+                    startPhase={currentConfig.startPhase}
+                    width={METER_WIDTH}
+                    height={METER_HEIGHT}
+                    showValue={false}
+                    isEditing={isEditing}
+                    hideValuesWhileEditing={hideValuesWhileEditing}
+                    showFillsWhenEditing={showFillsWhenEditing}
+                    editFadeOutDuration={editFadeOutDuration}
+                    editFadeInDuration={editFadeInDuration}
+                    isPaused={isPaused}
+                  />
+                </Animated.View>
+              ) : (
+                <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
+              )}
+            </Pressable>
           </View>
 
-          {/* Destination Meter - same height as canvas */}
-          <Pressable
-            style={styles.meterContainer}
-            onPress={handleTap}
-            accessibilityLabel={hasDestination
-              ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
-              : 'Destination meter, no destination selected'}
-            accessibilityRole="button"
-            accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
-            accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
-          >
-            {visualizationsReady ? (
-              <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
-                <DestinationMeter
-                  lfoOutput={displayOutput}
-                  destination={activeDestination}
-                  centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
-                  depth={currentConfig.depth}
-                  fade={currentConfig.fade}
-                  mode={currentConfig.mode as TriggerMode}
-                  fadeMultiplier={displayFadeMultiplier}
-                  waveform={currentConfig.waveform as WaveformType}
-                  startPhase={currentConfig.startPhase}
-                  width={METER_WIDTH}
-                  height={METER_HEIGHT}
-                  showValue
-                  isEditing={isEditing}
-                  hideValuesWhileEditing={hideValuesWhileEditing}
-                  showFillsWhenEditing={showFillsWhenEditing}
-                  editFadeOutDuration={editFadeOutDuration}
-                  editFadeInDuration={editFadeInDuration}
-                  isPaused={isPaused}
-                />
-              </Animated.View>
-            ) : (
-              <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
-            )}
-          </Pressable>
+          {/* Timing info - spans full width below visualization */}
+          <View style={styles.timingContainer}>
+            <TimingInfo
+              bpm={effectiveBpm}
+              cycleTimeMs={timingInfo.cycleTimeMs}
+              noteValue={timingInfo.noteValue}
+              steps={timingInfo.steps}
+              theme={ELEKTRON_THEME}
+              phase={lfoPhase}
+              startPhase={currentConfig.startPhase}
+              destinationValue={destinationDisplayValue}
+              destinationMin={destBoundsMin}
+              destinationMax={destBoundsMax}
+              hasDestination={hasDestination}
+            />
+          </View>
         </Animated.View>
 
         {/* Content below visualization */}
@@ -472,21 +516,18 @@ const styles = StyleSheet.create({
   visualizerRow: {
     flexDirection: 'row',
     marginTop: 8,
-    marginBottom: 8,
   },
   belowVisualization: {
     // Content container
   },
-  visualizerColumn: {
-    flex: 1,
-  },
   visualizerContainer: {
-    // Canvas area only
+    flex: 1,
   },
   timingContainer: {
     backgroundColor: '#000000',
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
+    marginBottom: 8,
   },
   paused: {
     opacity: 0.5,

@@ -222,6 +222,14 @@ export interface TimingInfoProps {
   phase?: SharedValue<number>;
   /** Start phase offset (0-127) for correct step calculation */
   startPhase?: number;
+  /** Destination value to display (optional) */
+  destinationValue?: SharedValue<number>;
+  /** Min value for destination (for MIN display) */
+  destinationMin?: number;
+  /** Max value for destination (for MAX display) */
+  destinationMax?: number;
+  /** Whether destination is available */
+  hasDestination?: boolean;
 }
 
 /**
