@@ -356,9 +356,12 @@ export default function HomeScreen() {
   const destBoundsMax = Math.min(destMax, destCenterValue + destSwing);
 
   // Visual feedback state for gesture interactions
-  const [feedbackIcon, setFeedbackIcon] = useState<'pause' | 'play' | null>(null);
+  // Use ref instead of state to avoid re-render flash when icon changes
+  const feedbackIconRef = useRef<'pause' | 'play'>('pause');
   const feedbackOpacity = useSharedValue(0);
   const feedbackTranslateY = useSharedValue(0);
+  // Force re-render when we need to update the icon
+  const [, forceUpdate] = useState(0);
 
   // Use shared value for isPaused so worklets can read current value
   const isPausedShared = useSharedValue(isPaused);
@@ -373,8 +376,10 @@ export default function HomeScreen() {
 
   // Show feedback icon with fade in/out and upward movement
   const showFeedback = useCallback((icon: 'pause' | 'play') => {
-    setFeedbackIcon(icon);
-    feedbackOpacity.value = 0;
+    // Update icon ref and force re-render
+    feedbackIconRef.current = icon;
+    forceUpdate(n => n + 1);
+    // Reset and animate
     feedbackTranslateY.value = 0;
     feedbackOpacity.value = withSequence(
       withTiming(1, { duration: 100 }),
@@ -383,14 +388,14 @@ export default function HomeScreen() {
     feedbackTranslateY.value = withTiming(-20, { duration: 600, easing: Easing.out(Easing.ease) });
   }, [feedbackOpacity, feedbackTranslateY]);
 
-  // Pause handler - called by tap or long press when not paused
+  // Pause handler
   const handlePause = useCallback(() => {
     stopLFO();
     setIsPaused(true);
     showFeedback('pause');
   }, [stopLFO, setIsPaused, showFeedback]);
 
-  // Resume handler - called by tap when paused
+  // Resume handler
   const handleResume = useCallback(() => {
     resetLFOTiming(); // Prevent phase jump on resume
     startLFO();
@@ -398,31 +403,19 @@ export default function HomeScreen() {
     showFeedback('play');
   }, [resetLFOTiming, startLFO, setIsPaused, showFeedback]);
 
-  // Gesture: tap to pause/resume, long press also pauses
-  // Read isPausedShared.value in worklet to get current state
-  const tapGesture = Gesture.Tap()
-    .onEnd((_event, success) => {
-      'worklet';
-      if (success) {
-        if (isPausedShared.value) {
-          scheduleOnRN(handleResume);
-        } else {
-          scheduleOnRN(handlePause);
-        }
-      }
-    });
-
+  // Long press toggles pause/play
   const longPressGesture = Gesture.LongPress()
-    .minDuration(400)
+    .minDuration(300)
     .onStart(() => {
       'worklet';
-      if (!isPausedShared.value) {
+      if (isPausedShared.value) {
+        scheduleOnRN(handleResume);
+      } else {
         scheduleOnRN(handlePause);
       }
     });
 
-  // Race: first gesture to activate wins (tap on quick release, long press if held)
-  const visualizationGesture = Gesture.Race(tapGesture, longPressGesture);
+  const visualizationGesture = longPressGesture;
 
   return (
     <ScrollView
@@ -439,7 +432,7 @@ export default function HomeScreen() {
               accessibilityLabel={`LFO visualization, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
               accessibilityRole="button"
               accessibilityState={{ selected: isPaused }}
-              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
+              accessibilityHint={isPaused ? 'Long press to resume' : 'Long press to pause'}
             >
               {/* LFO Visualizer */}
               <View style={styles.visualizerContainer}>
@@ -511,16 +504,14 @@ export default function HomeScreen() {
                 )}
               </View>
 
-              {/* Feedback icon overlay - centered on the whole row */}
-              {feedbackIcon && (
-                <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
-                  <SymbolView
-                    name={feedbackIcon === 'pause' ? 'pause.fill' : 'play.fill'}
-                    size={48}
-                    tintColor="#ffffff"
-                  />
-                </Animated.View>
-              )}
+              {/* Feedback icon overlay - always rendered, visibility controlled by opacity */}
+              <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
+                <SymbolView
+                  name={feedbackIconRef.current === 'pause' ? 'pause.fill' : 'play.fill'}
+                  size={48}
+                  tintColor="#ffffff"
+                />
+              </Animated.View>
             </Animated.View>
           </GestureDetector>
 

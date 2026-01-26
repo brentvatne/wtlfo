@@ -39,7 +39,7 @@ export default function AboutScreen() {
 
       <Section title="Visualization controls">
         <Text style={styles.paragraph}>
-          Tap or long press the visualization to pause. When paused, tap to resume.
+          Long press the visualization to pause. Long press again to resume.
         </Text>
       </Section>
 
