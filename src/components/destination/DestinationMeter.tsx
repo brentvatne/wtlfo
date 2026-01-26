@@ -334,23 +334,21 @@ export function DestinationMeter({
     return modes[displayModeIndex.value];
   }, [displayModeIndex]);
 
-  // Text centering - calculate x positions based on text length
-  // Using approximate character widths for the fonts
+  // Text centering - calculate x positions using actual font measurements
   const valueTextX = useDerivedValue(() => {
     'worklet';
     const text = displayText.value;
-    const charWidth = 8.4; // Approximate for 14px monospace
-    const textWidth = text.length * charWidth;
+    if (!text) return width / 2;
+    const textWidth = valueFont.measureText(text).width;
     return (width - textWidth) / 2;
-  }, [displayText, width]);
+  }, [displayText, width, valueFont]);
 
   const labelTextX = useDerivedValue(() => {
     'worklet';
     const text = displayLabelText.value;
-    const charWidth = 6; // Approximate for 10px sans-serif
-    const textWidth = text.length * charWidth;
+    const textWidth = labelFont.measureText(text).width;
     return (width - textWidth) / 2;
-  }, [displayLabelText, width]);
+  }, [displayLabelText, width, labelFont]);
 
   // Fade bounds Y positions - FIXED at the actual max/min the output will reach
   const fadeMaxBoundY = useDerivedValue(() => {
@@ -530,33 +528,35 @@ export function DestinationMeter({
       </Canvas>
 
       {/* Value display - Skia text for UI-thread rendering */}
-      {/* Pressable overlay for tap handling */}
-      <View style={styles.valueContainer}>
-        <Canvas style={{ width, height: 32 }}>
-          {/* Value text - centered horizontally, y is baseline */}
-          <SkiaText
-            x={valueTextX}
-            y={14}
-            text={displayText}
-            font={valueFont}
-            color="#ffffff"
+      {/* Only render when showValue is true */}
+      {showValue && (
+        <View style={styles.valueContainer}>
+          <Canvas style={{ width, height: 32 }}>
+            {/* Value text - centered horizontally, y is baseline */}
+            <SkiaText
+              x={valueTextX}
+              y={14}
+              text={displayText}
+              font={valueFont}
+              color="#ffffff"
+            />
+            {/* Label text - centered below value, y is baseline */}
+            <SkiaText
+              x={labelTextX}
+              y={29}
+              text={displayLabelText}
+              font={labelFont}
+              color="#8888a0"
+            />
+          </Canvas>
+          {/* Transparent Pressable overlay for tap handling */}
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleDisplayModePress}
+            hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
           />
-          {/* Label text - centered below value, y is baseline */}
-          <SkiaText
-            x={labelTextX}
-            y={29}
-            text={displayLabelText}
-            font={labelFont}
-            color="#8888a0"
-          />
-        </Canvas>
-        {/* Transparent Pressable overlay for tap handling */}
-        <Pressable
-          style={StyleSheet.absoluteFill}
-          onPress={handleDisplayModePress}
-          hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
-        />
-      </View>
+        </View>
+      )}
     </View>
   );
 }

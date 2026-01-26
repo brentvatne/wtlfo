@@ -18,10 +18,25 @@ const ITEM_HEIGHT = 32;
 const VALUE_Y = 14; // Baseline for 14px value text
 const LABEL_Y = 29; // Baseline for 10px label text (matches DestinationMeter)
 
-export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, startPhase = 0 }: TimingInfoProps) {
+type DestDisplayMode = 'VALUE' | 'MIN' | 'MAX';
+
+export function TimingInfo({
+  bpm,
+  cycleTimeMs,
+  noteValue,
+  steps,
+  theme,
+  phase,
+  startPhase = 0,
+  destinationValue,
+  destinationMin,
+  destinationMax,
+  hasDestination = false,
+}: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
   const [showElapsedTime, setShowElapsedTime] = useState(false);
   const [showCurrentStep, setShowCurrentStep] = useState(false);
+  const [destDisplayMode, setDestDisplayMode] = useState<DestDisplayMode>('VALUE');
   const bpmOpacity = useSharedValue(1);
 
   // Skia fonts (same as DestinationMeter)
@@ -196,46 +211,91 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
 
   const stepsLabelText = useDerivedValue(() => showCurrentStep ? 'STEP' : 'STEPS', [showCurrentStep]);
 
-  // Calculate centered x positions for text
-  const charWidth = 8.4; // Approximate for 14px monospace
-  const labelCharWidth = 6; // Approximate for 10px sans-serif
-
+  // Calculate centered x positions for text using actual font measurements
   const bpmTextX = useDerivedValue(() => {
     'worklet';
     const text = bpmText.value;
-    return (50 - text.length * charWidth) / 2;
-  }, [bpmText]);
+    if (!text) return 0;
+    const textWidth = valueFont.measureText(text).width;
+    return (50 - textWidth) / 2;
+  }, [bpmText, valueFont]);
 
   const cycleTextX = useDerivedValue(() => {
     'worklet';
     const text = cycleText.value;
-    return (60 - text.length * charWidth) / 2;
-  }, [cycleText]);
+    if (!text) return 0;
+    const textWidth = valueFont.measureText(text).width;
+    return (60 - textWidth) / 2;
+  }, [cycleText, valueFont]);
 
   const cycleLabelX = useDerivedValue(() => {
     'worklet';
     const text = cycleLabelText.value;
-    return (60 - text.length * labelCharWidth) / 2;
-  }, [cycleLabelText]);
+    const textWidth = labelFont.measureText(text).width;
+    return (60 - textWidth) / 2;
+  }, [cycleLabelText, labelFont]);
 
   const stepsTextX = useDerivedValue(() => {
     'worklet';
     const text = stepsText.value;
-    return (50 - text.length * charWidth) / 2;
-  }, [stepsText]);
+    if (!text) return 0;
+    const textWidth = valueFont.measureText(text).width;
+    return (50 - textWidth) / 2;
+  }, [stepsText, valueFont]);
 
   const stepsLabelX = useDerivedValue(() => {
     'worklet';
     const text = stepsLabelText.value;
-    return (50 - text.length * labelCharWidth) / 2;
-  }, [stepsLabelText]);
+    const textWidth = labelFont.measureText(text).width;
+    return (50 - textWidth) / 2;
+  }, [stepsLabelText, labelFont]);
 
-  // Static text values
+  // Static text values - use actual font measurements
   const noteText = noteValue ?? '';
-  const noteTextX = (50 - noteText.length * charWidth) / 2;
-  const noteLabelX = (50 - 4 * labelCharWidth) / 2; // "NOTE" = 4 chars
+  const noteTextX = noteText ? (50 - valueFont.measureText(noteText).width) / 2 : 0;
+  const noteLabelX = (50 - labelFont.measureText('NOTE').width) / 2;
 
-  const bpmLabelX = (50 - 3 * labelCharWidth) / 2; // "BPM" = 3 chars
+  const bpmLabelX = (50 - labelFont.measureText('BPM').width) / 2;
+
+  // Destination value display - cycles through VALUE/MIN/MAX on tap
+  const handleDestPress = useCallback(() => {
+    setDestDisplayMode(prev => {
+      const modes: DestDisplayMode[] = ['VALUE', 'MIN', 'MAX'];
+      const currentIndex = modes.indexOf(prev);
+      return modes[(currentIndex + 1) % 3];
+    });
+  }, []);
+
+  const destText = useDerivedValue(() => {
+    'worklet';
+    if (!hasDestination) return '—';
+    if (destDisplayMode === 'MIN') {
+      return String(Math.round(destinationMin ?? 0));
+    }
+    if (destDisplayMode === 'MAX') {
+      return String(Math.round(destinationMax ?? 127));
+    }
+    // VALUE mode
+    const val = destinationValue?.value ?? 64;
+    return String(Math.round(val));
+  }, [hasDestination, destDisplayMode, destinationMin, destinationMax, destinationValue]);
+
+  const destLabelText = useDerivedValue(() => destDisplayMode, [destDisplayMode]);
+
+  const destTextX = useDerivedValue(() => {
+    'worklet';
+    const text = destText.value;
+    if (!text) return 0;
+    const textWidth = valueFont.measureText(text).width;
+    return (50 - textWidth) / 2;
+  }, [destText, valueFont]);
+
+  const destLabelX = useDerivedValue(() => {
+    'worklet';
+    const text = destLabelText.value;
+    const textWidth = labelFont.measureText(text).width;
+    return (50 - textWidth) / 2;
+  }, [destLabelText, labelFont]);
 
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
@@ -335,6 +395,32 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
           <Pressable
             style={StyleSheet.absoluteFill}
             onPress={handleStepsPress}
+            hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
+          />
+        </View>
+      )}
+
+      {hasDestination && (
+        <View style={styles.item}>
+          <Canvas style={{ width: 50, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={destTextX}
+              y={VALUE_Y}
+              text={destText}
+              font={valueFont}
+              color={theme.text}
+            />
+            <SkiaText
+              x={destLabelX}
+              y={LABEL_Y}
+              text={destLabelText}
+              font={labelFont}
+              color={theme.textSecondary}
+            />
+          </Canvas>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleDestPress}
             hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
           />
         </View>
