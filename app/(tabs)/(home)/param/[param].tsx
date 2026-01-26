@@ -1,5 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
@@ -152,20 +152,6 @@ function formatMultiplier(value: number): string {
   return value >= 1024 ? `${value / 1024}k` : String(value);
 }
 
-function NavButton({ direction, label, onPress }: { direction: 'prev' | 'next'; label: string; onPress: () => void }) {
-  const isPrev = direction === 'prev';
-  return (
-    <Pressable
-      onPress={onPress}
-      style={styles.navButton}
-      hitSlop={{ top: 10, bottom: 10, left: 10, right: 10 }}
-    >
-      <Text style={styles.navButtonText}>
-        {isPrev ? `‹ ${label}` : `${label} ›`}
-      </Text>
-    </Pressable>
-  );
-}
 
 export default function EditParamScreen() {
   const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
@@ -370,33 +356,17 @@ export default function EditParamScreen() {
       contentInsetAdjustmentBehavior="automatic"
       bounces={false}
     >
-      <Stack.Screen
-        options={{
-          title: info.title,
-          unstable_headerLeftItems: () => [{
-            type: 'custom',
-            element: (
-              <NavButton
-                direction="prev"
-                label={prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
-                onPress={goToPrev}
-              />
-            ),
-            hidesSharedBackground: true,
-          }],
-          unstable_headerRightItems: () => [{
-            type: 'custom',
-            element: (
-              <NavButton
-                direction="next"
-                label={nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]}
-                onPress={goToNext}
-              />
-            ),
-            hidesSharedBackground: true,
-          }],
-        }}
-      />
+      <Stack.Screen options={{ title: info.title }} />
+      <Stack.Toolbar placement="left">
+        <Stack.Toolbar.Button onPress={goToPrev}>
+          ‹ {prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
+      <Stack.Toolbar placement="right">
+        <Stack.Toolbar.Button onPress={goToNext}>
+          {nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]} ›
+        </Stack.Toolbar.Button>
+      </Stack.Toolbar>
       <Text style={styles.description}>{info.description}</Text>
 
       <View style={styles.controlSection}>
@@ -427,16 +397,6 @@ export default function EditParamScreen() {
 }
 
 const styles = StyleSheet.create({
-  navButton: {
-    paddingHorizontal: 12,
-    paddingVertical: 8,
-    minWidth: 70,
-  },
-  navButtonText: {
-    color: colors.accent,
-    fontSize: 15,
-    fontWeight: '600',
-  },
   container: {
     flex: 1,
     backgroundColor: colors.background,
