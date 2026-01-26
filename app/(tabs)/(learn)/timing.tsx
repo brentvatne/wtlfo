@@ -13,17 +13,17 @@ function SawtoothIcon({ reversed = false, size = 28 }: { reversed?: boolean; siz
     const h = size - pad * 2;
 
     if (reversed) {
-      // Rising ramp: starts low, rises, then resets
-      p.moveTo(pad, pad + h);
-      p.lineTo(pad + w * 0.7, pad);
-      p.moveTo(pad + w * 0.7, pad + h);
-      p.lineTo(pad + w, pad + h * 0.3);
-    } else {
-      // Falling ramp: starts high, falls, then resets
+      // Rising ramp (negative speed): vertical drop, gradual rise, vertical drop
       p.moveTo(pad, pad);
-      p.lineTo(pad + w * 0.7, pad + h);
-      p.moveTo(pad + w * 0.7, pad);
-      p.lineTo(pad + w, pad + h * 0.7);
+      p.lineTo(pad, pad + h);
+      p.lineTo(pad + w, pad);
+      p.lineTo(pad + w, pad + h);
+    } else {
+      // Falling ramp (positive speed): vertical rise, gradual fall, vertical rise
+      p.moveTo(pad, pad + h);
+      p.lineTo(pad, pad);
+      p.lineTo(pad + w, pad + h);
+      p.lineTo(pad + w, pad);
     }
     return p;
   }, [size, reversed]);
