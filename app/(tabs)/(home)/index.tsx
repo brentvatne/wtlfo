@@ -352,17 +352,23 @@ export default function HomeScreen() {
   const destBoundsMin = Math.max(destMin, destCenterValue - destSwing);
   const destBoundsMax = Math.min(destMax, destCenterValue + destSwing);
 
-  // Tap handler - pause/play/restart logic
+  // Tap handler - retrigger (when running) or unpause (when paused)
   const handleTap = () => {
     if (isPaused) {
-      // Resume from manual pause
+      // Resume from pause - don't retrigger, just unpause
       startLFO();
       setIsPaused(false);
-    } else if (!isLFORunning()) {
-      // Stopped (ONE/HLF completed) - restart
-      triggerLFO();
     } else {
-      // Currently running - pause it
+      // Running or stopped - retrigger (except FREE mode)
+      if (currentConfig.mode !== 'FRE') {
+        triggerLFO();
+      }
+    }
+  };
+
+  // Long press handler - pause
+  const handleLongPress = () => {
+    if (!isPaused) {
       stopLFO();
       setIsPaused(true);
     }
@@ -382,10 +388,11 @@ export default function HomeScreen() {
             <Pressable
               style={[styles.visualizerContainer, isPaused && styles.paused]}
               onPress={handleTap}
+              onLongPress={handleLongPress}
               accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
               accessibilityRole="button"
               accessibilityState={{ selected: isPaused }}
-              accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
+              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
             >
               {visualizationsReady ? (
                 <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
@@ -429,12 +436,13 @@ export default function HomeScreen() {
             <Pressable
               style={styles.meterContainer}
               onPress={handleTap}
+              onLongPress={handleLongPress}
               accessibilityLabel={hasDestination
                 ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
                 : 'Destination meter, no destination selected'}
               accessibilityRole="button"
               accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
-              accessibilityHint={isPaused ? 'Double tap to resume animation' : 'Double tap to pause animation'}
+              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
             >
               {visualizationsReady ? (
                 <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
