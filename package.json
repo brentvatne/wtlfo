@@ -23,6 +23,7 @@
     "@shopify/react-native-skia": "2.4.14",
     "elektron-lfo": "1.0.13",
     "expo": "~55.0.0-preview.3",
+    "expo-application": "~55.0.2",
     "expo-build-properties": "~55.0.2",
     "expo-clipboard": "~55.0.1",
     "expo-constants": "~55.0.1",

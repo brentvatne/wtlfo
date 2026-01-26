@@ -14,6 +14,7 @@ import Animated, {
 } from 'react-native-reanimated';
 import * as Updates from 'expo-updates';
 import { useUpdates } from 'expo-updates';
+import * as Application from 'expo-application';
 import { SymbolView } from 'expo-symbols';
 import {
   usePreset,
@@ -29,17 +30,24 @@ import {
 import { useMidi } from '@/src/context/midi-context';
 import { ParameterSlider } from '@/src/components/controls';
 
-const APP_VERSION = '1.0.0';
 const COMMON_BPMS = [90, 100, 120, 130, 140];
+
+function getAppVersion() {
+  const version = Application.nativeApplicationVersion ?? '1.0.0';
+  const build = Application.nativeBuildVersion;
+  return build ? `${version} (${build})` : version;
+}
 
 // Collapsible section component with animated expand/collapse
 function CollapsibleSection({
   title,
+  icon,
   children,
   defaultCollapsed = false,
   headerRight,
 }: {
   title: string;
+  icon?: React.ReactNode;
   children: React.ReactNode;
   defaultCollapsed?: boolean;
   headerRight?: React.ReactNode;
@@ -80,7 +88,10 @@ function CollapsibleSection({
           hitSlop={{ left: 16, right: 24, top: 8, bottom: 8 }}
           style={styles.collapsibleTitlePressable}
         >
-          <Text style={styles.sectionHeaderTitle}>{title}</Text>
+          <View style={styles.sectionHeaderTitleRow}>
+            {icon}
+            <Text style={styles.sectionHeaderTitle}>{title}</Text>
+          </View>
         </Pressable>
         <View style={styles.collapsibleHeaderRight}>
           {headerRight}
@@ -215,7 +226,10 @@ export default function SettingsScreen() {
       <Animated.View style={screenFadeStyle}>
       <Animated.View style={styles.section} layout={LinearTransition.duration(250)}>
         <View style={styles.sectionHeader}>
-          <Text style={styles.sectionHeaderTitle}>Tempo</Text>
+          <View style={styles.sectionHeaderTitleRow}>
+            <SymbolView name="metronome" size={16} tintColor="#ff6600" />
+            <Text style={styles.sectionHeaderTitle}>Tempo</Text>
+          </View>
           {midiClockActive && (
             <Animated.View
               style={styles.midiClockBadge}
@@ -277,7 +291,7 @@ export default function SettingsScreen() {
         )}
       </Animated.View>
 
-      <CollapsibleSection title="Visualization" defaultCollapsed>
+      <CollapsibleSection title="Visualization" icon={<SymbolView name="eye" size={16} tintColor="#ff6600" />} defaultCollapsed>
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
@@ -378,7 +392,7 @@ export default function SettingsScreen() {
         </View>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Animation timing" defaultCollapsed>
+      <CollapsibleSection title="Animation timing" icon={<SymbolView name="timer" size={16} tintColor="#ff6600" />} defaultCollapsed>
         <ParameterSlider
           label="Tab switch fade-in"
           min={100}
@@ -477,7 +491,7 @@ export default function SettingsScreen() {
         })()}
       </CollapsibleSection>
 
-      <CollapsibleSection title="Experimental" defaultCollapsed>
+      <CollapsibleSection title="Experimental" icon={<SymbolView name="flask" size={16} tintColor="#ff6600" />} defaultCollapsed>
         <Pressable
           style={styles.linkRow}
           onPress={() => router.push('/midi')}
@@ -515,7 +529,7 @@ export default function SettingsScreen() {
         hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
       >
         <Text style={styles.versionText}>
-          v{APP_VERSION}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
+          v{getAppVersion()}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
         </Text>
         {isChecking || isDownloading ? (
           <View style={styles.updateRow}>
@@ -569,6 +583,11 @@ const styles = StyleSheet.create({
     marginHorizontal: -16,
     marginTop: -16,
     marginBottom: 16,
+  },
+  sectionHeaderTitleRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
   },
   sectionHeaderTitle: {
     fontSize: 13,
