@@ -360,6 +360,12 @@ export default function HomeScreen() {
   const feedbackOpacity = useSharedValue(0);
   const feedbackTranslateY = useSharedValue(0);
 
+  // Use shared value for isPaused so worklets can read current value
+  const isPausedShared = useSharedValue(isPaused);
+  useEffect(() => {
+    isPausedShared.value = isPaused;
+  }, [isPaused, isPausedShared]);
+
   const feedbackAnimatedStyle = useAnimatedStyle(() => ({
     opacity: feedbackOpacity.value,
     transform: [{ translateY: feedbackTranslateY.value }],
@@ -393,11 +399,12 @@ export default function HomeScreen() {
   }, [resetLFOTiming, startLFO, setIsPaused, showFeedback]);
 
   // Gesture: tap to pause/resume, long press also pauses
+  // Read isPausedShared.value in worklet to get current state
   const tapGesture = Gesture.Tap()
     .onEnd((_event, success) => {
       'worklet';
       if (success) {
-        if (isPaused) {
+        if (isPausedShared.value) {
           scheduleOnRN(handleResume);
         } else {
           scheduleOnRN(handlePause);
@@ -406,16 +413,16 @@ export default function HomeScreen() {
     });
 
   const longPressGesture = Gesture.LongPress()
-    .minDuration(500)
+    .minDuration(400)
     .onStart(() => {
       'worklet';
-      if (!isPaused) {
+      if (!isPausedShared.value) {
         scheduleOnRN(handlePause);
       }
     });
 
-  // Long press has priority - if activated, tap won't fire
-  const visualizationGesture = Gesture.Exclusive(longPressGesture, tapGesture);
+  // Race: first gesture to activate wins (tap on quick release, long press if held)
+  const visualizationGesture = Gesture.Race(tapGesture, longPressGesture);
 
   return (
     <ScrollView
@@ -424,18 +431,18 @@ export default function HomeScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <Animated.View style={screenFadeStyle}>
-        {/* LFO Visualizer + Destination Meter Row */}
+        {/* LFO Visualizer + Destination Meter Row - single gesture area */}
         <Animated.View style={visualizerFadeStyle}>
-          <View style={styles.visualizerRow}>
-            {/* LFO Visualizer - tappable canvas */}
-            <GestureDetector gesture={visualizationGesture}>
-              <Animated.View
-                style={[styles.visualizerContainer, isPaused && styles.paused]}
-                accessibilityLabel={`LFO waveform visualizer, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isPaused }}
-                accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
-              >
+          <GestureDetector gesture={visualizationGesture}>
+            <Animated.View
+              style={[styles.visualizerRow, isPaused && styles.paused]}
+              accessibilityLabel={`LFO visualization, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+              accessibilityRole="button"
+              accessibilityState={{ selected: isPaused }}
+              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
+            >
+              {/* LFO Visualizer */}
+              <View style={styles.visualizerContainer}>
                 {visualizationsReady ? (
                   <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
                     <LFOVisualizer
@@ -472,30 +479,10 @@ export default function HomeScreen() {
                 ) : (
                   <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
                 )}
-                {/* Feedback icon overlay */}
-                {feedbackIcon && (
-                  <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
-                    <SymbolView
-                      name={feedbackIcon === 'pause' ? 'pause.fill' : 'play.fill'}
-                      size={48}
-                      tintColor="#ffffff"
-                    />
-                  </Animated.View>
-                )}
-              </Animated.View>
-            </GestureDetector>
+              </View>
 
-            {/* Destination Meter - same height as visualizer canvas */}
-            <GestureDetector gesture={visualizationGesture}>
-              <Animated.View
-                style={styles.meterContainer}
-                accessibilityLabel={hasDestination
-                  ? `Destination meter for ${activeDestination?.name || 'parameter'}, center value ${getCenterValue(activeDestinationId)}`
-                  : 'Destination meter, no destination selected'}
-                accessibilityRole="button"
-                accessibilityState={{ selected: isPaused, disabled: !hasDestination }}
-                accessibilityHint={isPaused ? 'Tap to resume' : 'Tap or long press to pause'}
-              >
+              {/* Destination Meter */}
+              <View style={styles.meterContainer}>
                 {visualizationsReady ? (
                   <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
                     <DestinationMeter
@@ -522,9 +509,20 @@ export default function HomeScreen() {
                 ) : (
                   <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
                 )}
-              </Animated.View>
-            </GestureDetector>
-          </View>
+              </View>
+
+              {/* Feedback icon overlay - centered on the whole row */}
+              {feedbackIcon && (
+                <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
+                  <SymbolView
+                    name={feedbackIcon === 'pause' ? 'pause.fill' : 'play.fill'}
+                    size={48}
+                    tintColor="#ffffff"
+                  />
+                </Animated.View>
+              )}
+            </Animated.View>
+          </GestureDetector>
 
           {/* Timing info - spans full width below visualization */}
           <View style={styles.timingContainer}>
