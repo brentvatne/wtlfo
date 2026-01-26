@@ -52,6 +52,23 @@
 - `preset-context.tsx` calls `lfoRef.current?.reset()` only for Start, not Continue
 - `resetTiming()` is called for both to avoid timing jumps after pause
 
+### LFO.T Parameter on TRIG Screen (Per-Step Trigger Control)
+**Decision**: Document LFO.T behavior for user education
+**Rationale**: Users often confuse LFO.T with an on/off switch. It controls per-step retrigger, not LFO enable/disable.
+
+**How LFO.T works:**
+- Each step on the TRIG page has an LFO.T parameter (one per LFO)
+- **LFO.T ON**: The LFO restarts from its Start Phase (SPH) when this step plays
+- **LFO.T OFF**: The LFO continues from its current position—no restart on this step
+
+**Interaction with LFO modes:**
+- **FRE mode**: LFO.T is completely ignored—LFO always runs continuously
+- **TRG/ONE/HLD/HLF modes**: LFO.T controls whether each step triggers/restarts the LFO
+
+**Common misconception**: LFO.T OFF does not silence the LFO. The LFO continues running; it just doesn't restart. To disable an LFO's effect, set depth to 0.
+
+**Source**: [Elektronauts discussion](https://www.elektronauts.com/t/what-am-i-failing-to-understand-about-trig-mode-on-lfos/216745)
+
 ### Dark Theme UI
 **Decision**: Use dark theme throughout (`userInterfaceStyle: "dark"`, `backgroundColor: "#000000"`)
 **Rationale**: Matches Elektron hardware aesthetic, reduces eye strain for music production use.
