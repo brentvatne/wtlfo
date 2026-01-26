@@ -28,14 +28,14 @@ const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
 const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
 const TAB_SWITCH_FADE_OPACITY_KEY = 'tabSwitchFadeOpacity';
 const DEFAULT_BPM = 120;
-export const DEFAULT_FADE_IN_DURATION = 752; // ms (47 frames @ 60fps)
+export const DEFAULT_FADE_IN_DURATION = 500; // ms
 export const DEFAULT_VISUALIZATION_FADE_DURATION = 448; // ms (28 frames @ 60fps)
 export const DEFAULT_EDIT_FADE_OUT = 0; // ms
-export const DEFAULT_EDIT_FADE_IN = 96; // ms (6 frames @ 60fps)
+export const DEFAULT_EDIT_FADE_IN = 150; // ms
 export const DEFAULT_DEPTH_ANIM_DURATION = 16; // ms (1 frame @ 60fps)
 export const DEFAULT_SPLASH_FADE_DURATION = 144; // ms (9 frames @ 60fps)
 export const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms (1 frame @ 60fps)
-export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.5; // Starting opacity for tab switch fade
+export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.7; // Starting opacity for tab switch fade
 
 // Load initial preset synchronously
 function getInitialPreset(): number {
