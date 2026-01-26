@@ -1,5 +1,5 @@
-import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet } from 'react-native';
+import React from 'react';
+import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
 interface ModeInfo {
@@ -63,23 +63,6 @@ function ModeCard({ info }: { info: ModeInfo }) {
   );
 }
 
-function ExpandableSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <View style={styles.expandableSection}>
-      <Pressable
-        onPress={() => setExpanded(!expanded)}
-        style={styles.expandableHeader}
-      >
-        <Text style={styles.expandableTitle}>{title}</Text>
-        <Text style={styles.expandableIcon}>{expanded ? '−' : '+'}</Text>
-      </Pressable>
-      {expanded && <View style={styles.expandableContent}>{children}</View>}
-    </View>
-  );
-}
-
 export default function ModesScreen() {
   return (
     <ScrollView
@@ -91,45 +74,29 @@ export default function ModesScreen() {
         How the LFO responds to note triggers.
       </Text>
 
+      <View style={styles.lfoTSection}>
+        <Text style={styles.sectionTitle}>LFO.T on the TRIG screen</Text>
+        <Text style={styles.sectionText}>
+          Each step has an <Text style={styles.bold}>LFO.T</Text> parameter that controls whether the LFO restarts on that step.
+        </Text>
+        <View style={styles.lfoTOptions}>
+          <Text style={styles.sectionText}>
+            <Text style={styles.bold}>ON:</Text> Restart from start phase (SPH)
+          </Text>
+          <Text style={styles.sectionText}>
+            <Text style={styles.bold}>OFF:</Text> Continue from current position
+          </Text>
+        </View>
+        <Text style={styles.sectionNote}>
+          LFO.T only works in trigger modes below. In FRE mode, it&apos;s ignored.
+        </Text>
+      </View>
+
       <View style={styles.modeList}>
         {MODES.map((info) => (
           <ModeCard key={info.mode} info={info} />
         ))}
       </View>
-
-      <ExpandableSection title="Hardware verified behavior">
-        <Text style={styles.verifiedText}>
-          Verified against Digitakt II via MIDI CC capture:
-        </Text>
-        <View style={styles.verifiedList}>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>TRG and FRE have identical timing</Text> — same cycle duration, only phase reset differs
-          </Text>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>TRG resets to startPhase on trigger</Text> — SPH=0 starts at center going UP, SPH=64 starts at center going DOWN
-          </Text>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>FRE ignores all triggers</Text> — LFO continues from current phase
-          </Text>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>All modes output full bipolar range</Text> — 0-127 CC (for bipolar waveforms)
-          </Text>
-        </View>
-        <Text style={[styles.verifiedText, { marginTop: 12 }]}>
-          MIDI Transport behavior:
-        </Text>
-        <View style={styles.verifiedList}>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>Start (0xFA)</Text> — Reset LFO to beginning and play
-          </Text>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>Continue (0xFB)</Text> — Resume from current position
-          </Text>
-          <Text style={styles.verifiedItem}>
-            • <Text style={styles.verifiedHighlight}>Stop (0xFC)</Text> — Pause, keep current position
-          </Text>
-        </View>
-      </ExpandableSection>
     </ScrollView>
   );
 }
@@ -146,8 +113,35 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 15,
     lineHeight: 22,
-    marginBottom: 20,
+    marginBottom: 16,
     textAlign: 'center',
+  },
+  lfoTSection: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 12,
+    padding: 16,
+    marginBottom: 20,
+  },
+  sectionTitle: {
+    color: '#ff6600',
+    fontSize: 16,
+    fontWeight: '600',
+    marginBottom: 8,
+  },
+  sectionText: {
+    color: '#cccccc',
+    fontSize: 14,
+    lineHeight: 20,
+  },
+  lfoTOptions: {
+    marginTop: 8,
+    gap: 4,
+  },
+  sectionNote: {
+    color: '#888899',
+    fontSize: 13,
+    marginTop: 12,
+    fontStyle: 'italic',
   },
   modeList: {
     gap: 12,
@@ -195,48 +189,8 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 12,
   },
-  expandableSection: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  expandableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-  },
-  expandableTitle: {
-    color: '#ffffff',
-    fontSize: 15,
+  bold: {
     fontWeight: '600',
-  },
-  expandableIcon: {
-    color: '#555566',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  expandableContent: {
-    padding: 14,
-    paddingTop: 0,
-  },
-  verifiedText: {
-    color: '#88cc88',
-    fontSize: 14,
-    lineHeight: 20,
-  },
-  verifiedList: {
-    marginTop: 8,
-    gap: 6,
-  },
-  verifiedItem: {
-    color: '#aaccaa',
-    fontSize: 13,
-    lineHeight: 19,
-  },
-  verifiedHighlight: {
     color: '#ffffff',
-    fontWeight: '600',
   },
 });

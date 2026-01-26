@@ -159,14 +159,6 @@ export default function TimingScreen() {
         </Text>
       </ExpandableSection>
 
-      <ExpandableSection title="Verification & sources">
-        <Text style={styles.expandedText}>
-          Formulas verified against Digitakt II hardware via MIDI CC capture and nixienoise.com LFO calculator.
-        </Text>
-        <Text style={[styles.expandedText, { marginTop: 8, color: '#888899' }]}>
-          Core formula: 30,720,000 ÷ (BPM × |SPD| × MULT) ms
-        </Text>
-      </ExpandableSection>
     </ScrollView>
   );
 }

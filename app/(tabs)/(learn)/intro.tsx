@@ -1,8 +1,8 @@
+import { LFOKnobDemo } from '@/src/components/learn/LFOKnobDemo';
 import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import { StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
-import { LFOKnobDemo } from '@/src/components/learn/LFOKnobDemo';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -34,13 +34,22 @@ export default function IntroScreen() {
     >
       <View style={styles.demoContainer}>
         <LFOKnobDemo width={demoWidth} height={140} />
-        <Text style={styles.demoCaption}>LFO waveform automatically turns a knob</Text>
+        <Text style={styles.demoCaption}>You can think of an LFO a way to automate turning encoders. Maybe you want to slowly move the pitch just slightly up and down to create a bit of instability, and rather than turning an encoder on the Digitakt with your hands you can have an LFO do that same thing for you.</Text>
       </View>
 
       <Section title="The basics">
         <BulletPoint>LFO = Low Frequency Oscillator</BulletPoint>
         <BulletPoint>Automatically moves parameters over time</BulletPoint>
         <BulletPoint>Creates movement in your sounds: filter sweeps, tremolo, vibrato, panning</BulletPoint>
+      </Section>
+
+      <Section title="How modulation works">
+        <Text style={styles.paragraph}>
+          The <Text style={styles.highlight}>Center Value</Text> is where you set the destination parameter before adding LFO modulation. This becomes the midpoint—the LFO moves the parameter above and below this value.
+        </Text>
+        <Text style={styles.paragraph}>
+          <Text style={styles.highlight}>Depth</Text> controls how far from the center the parameter moves. Higher depth = wider swings.
+        </Text>
       </Section>
 
       <Section title="Digitakt II LFO architecture">
@@ -104,6 +113,16 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
     flex: 1,
+  },
+  paragraph: {
+    color: '#cccccc',
+    fontSize: 15,
+    lineHeight: 22,
+    marginBottom: 8,
+  },
+  highlight: {
+    color: '#ff6600',
+    fontWeight: '600',
   },
   infoBox: {
     backgroundColor: '#1a1a1a',
