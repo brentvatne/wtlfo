@@ -7,6 +7,7 @@ import { PresetProvider } from '@/src/context/preset-context';
 import { warmPathCache, WAVEFORM_ICON_SIZES } from '@/src/components/lfo';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
+import * as SystemUI from 'expo-system-ui';
 import { Storage } from 'expo-sqlite/kv-store';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -14,6 +15,9 @@ import * as Sentry from '@sentry/react-native';
 
 // Pre-warm Skia path cache for WaveformIcon to prevent frame drop on first modal open
 warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);
+
+// Set native root view background color to prevent white flash during navigation
+SystemUI.setBackgroundColorAsync('#000000');
 
 Sentry.init({
   dsn: 'https://1397d1c25ba952f620723abd186c27ac@o85374.ingest.us.sentry.io/4510763027464192',
@@ -51,7 +55,7 @@ configureReanimatedLogger({
 
 export default Sentry.wrap(function RootLayout() {
   return (
-    <GestureHandlerRootView style={{ flex: 1 }}>
+    <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
       <ErrorBoundary>
         <FrameRateProvider>
           <MidiProvider>
