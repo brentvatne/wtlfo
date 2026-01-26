@@ -1,7 +1,7 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { router } from 'expo-router';
+import { router, usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import Animated, {
   useSharedValue,
@@ -111,6 +111,7 @@ function CollapsibleSection({
 
 export default function SettingsScreen() {
   const navigation = useNavigation();
+  const pathname = usePathname();
   const {
     bpm, setBPM,
     hideValuesWhileEditing, setHideValuesWhileEditing,
@@ -133,10 +134,18 @@ export default function SettingsScreen() {
   // Tab switch fade
   const screenOpacity = useSharedValue(1);
   const isFirstFocusRef = useRef(true);
+  const wasInModalRef = useRef(false);
 
   const screenFadeStyle = useAnimatedStyle(() => ({
     opacity: screenOpacity.value,
   }));
+
+  // Track when we're in a modal (pathname changes to /midi or /developer)
+  useEffect(() => {
+    if (pathname.includes('/midi') || pathname.includes('/developer')) {
+      wasInModalRef.current = true;
+    }
+  }, [pathname]);
 
   useEffect(() => {
     const tabsNavigation = navigation.getParent();
@@ -145,6 +154,12 @@ export default function SettingsScreen() {
     const unsubscribe = tabsNavigation.addListener('focus', () => {
       if (isFirstFocusRef.current) {
         isFirstFocusRef.current = false;
+        return;
+      }
+
+      // Skip fade-in if returning from a modal
+      if (wasInModalRef.current) {
+        wasInModalRef.current = false;
         return;
       }
 
