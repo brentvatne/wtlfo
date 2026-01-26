@@ -82,30 +82,20 @@ function CollapsibleSection({
       style={[styles.collapsibleSection, isCollapsed && styles.collapsibleSectionCollapsed]}
       layout={LinearTransition.duration(250)}
     >
-      <Animated.View style={[styles.collapsibleHeader, headerStyle]}>
-        <Pressable
-          onPress={toggleCollapsed}
-          hitSlop={{ left: 16, right: 24, top: 8, bottom: 8 }}
-          style={styles.collapsibleTitlePressable}
-        >
+      <Pressable onPress={toggleCollapsed}>
+        <Animated.View style={[styles.collapsibleHeader, headerStyle]}>
           <View style={styles.sectionHeaderTitleRow}>
             {icon}
             <Text style={styles.sectionHeaderTitle}>{title}</Text>
           </View>
-        </Pressable>
-        <View style={styles.collapsibleHeaderRight}>
-          {headerRight}
-          <Pressable
-            onPress={toggleCollapsed}
-            hitSlop={{ left: 24, right: 16, top: 8, bottom: 8 }}
-            style={styles.collapsibleChevronPressable}
-          >
+          <View style={styles.collapsibleHeaderRight}>
+            {headerRight}
             <Animated.Text style={[styles.collapsibleChevron, chevronStyle]}>
               ›
             </Animated.Text>
-          </Pressable>
-        </View>
-      </Animated.View>
+          </View>
+        </Animated.View>
+      </Pressable>
       {!isCollapsed && (
         <Animated.View
           entering={FadeIn.duration(200)}
@@ -291,7 +281,7 @@ export default function SettingsScreen() {
         )}
       </Animated.View>
 
-      <CollapsibleSection title="Visualization" icon={<SymbolView name="eye" size={16} tintColor="#ff6600" />} defaultCollapsed>
+      <CollapsibleSection title="Visualization" icon={<SymbolView name="waveform.path.ecg" size={16} tintColor="#ff6600" />} defaultCollapsed>
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
@@ -655,23 +645,15 @@ const styles = StyleSheet.create({
     justifyContent: 'space-between',
     alignItems: 'center',
     backgroundColor: '#252525',
-    paddingLeft: 16,
-    paddingRight: 8,
+    paddingHorizontal: 16,
     paddingVertical: 10,
     borderTopLeftRadius: 12,
     borderTopRightRadius: 12,
-  },
-  collapsibleTitlePressable: {
-    paddingVertical: 4,
   },
   collapsibleHeaderRight: {
     flexDirection: 'row',
     alignItems: 'center',
     gap: 8,
-  },
-  collapsibleChevronPressable: {
-    paddingHorizontal: 8,
-    paddingVertical: 4,
   },
   collapsibleChevron: {
     color: '#888899',
