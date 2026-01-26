@@ -1,3 +1,4 @@
+import { useEffect } from 'react';
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
 import { FrameRateProvider } from '@/src/context/frame-rate-context';
 import { MidiProvider } from '@/src/context/midi-context';
@@ -13,6 +14,7 @@ import { Storage } from 'expo-sqlite/kv-store';
 import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-reanimated';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
 import * as Sentry from '@sentry/react-native';
+import AppMetrics from 'expo-eas-observe';
 
 // Pre-warm Skia path cache for WaveformIcon to prevent frame drop on first modal open
 warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);
@@ -55,6 +57,12 @@ configureReanimatedLogger({
 });
 
 export default Sentry.wrap(function RootLayout() {
+  useEffect(() => {
+    if (!__DEV__) {
+      AppMetrics.markFirstRender();
+    }
+  }, []);
+
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
       <ErrorBoundary>

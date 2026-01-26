@@ -85,10 +85,10 @@ export default function HomeScreen() {
     return () => clearTimeout(timer);
   }, [fadeInVisualization, splashFadeDuration]);
 
-  // Mark first render after splash fade completes (production only)
+  // Mark app as interactive after splash fade completes (production only)
   useEffect(() => {
     if (visualizationsReady && !__DEV__) {
-      AppMetrics.markFirstRender();
+      AppMetrics.markInteractive();
     }
   }, [visualizationsReady]);
 
