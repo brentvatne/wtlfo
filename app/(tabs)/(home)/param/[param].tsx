@@ -358,12 +358,12 @@ export default function EditParamScreen() {
     >
       <Stack.Screen options={{ title: info.title }} />
       <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={goToPrev}>
+        <Stack.Toolbar.Button onPress={goToPrev} style={{ fontSize: 15 }}>
           ‹ {prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
       <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={goToNext}>
+        <Stack.Toolbar.Button onPress={goToNext} style={{ fontSize: 15 }}>
           {nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]} ›
         </Stack.Toolbar.Button>
       </Stack.Toolbar>
