@@ -5,6 +5,7 @@ import { ModulationProvider } from '@/src/context/modulation-context';
 import { AudioProvider } from '@/src/context/audio-context';
 import { PresetProvider } from '@/src/context/preset-context';
 import { warmPathCache, WAVEFORM_ICON_SIZES } from '@/src/components/lfo';
+import { ThemeProvider, DarkTheme } from '@react-navigation/native';
 import { Stack } from 'expo-router';
 import * as SplashScreen from 'expo-splash-screen';
 import * as SystemUI from 'expo-system-ui';
@@ -62,21 +63,23 @@ export default Sentry.wrap(function RootLayout() {
             <PresetProvider>
               <ModulationProvider>
                 <AudioProvider>
-                  <Stack screenOptions={{ headerShown: false }}>
-                    <Stack.Screen name="(tabs)" />
-                    <Stack.Screen
-                      name="midi"
-                      options={{
-                        title: 'MIDI Sync',
-                        presentation: 'modal',
-                        headerShown: true,
-                        headerStyle: { backgroundColor: '#0a0a0a' },
-                        headerTintColor: '#ff6600',
-                        headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
-                        contentStyle: { backgroundColor: '#0a0a0a' },
-                      }}
-                    />
-                  </Stack>
+                  <ThemeProvider value={DarkTheme}>
+                    <Stack screenOptions={{ headerShown: false }}>
+                      <Stack.Screen name="(tabs)" />
+                      <Stack.Screen
+                        name="midi"
+                        options={{
+                          title: 'MIDI Sync',
+                          presentation: 'modal',
+                          headerShown: true,
+                          headerStyle: { backgroundColor: '#0a0a0a' },
+                          headerTintColor: '#ff6600',
+                          headerTitleStyle: { fontWeight: '600', color: '#ffffff' },
+                          contentStyle: { backgroundColor: '#0a0a0a' },
+                        }}
+                      />
+                    </Stack>
+                  </ThemeProvider>
                 </AudioProvider>
               </ModulationProvider>
             </PresetProvider>
