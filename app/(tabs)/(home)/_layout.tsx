@@ -58,6 +58,7 @@ export default function HomeLayout() {
           presentation: 'formSheet',
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.35, 0.5],
+          headerStyle: { backgroundColor: '#1a1a1a' },
           contentStyle: { backgroundColor: '#0a0a0a' },
         }}
       />
