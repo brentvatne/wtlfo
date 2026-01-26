@@ -12,17 +12,6 @@ import { usePreset } from './preset-context';
 import { useModulation } from './modulation-context';
 import type { DestinationId } from '@/src/types/destination';
 
-// Destinations that can be meaningfully mapped to audio parameters
-type AudioDestination = 'volume' | 'filter_freq' | 'filter_reso' | 'pan' | 'pitch';
-
-const AUDIO_DESTINATIONS: Set<DestinationId> = new Set([
-  'volume',
-  'filter_freq',
-  'filter_reso',
-  'pan',
-  'pitch',
-]);
-
 // Map MIDI values to audio parameters
 function midiToGain(value: number): number {
   // 0-127 -> 0-1
@@ -77,7 +66,7 @@ const FADE_IN_DURATION = 0.05; // 50ms fade-in to prevent click
 const FADE_OUT_DURATION = 0.05; // 50ms fade-out to prevent click
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const { lfoOutput, currentConfig, lfoFadeMultiplier, isPaused } = usePreset();
+  const { lfoOutput, isPaused } = usePreset();
   const { activeDestinationId, getCenterValue } = useModulation();
 
   const [isPlaying, setIsPlaying] = useState(false);
@@ -99,6 +88,20 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const animationFrameRef = useRef<number>(0);
   // Track if audio was stopped due to LFO pause (not user toggle)
   const stoppedDueToPauseRef = useRef(false);
+
+  // Use refs for values accessed in animation loop to avoid stale closures
+  // These are updated by effects but read by the animation loop
+  const isPlayingRef = useRef(false);
+  const activeDestinationIdRef = useRef<DestinationId>(activeDestinationId);
+
+  // Keep refs in sync with state/props
+  useEffect(() => {
+    isPlayingRef.current = isPlaying;
+  }, [isPlaying]);
+
+  useEffect(() => {
+    activeDestinationIdRef.current = activeDestinationId;
+  }, [activeDestinationId]);
 
   // Build the audio graph synchronously
   // This only builds the persistent nodes (gain, filter, panner) - oscillator is created on each start
@@ -183,83 +186,96 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     audioGraphReadyRef.current = false;
   }, [stopOscillator]);
 
-  // Update audio parameters based on LFO output
-  const updateAudioParams = useCallback(() => {
-    if (!isPlaying) return;
+  // Animation loop function - uses refs to avoid stale closures
+  // This runs at ~60fps when audio is playing
+  const runAnimationLoop = useCallback(() => {
+    const updateAudioParams = () => {
+      // Early exit if not playing (check ref, not state)
+      if (!isPlayingRef.current) return;
 
-    const osc = oscillatorRef.current;
-    const gain = gainNodeRef.current;
-    const filter = filterNodeRef.current;
-    const panner = pannerNodeRef.current;
+      const ctx = audioContextRef.current;
+      const osc = oscillatorRef.current;
+      const gain = gainNodeRef.current;
+      const filter = filterNodeRef.current;
+      const panner = pannerNodeRef.current;
 
-    if (!osc || !gain || !filter || !panner) return;
+      // Guard against missing audio nodes
+      if (!ctx || !osc || !gain || !filter || !panner) return;
 
-    // Get LFO modulation (already scaled by depth from preset context)
-    const lfoValue = lfoOutput.value;
-    const fadeMultiplier = lfoFadeMultiplier.value ?? 1;
-    const scaledLfo = lfoValue * fadeMultiplier;
+      // Read LFO output - this already has depth and fade applied by the engine!
+      // IMPORTANT: Do NOT apply depth or fade again here
+      const lfoValue = lfoOutput.value;
 
-    // Calculate modulation based on destination and center value
-    const centerValue = getCenterValue(activeDestinationId);
-    const depth = currentConfig.depth;
-    // Depth is -64 to +63, scale to -1 to +1
-    const depthScale = Math.max(-1, Math.min(1, depth / 63));
+      // Get current destination and center value from refs
+      const destId = activeDestinationIdRef.current;
+      const centerValue = getCenterValue(destId);
 
-    // Modulation amount: LFO output * depth scale * parameter range
-    // lfoOutput is already normalized to -1 to +1 based on waveform
+      // The LFO output is already scaled by depth (-1 to +1 at max depth)
+      // We just need to map it to the appropriate audio parameter range
+      // maxMod is half the MIDI range (63.5) since LFO swings both directions
+      const maxMod = 63.5;
 
-    switch (activeDestinationId) {
-      case 'volume': {
-        // Volume: 0-127 MIDI range, center typically around 100
-        const maxMod = 63.5; // Half the MIDI range
-        const modulation = scaledLfo * depthScale * maxMod;
-        const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-        gain.gain.value = midiToGain(finalValue);
-        break;
+      // Modulation amount: LFO output (already depth-scaled) * parameter range
+      // lfoValue ranges from -1 to +1 (after depth scaling in engine)
+      const modulation = lfoValue * maxMod;
+
+      // Get current time for Web Audio automation
+      // Using setValueAtTime instead of .value ensures proper interaction with
+      // scheduled automation (like fade-in/fade-out ramps)
+      const now = ctx.currentTime;
+
+      switch (destId) {
+        case 'volume': {
+          // Volume: 0-127 MIDI range
+          const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
+          // Use cancelScheduledValues + setValueAtTime for gain to override any pending automation
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(midiToGain(finalValue), now);
+          break;
+        }
+        case 'filter_freq': {
+          // Filter freq: 0-127 MIDI range
+          const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
+          filter.frequency.value = midiToFilterFreq(finalValue);
+          break;
+        }
+        case 'filter_reso': {
+          // Filter resonance: 0-127 MIDI range
+          const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
+          filter.Q.value = midiToFilterQ(finalValue);
+          break;
+        }
+        case 'pan': {
+          // Pan: -64 to +63 MIDI range (bipolar)
+          const finalValue = Math.max(-64, Math.min(63, centerValue + modulation));
+          panner.pan.value = midiToPan(finalValue);
+          break;
+        }
+        case 'pitch': {
+          // Pitch: 0-127 MIDI range, 64 = no change from base frequency
+          const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
+          osc.frequency.value = midiToPitch(finalValue);
+          break;
+        }
+        default:
+          // For non-audio destinations, play with default params (no modulation)
+          // Cancel any scheduled gain automation first
+          gain.gain.cancelScheduledValues(now);
+          gain.gain.setValueAtTime(DEFAULT_GAIN, now);
+          filter.frequency.value = DEFAULT_FILTER_FREQ;
+          filter.Q.value = DEFAULT_FILTER_Q;
+          panner.pan.value = 0;
       }
-      case 'filter_freq': {
-        // Filter freq: 0-127 MIDI range
-        const maxMod = 63.5;
-        const modulation = scaledLfo * depthScale * maxMod;
-        const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-        filter.frequency.value = midiToFilterFreq(finalValue);
-        break;
-      }
-      case 'filter_reso': {
-        // Filter resonance: 0-127 MIDI range
-        const maxMod = 63.5;
-        const modulation = scaledLfo * depthScale * maxMod;
-        const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-        filter.Q.value = midiToFilterQ(finalValue);
-        break;
-      }
-      case 'pan': {
-        // Pan: -64 to +63 MIDI range (bipolar)
-        const maxMod = 63.5;
-        const modulation = scaledLfo * depthScale * maxMod;
-        const finalValue = Math.max(-64, Math.min(63, centerValue + modulation));
-        panner.pan.value = midiToPan(finalValue);
-        break;
-      }
-      case 'pitch': {
-        // Pitch: 0-127 MIDI range, 64 = no change from base frequency
-        const maxMod = 63.5;
-        const modulation = scaledLfo * depthScale * maxMod;
-        const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-        osc.frequency.value = midiToPitch(finalValue);
-        break;
-      }
-      default:
-        // For non-audio destinations, just play with default params
-        gain.gain.value = DEFAULT_GAIN;
-        filter.frequency.value = DEFAULT_FILTER_FREQ;
-        filter.Q.value = DEFAULT_FILTER_Q;
-        panner.pan.value = 0;
-    }
 
-    // Continue animation loop
+      // Continue animation loop - always schedule next frame if playing
+      if (isPlayingRef.current) {
+        animationFrameRef.current = requestAnimationFrame(updateAudioParams);
+      }
+    };
+
+    // Start the loop
     animationFrameRef.current = requestAnimationFrame(updateAudioParams);
-  }, [isPlaying, activeDestinationId, getCenterValue, currentConfig.depth, lfoOutput, lfoFadeMultiplier]);
+  }, [lfoOutput, getCenterValue]);
 
   // Start audio - builds graph on first call, then reuses it
   const start = useCallback(async () => {
@@ -297,11 +313,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       // Fade in to prevent click
       gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, audioCtx.currentTime + FADE_IN_DURATION);
 
+      // Update state and start animation loop
       setIsPlaying(true);
+      isPlayingRef.current = true;
+      runAnimationLoop();
     } catch (error) {
       console.warn('Failed to start audio:', error);
     }
-  }, [isPlaying, buildAudioGraph]);
+  }, [isPlaying, buildAudioGraph, runAnimationLoop]);
 
   // Stop audio with fade-out (keeps audio graph alive for quick restart)
   const stop = useCallback(() => {
@@ -309,6 +328,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     stoppedDueToPauseRef.current = false; // User explicitly stopped
     setIsPlaying(false);
+    isPlayingRef.current = false;
 
     const ctx = audioContextRef.current;
     const gain = gainNodeRef.current;
@@ -338,23 +358,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, [isPlaying, start, stop]);
 
-  // Start update loop when playing
-  useEffect(() => {
-    if (isPlaying) {
-      animationFrameRef.current = requestAnimationFrame(updateAudioParams);
-    }
-    return () => {
-      if (animationFrameRef.current) {
-        cancelAnimationFrame(animationFrameRef.current);
-        animationFrameRef.current = 0;
-      }
-    };
-  }, [isPlaying, updateAudioParams]);
-
   // Stop audio when LFO is paused (but keep toggle state and audio graph)
   useEffect(() => {
     if (isPaused && isPlaying && oscillatorRef.current) {
       stoppedDueToPauseRef.current = true;
+      isPlayingRef.current = false; // Stop animation loop immediately
 
       const ctx = audioContextRef.current;
       const gain = gainNodeRef.current;
@@ -401,18 +409,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           osc.start();
           gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, ctx.currentTime + FADE_IN_DURATION);
 
-          animationFrameRef.current = requestAnimationFrame(updateAudioParams);
+          // Restart animation loop
+          isPlayingRef.current = true;
+          runAnimationLoop();
         } catch (error) {
           console.warn('Failed to restart audio:', error);
           setIsPlaying(false);
+          isPlayingRef.current = false;
         }
       })();
     }
-  }, [isPaused, isPlaying, updateAudioParams]);
+  }, [isPaused, isPlaying, runAnimationLoop]);
 
   // Reset audio params when destination changes to remove modulation from previous destination
-  // This ensures switching from Volume->Filter resets volume, and switching to non-audio
-  // destinations removes all modulation effects
   const prevDestinationRef = useRef<DestinationId>(activeDestinationId);
   useEffect(() => {
     if (isPlaying && prevDestinationRef.current !== activeDestinationId) {
