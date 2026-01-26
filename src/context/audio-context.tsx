@@ -88,6 +88,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const animationFrameRef = useRef<number>(0);
   // Track if audio was stopped due to LFO pause (not user toggle)
   const stoppedDueToPauseRef = useRef(false);
+  // Track cleanup state to prevent operations on unmounted component (fast refresh)
+  const isCleaningUpRef = useRef(false);
 
   // Use refs for values accessed in animation loop to avoid stale closures
   // These are updated by effects but read by the animation loop
@@ -170,8 +172,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Fully destroy audio graph (only on unmount)
-  const destroyAudioGraph = useCallback(() => {
+  // Fully destroy audio graph (on unmount or fast refresh)
+  const destroyAudioGraph = useCallback(async () => {
+    isCleaningUpRef.current = true;
     stopOscillator();
 
     gainNodeRef.current = null;
@@ -179,11 +182,17 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     pannerNodeRef.current = null;
 
     if (audioContextRef.current) {
-      audioContextRef.current.close();
+      try {
+        // Must await close() to properly release system audio resources
+        await audioContextRef.current.close();
+      } catch (error) {
+        console.warn('Error closing AudioContext:', error);
+      }
       audioContextRef.current = null;
     }
 
     audioGraphReadyRef.current = false;
+    // Note: Don't reset isCleaningUpRef here - it stays true until component remounts
   }, [stopOscillator]);
 
   // Animation loop function - uses refs to avoid stale closures
@@ -281,8 +290,24 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const start = useCallback(async () => {
     if (isPlaying) return;
 
-    // Build graph on first start (subsequent starts reuse it)
-    if (!audioGraphReadyRef.current) {
+    // Check if existing AudioContext is still valid (handles fast refresh)
+    const existingCtx = audioContextRef.current;
+    const isContextValid = existingCtx && existingCtx.state !== 'closed';
+
+    // Build graph on first start, or rebuild if context became invalid (fast refresh)
+    if (!audioGraphReadyRef.current || !isContextValid || isCleaningUpRef.current) {
+      // Clean up any stale context first
+      if (existingCtx && !isContextValid) {
+        console.log('[Audio] Rebuilding audio graph after invalid context detected');
+        audioContextRef.current = null;
+        gainNodeRef.current = null;
+        filterNodeRef.current = null;
+        pannerNodeRef.current = null;
+      }
+
+      // Reset cleanup flag - we're building fresh
+      isCleaningUpRef.current = false;
+
       const success = buildAudioGraph();
       if (!success) return;
       audioGraphReadyRef.current = true;
@@ -343,9 +368,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     // After fade completes, stop oscillator and suspend context
     setTimeout(() => {
+      // Guard against cleanup during fade (fast refresh)
+      if (isCleaningUpRef.current) return;
       stopOscillator();
       // Suspend context to free resources but keep graph alive
-      ctx.suspend();
+      if (audioContextRef.current) {
+        audioContextRef.current.suspend();
+      }
     }, FADE_OUT_DURATION * 1000 + 10);
   }, [isPlaying, stopOscillator]);
 
@@ -371,8 +400,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         // Fade out then stop oscillator and suspend
         gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_OUT_DURATION);
         setTimeout(() => {
+          // Guard against cleanup during fade (fast refresh)
+          if (isCleaningUpRef.current) return;
           stopOscillator();
-          ctx.suspend();
+          if (audioContextRef.current) {
+            audioContextRef.current.suspend();
+          }
         }, FADE_OUT_DURATION * 1000 + 10);
       } else {
         stopOscillator();
@@ -386,11 +419,22 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       stoppedDueToPauseRef.current = false;
 
       (async () => {
+        // Guard against cleanup in progress (fast refresh)
+        if (isCleaningUpRef.current) return;
+
         try {
           const ctx = audioContextRef.current;
           const gain = gainNodeRef.current;
 
           if (!ctx || !gain) return;
+
+          // Check if context is still valid (not closed from fast refresh)
+          if (ctx.state === 'closed') {
+            console.log('[Audio] Context closed, cannot resume');
+            setIsPlaying(false);
+            isPlayingRef.current = false;
+            return;
+          }
 
           // Resume context
           if (ctx.state === 'suspended') {
