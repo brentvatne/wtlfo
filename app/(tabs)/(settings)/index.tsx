@@ -527,28 +527,30 @@ export default function SettingsScreen() {
       </CollapsibleSection>
 
       {/* Version and Update Info */}
-      <Pressable
-        style={styles.versionContainer}
-        onPress={handleCheckUpdate}
-        disabled={isChecking || isDownloading}
-        hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
-      >
-        <Text style={styles.versionText}>
-          v{getAppVersion()}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
-        </Text>
-        {isChecking || isDownloading ? (
-          <View style={styles.updateRow}>
-            <ActivityIndicator size="small" color="#888" />
-            <Text style={styles.updateCheckingText}>
-              {isDownloading ? 'Downloading...' : 'Checking...'}
-            </Text>
-          </View>
-        ) : (
-          <Text style={styles.updateIdText}>
-            {getUpdateId()}
+      <Animated.View layout={LinearTransition.duration(250)}>
+        <Pressable
+          style={styles.versionContainer}
+          onPress={handleCheckUpdate}
+          disabled={isChecking || isDownloading}
+          hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
+        >
+          <Text style={styles.versionText}>
+            v{getAppVersion()}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
           </Text>
-        )}
-      </Pressable>
+          {isChecking || isDownloading ? (
+            <View style={styles.updateRow}>
+              <ActivityIndicator size="small" color="#888" />
+              <Text style={styles.updateCheckingText}>
+                {isDownloading ? 'Downloading...' : 'Checking...'}
+              </Text>
+            </View>
+          ) : (
+            <Text style={styles.updateIdText}>
+              {getUpdateId()}
+            </Text>
+          )}
+        </Pressable>
+      </Animated.View>
       </Animated.View>
     </ScrollView>
   );
