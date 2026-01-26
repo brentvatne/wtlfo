@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import AppMetrics from 'expo-eas-observe';
 import { ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
@@ -83,6 +84,13 @@ export default function HomeScreen() {
     const timer = setTimeout(() => setVisualizationsReady(true), splashFadeDuration);
     return () => clearTimeout(timer);
   }, [fadeInVisualization, splashFadeDuration]);
+
+  // Mark first render after splash fade completes (production only)
+  useEffect(() => {
+    if (visualizationsReady && !__DEV__) {
+      AppMetrics.markFirstRender();
+    }
+  }, [visualizationsReady]);
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {

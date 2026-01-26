@@ -27,6 +27,7 @@
     "expo-clipboard": "~55.0.1",
     "expo-constants": "~55.0.1",
     "expo-dev-client": "~55.0.1",
+    "expo-eas-observe": "^0.0.12",
     "expo-font": "~55.0.1",
     "expo-haptics": "~55.0.1",
     "expo-image": "~55.0.1",
