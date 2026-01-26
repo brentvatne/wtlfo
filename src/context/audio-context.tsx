@@ -23,17 +23,6 @@ const AUDIO_DESTINATIONS: Set<DestinationId> = new Set([
   'pitch',
 ]);
 
-// Helper to yield during idle time (falls back to setTimeout if not available)
-function nextIdle(): Promise<void> {
-  return new Promise(resolve => {
-    if (typeof requestIdleCallback !== 'undefined') {
-      requestIdleCallback(() => resolve());
-    } else {
-      setTimeout(() => resolve(), 0);
-    }
-  });
-}
-
 // Map MIDI values to audio parameters
 function midiToGain(value: number): number {
   // 0-127 -> 0-1
@@ -94,12 +83,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const [isPlaying, setIsPlaying] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
 
-  // Use ref instead of state to avoid re-renders during initialization
-  const isInitializingRef = useRef(false);
-
-  // Cancellation flag for chunked initialization
-  const initCancelledRef = useRef(false);
-
   // Track if audio graph has been built (persistent across toggles)
   const audioGraphReadyRef = useRef(false);
 
@@ -117,45 +100,28 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Track if audio was stopped due to LFO pause (not user toggle)
   const stoppedDueToPauseRef = useRef(false);
 
-  // Build the audio graph with chunked initialization to prevent frame drops
-  // Each step yields during idle time via requestIdleCallback
+  // Build the audio graph synchronously
   // This only builds the persistent nodes (gain, filter, panner) - oscillator is created on each start
-  const buildAudioGraphChunked = useCallback(async (): Promise<boolean> => {
+  const buildAudioGraph = useCallback((): boolean => {
     try {
-      // Step 1: Create audio context
       const ctx = new AudioContextClass();
       audioContextRef.current = ctx;
 
-      await nextIdle();
-      if (initCancelledRef.current) return false;
-
-      // Step 2: Create gain node (start at 0 for fade-in)
       const gain = ctx.createGain();
       gain.gain.value = 0;
       gainNodeRef.current = gain;
 
-      await nextIdle();
-      if (initCancelledRef.current) return false;
-
-      // Step 3: Create filter
       const filter = ctx.createBiquadFilter();
       filter.type = 'lowpass';
       filter.frequency.value = DEFAULT_FILTER_FREQ;
       filter.Q.value = DEFAULT_FILTER_Q;
       filterNodeRef.current = filter;
 
-      await nextIdle();
-      if (initCancelledRef.current) return false;
-
-      // Step 4: Create panner
       const panner = ctx.createStereoPanner();
       panner.pan.value = 0;
       pannerNodeRef.current = panner;
 
-      await nextIdle();
-      if (initCancelledRef.current) return false;
-
-      // Step 5: Connect persistent nodes (oscillator connects to gain on start)
+      // Connect: oscillator -> gain -> filter -> panner -> destination
       gain.connect(filter);
       filter.connect(panner);
       panner.connect(ctx.destination);
@@ -297,27 +263,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Start audio - builds graph on first call, then reuses it
   const start = useCallback(async () => {
-    if (isPlaying || isInitializingRef.current) return;
-
-    const ctx = audioContextRef.current;
+    if (isPlaying) return;
 
     // Build graph on first start (subsequent starts reuse it)
     if (!audioGraphReadyRef.current) {
-      isInitializingRef.current = true;
-      initCancelledRef.current = false;
-
-      const success = await buildAudioGraphChunked();
-
-      if (initCancelledRef.current || !success) {
-        isInitializingRef.current = false;
-        if (initCancelledRef.current) {
-          destroyAudioGraph();
-        }
-        return;
-      }
-
+      const success = buildAudioGraph();
+      if (!success) return;
       audioGraphReadyRef.current = true;
-      isInitializingRef.current = false;
     }
 
     try {
@@ -349,16 +301,11 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     } catch (error) {
       console.warn('Failed to start audio:', error);
     }
-  }, [isPlaying, buildAudioGraphChunked, destroyAudioGraph]);
+  }, [isPlaying, buildAudioGraph]);
 
   // Stop audio with fade-out (keeps audio graph alive for quick restart)
   const stop = useCallback(() => {
-    // Cancel any in-progress initialization
-    if (isInitializingRef.current) {
-      initCancelledRef.current = true;
-    }
-
-    if (!isPlaying && !isInitializingRef.current) return;
+    if (!isPlaying) return;
 
     stoppedDueToPauseRef.current = false; // User explicitly stopped
     setIsPlaying(false);
@@ -384,7 +331,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Toggle audio
   const toggle = useCallback(() => {
-    if (isPlaying || isInitializingRef.current) {
+    if (isPlaying) {
       stop();
     } else {
       start();

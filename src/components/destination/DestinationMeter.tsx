@@ -1,9 +1,9 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
-import { View, Text, StyleSheet, Pressable, type ViewStyle } from 'react-native';
-import { Canvas, Rect, RoundedRect, Group, Line, vec } from '@shopify/react-native-skia';
+import { View, StyleSheet, Pressable, Platform, type ViewStyle } from 'react-native';
+import { Canvas, Rect, RoundedRect, Group, Line, vec, Text as SkiaText, matchFont } from '@shopify/react-native-skia';
 
 type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
-import { useDerivedValue, useSharedValue, useAnimatedReaction, withTiming, withSequence, Easing, cancelAnimation, runOnJS } from 'react-native-reanimated';
+import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
@@ -70,6 +70,20 @@ export function DestinationMeter({
   const shouldHideValue = isEditing && hideValuesWhileEditing;
   // Only hide fills if editing AND the setting says to hide them
   const shouldHideFill = isEditing && !showFillsWhenEditing;
+
+  // Skia fonts for text rendering (using system monospace font)
+  const valueFont = useMemo(() => matchFont({
+    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+    fontSize: 14,
+    fontWeight: '700',
+  }), []);
+
+  const labelFont = useMemo(() => matchFont({
+    fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif' }),
+    fontSize: 10,
+    fontWeight: '500',
+  }), []);
+
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
   const max = destination?.max ?? 127;
@@ -174,44 +188,19 @@ export function DestinationMeter({
     animatedUpperBound.value = withTiming(targetUpperBound, config);
   }, [centerValue, targetLowerBound, targetUpperBound]);
 
-  // Track current value for display - updated via interval to avoid blocking UI thread
-  const [currentValue, setCurrentValue] = useState(centerValue);
+  // Display mode as SharedValue (0=VALUE, 1=MIN, 2=MAX) so it can be read in worklets
+  const displayModeIndex = useSharedValue(0);
+  const DISPLAY_MODES: DisplayMode[] = ['VALUE', 'MIN', 'MAX'];
 
-  // Display mode: VALUE (current modulated), MIN (lower bound), MAX (upper bound)
+  // React state for display mode (for JSX line highlighting - updates immediately on tap)
   const [displayMode, setDisplayMode] = useState<DisplayMode>('VALUE');
 
-  // Cycle through display modes on tap
+  // Cycle through display modes on tap - updates both SharedValue and React state
   const handleDisplayModePress = useCallback(() => {
-    setDisplayMode(prev => {
-      if (prev === 'VALUE') return 'MIN';
-      if (prev === 'MIN') return 'MAX';
-      return 'VALUE';
-    });
-  }, []);
-
-  // Sample lfoOutput using useAnimatedReaction (UI thread safe)
-  // Uses centerValue prop directly (not spring-animated) so text responds immediately to slider
-  // Apply fadeMultiplier to account for fade envelope
-  // Throttle to ~30fps to avoid excessive re-renders
-  const lastValueUpdateRef = useRef(0);
-  const VALUE_THROTTLE_MS = 33; // ~30fps
-
-  useAnimatedReaction(
-    () => lfoOutput.value,
-    (currentOutput) => {
-      'worklet';
-      // Throttle updates to ~30fps
-      const now = Date.now();
-      if (now - lastValueUpdateRef.current < VALUE_THROTTLE_MS) return;
-      lastValueUpdateRef.current = now;
-
-      const fadeMult = fadeMultiplier?.value ?? 1;
-      const modulationAmount = currentOutput * maxModulation * fadeMult;
-      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
-      runOnJS(setCurrentValue)(value);
-    },
-    [fadeMultiplier, centerValue, maxModulation, min, max]
-  );
+    const newIndex = (displayModeIndex.value + 1) % 3;
+    displayModeIndex.value = newIndex;
+    setDisplayMode(DISPLAY_MODES[newIndex]);
+  }, [displayModeIndex]);
 
   // Position calculations
   const meterX = 8;
@@ -306,6 +295,62 @@ export function DestinationMeter({
     animatedFadeActualMax.value = withTiming(fadeActualMax, config);
     animatedFadeActualMin.value = withTiming(fadeActualMin, config);
   }, [fadeActualMax, fadeActualMin]);
+
+  // Compute the display text entirely on UI thread (no JS callback needed)
+  // This reads displayModeIndex to determine what to show
+  const minBoundValue = hasFade ? fadeActualMin : targetLowerBound;
+  const maxBoundValue = hasFade ? fadeActualMax : targetUpperBound;
+
+  const displayText = useDerivedValue(() => {
+    'worklet';
+    // Handle showValue=false case
+    if (!showValue) return '—';
+
+    const mode = displayModeIndex.value;
+
+    if (mode === 0) {
+      // VALUE mode - compute from lfoOutput
+      // When editing, show centerValue instead of computed value
+      if (shouldHideValue) {
+        return String(Math.round(centerValue));
+      }
+      const fadeMult = fadeMultiplier?.value ?? 1;
+      const modulationAmount = lfoOutput.value * maxModulation * fadeMult;
+      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
+      return String(value);
+    } else if (mode === 1) {
+      // MIN mode
+      return String(Math.round(minBoundValue));
+    } else {
+      // MAX mode
+      return String(Math.round(maxBoundValue));
+    }
+  }, [showValue, shouldHideValue, centerValue, fadeMultiplier, lfoOutput, maxModulation, min, max, minBoundValue, maxBoundValue, displayModeIndex]);
+
+  // Label text - derived from displayModeIndex
+  const displayLabelText = useDerivedValue(() => {
+    'worklet';
+    const modes = ['VALUE', 'MIN', 'MAX'];
+    return modes[displayModeIndex.value];
+  }, [displayModeIndex]);
+
+  // Text centering - calculate x positions based on text length
+  // Using approximate character widths for the fonts
+  const valueTextX = useDerivedValue(() => {
+    'worklet';
+    const text = displayText.value;
+    const charWidth = 8.4; // Approximate for 14px monospace
+    const textWidth = text.length * charWidth;
+    return (width - textWidth) / 2;
+  }, [displayText, width]);
+
+  const labelTextX = useDerivedValue(() => {
+    'worklet';
+    const text = displayLabelText.value;
+    const charWidth = 6; // Approximate for 10px sans-serif
+    const textWidth = text.length * charWidth;
+    return (width - textWidth) / 2;
+  }, [displayLabelText, width]);
 
   // Fade bounds Y positions - FIXED at the actual max/min the output will reach
   const fadeMaxBoundY = useDerivedValue(() => {
@@ -484,26 +529,34 @@ export function DestinationMeter({
         </Group>
       </Canvas>
 
-      {/* Value display - tappable to cycle through VALUE/MIN/MAX */}
-      {/* Added padding and hitSlop to prevent accidental taps from visualization above */}
-      <Pressable
-        style={styles.valueContainer}
-        onPress={handleDisplayModePress}
-        hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
-      >
-        <Text style={styles.valueText}>
-          {!showValue
-            ? '—'
-            : displayMode === 'VALUE'
-              ? (shouldHideValue ? Math.round(centerValue) : currentValue)
-              : displayMode === 'MIN'
-                ? Math.round(hasFade ? fadeActualMin : targetLowerBound)
-                : Math.round(hasFade ? fadeActualMax : targetUpperBound)}
-        </Text>
-        <Text style={styles.valueLabel}>
-          {displayMode}
-        </Text>
-      </Pressable>
+      {/* Value display - Skia text for UI-thread rendering */}
+      {/* Pressable overlay for tap handling */}
+      <View style={styles.valueContainer}>
+        <Canvas style={{ width, height: 32 }}>
+          {/* Value text - centered horizontally, y is baseline */}
+          <SkiaText
+            x={valueTextX}
+            y={14}
+            text={displayText}
+            font={valueFont}
+            color="#ffffff"
+          />
+          {/* Label text - centered below value, y is baseline */}
+          <SkiaText
+            x={labelTextX}
+            y={29}
+            text={displayLabelText}
+            font={labelFont}
+            color="#8888a0"
+          />
+        </Canvas>
+        {/* Transparent Pressable overlay for tap handling */}
+        <Pressable
+          style={StyleSheet.absoluteFill}
+          onPress={handleDisplayModePress}
+          hitSlop={{ top: 4, bottom: 8, left: 12, right: 12 }}
+        />
+      </View>
     </View>
   );
 }
@@ -514,21 +567,7 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
   },
   valueContainer: {
-    alignItems: 'center',
-    paddingVertical: 12,
     backgroundColor: '#000000',
-  },
-  valueText: {
-    color: '#ffffff',
-    fontSize: 14,
-    fontWeight: '700',
-    fontVariant: ['tabular-nums'],
-    fontFamily: 'monospace',
-  },
-  valueLabel: {
-    color: '#8888a0',
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 2,
+    paddingVertical: 12,
   },
 });

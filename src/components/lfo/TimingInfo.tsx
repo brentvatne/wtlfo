@@ -1,17 +1,22 @@
-import React, { useState, useEffect, useCallback, useRef } from 'react';
-import { View, Text, StyleSheet, Pressable } from 'react-native';
-import Animated, {
+import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import { View, StyleSheet, Pressable, Platform } from 'react-native';
+import { Canvas, Text as SkiaText, matchFont } from '@shopify/react-native-skia';
+import {
   useSharedValue,
-  useAnimatedStyle,
   useAnimatedReaction,
+  useDerivedValue,
   withRepeat,
   withSequence,
   withTiming,
   Easing,
   cancelAnimation,
-  runOnJS,
 } from 'react-native-reanimated';
 import type { TimingInfoProps } from './types';
+
+// Canvas dimensions for each item
+const ITEM_HEIGHT = 32;
+const VALUE_Y = 14; // Baseline for 14px value text
+const LABEL_Y = 29; // Baseline for 10px label text (matches DestinationMeter)
 
 export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, startPhase = 0 }: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
@@ -19,13 +24,24 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
   const [showCurrentStep, setShowCurrentStep] = useState(false);
   const bpmOpacity = useSharedValue(1);
 
-  // Track current step for display (updated periodically from phase)
-  const [currentStep, setCurrentStep] = useState(1);
+  // Skia fonts (same as DestinationMeter)
+  const valueFont = useMemo(() => matchFont({
+    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
+    fontSize: 14,
+    fontWeight: '700',
+  }), []);
 
-  // Track elapsed time within cycle (updated periodically from phase)
-  const [elapsedTimeMs, setElapsedTimeMs] = useState(0);
+  const labelFont = useMemo(() => matchFont({
+    fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif' }),
+    fontSize: 10,
+    fontWeight: '500',
+  }), []);
 
-  // Throttle state updates to ~15fps to prioritize visualization performance
+  // SharedValues for dynamic displays
+  const elapsedTimeMsShared = useSharedValue(0);
+  const currentStepShared = useSharedValue(1);
+
+  // Throttle updates to ~15fps to prioritize visualization performance
   const lastElapsedUpdateRef = useRef(0);
   const lastStepUpdateRef = useRef(0);
   const THROTTLE_MS = 66; // ~15fps
@@ -47,7 +63,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       // Subtract startPhase offset so elapsed time starts at the LFO's start position
       const adjustedPhase = ((currentPhase - startPhaseNormalized) % 1 + 1) % 1;
       // Calculate elapsed time within cycle
-      runOnJS(setElapsedTimeMs)(adjustedPhase * cycleTimeMs);
+      elapsedTimeMsShared.value = adjustedPhase * cycleTimeMs;
     },
     [showElapsedTime, cycleTimeMs, startPhase]
   );
@@ -72,7 +88,7 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       // Calculate current step (1-indexed), wrapping correctly
       const rawStep = Math.floor(adjustedPhase * steps);
       const step = (rawStep % totalSteps) + 1;
-      runOnJS(setCurrentStep)(step);
+      currentStepShared.value = step;
     },
     [showCurrentStep, steps, startPhase]
   );
@@ -84,17 +100,15 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       // Immediately calculate current step when toggling on
       if (newValue && phase && steps && steps > 0) {
         const totalSteps = Math.ceil(steps);
-        // Convert startPhase (0-127) to normalized (0-1)
         const startPhaseNormalized = startPhase / 128;
-        // Subtract startPhase offset so step 1 starts at the LFO's start position
         const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
         const rawStep = Math.floor(adjustedPhase * steps);
         const step = (rawStep % totalSteps) + 1;
-        setCurrentStep(step);
+        currentStepShared.value = step;
       }
       return newValue;
     });
-  }, [phase, steps, startPhase]);
+  }, [phase, steps, startPhase, currentStepShared]);
 
   // Format steps - show decimal only if not a whole number
   const formatSteps = (s: number): string => {
@@ -115,18 +129,16 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
       if (newValue && phase && cycleTimeMs) {
         const startPhaseNormalized = startPhase / 128;
         const adjustedPhase = ((phase.value - startPhaseNormalized) % 1 + 1) % 1;
-        setElapsedTimeMs(adjustedPhase * cycleTimeMs);
+        elapsedTimeMsShared.value = adjustedPhase * cycleTimeMs;
       }
       return newValue;
     });
-  }, [phase, cycleTimeMs, startPhase]);
+  }, [phase, cycleTimeMs, startPhase, elapsedTimeMsShared]);
 
   // Start/stop BPM pulsing animation
   useEffect(() => {
     if (isBpmPulsing && bpm) {
-      // Calculate timing for one beat (ms per beat)
       const beatDuration = 60000 / bpm;
-      // Fade down takes half a beat, fade up takes half a beat
       const halfBeat = beatDuration / 2;
 
       bpmOpacity.value = withRepeat(
@@ -134,21 +146,14 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
           withTiming(0.5, { duration: halfBeat, easing: Easing.inOut(Easing.ease) }),
           withTiming(1, { duration: halfBeat, easing: Easing.inOut(Easing.ease) })
         ),
-        -1, // Repeat forever
-        false // Don't reverse
+        -1,
+        false
       );
     } else {
-      // Stop pulsing and reset to full opacity
       cancelAnimation(bpmOpacity);
       bpmOpacity.value = withTiming(1, { duration: 150 });
     }
   }, [isBpmPulsing, bpm, bpmOpacity]);
-
-
-  // Animated style for BPM text
-  const bpmAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: bpmOpacity.value,
-  }));
 
   // Format time value for display
   const formatTime = (ms: number): string => {
@@ -158,46 +163,181 @@ export function TimingInfo({ bpm, cycleTimeMs, noteValue, steps, theme, phase, s
     return `${ms.toFixed(0)}ms`;
   };
 
+  // Derived text values for Skia
+  const bpmText = useDerivedValue(() => String(bpm ?? ''), [bpm]);
+
+  const cycleText = useDerivedValue(() => {
+    'worklet';
+    if (showElapsedTime) {
+      const ms = elapsedTimeMsShared.value;
+      if (ms >= 1000) {
+        return `${(ms / 1000).toFixed(2)}s`;
+      }
+      return `${ms.toFixed(0)}ms`;
+    }
+    if (cycleTimeMs === undefined) return '';
+    if (cycleTimeMs >= 1000) {
+      return `${(cycleTimeMs / 1000).toFixed(2)}s`;
+    }
+    return `${cycleTimeMs.toFixed(0)}ms`;
+  }, [showElapsedTime, cycleTimeMs, elapsedTimeMsShared]);
+
+  const cycleLabelText = useDerivedValue(() => showElapsedTime ? 'TIME' : 'CYCLE', [showElapsedTime]);
+
+  const stepsText = useDerivedValue(() => {
+    'worklet';
+    if (showCurrentStep) {
+      return String(currentStepShared.value);
+    }
+    if (steps === undefined) return '';
+    if (Number.isInteger(steps)) return String(steps);
+    return steps.toFixed(1);
+  }, [showCurrentStep, steps, currentStepShared]);
+
+  const stepsLabelText = useDerivedValue(() => showCurrentStep ? 'STEP' : 'STEPS', [showCurrentStep]);
+
+  // Calculate centered x positions for text
+  const charWidth = 8.4; // Approximate for 14px monospace
+  const labelCharWidth = 6; // Approximate for 10px sans-serif
+
+  const bpmTextX = useDerivedValue(() => {
+    'worklet';
+    const text = bpmText.value;
+    return (50 - text.length * charWidth) / 2;
+  }, [bpmText]);
+
+  const cycleTextX = useDerivedValue(() => {
+    'worklet';
+    const text = cycleText.value;
+    return (60 - text.length * charWidth) / 2;
+  }, [cycleText]);
+
+  const cycleLabelX = useDerivedValue(() => {
+    'worklet';
+    const text = cycleLabelText.value;
+    return (60 - text.length * labelCharWidth) / 2;
+  }, [cycleLabelText]);
+
+  const stepsTextX = useDerivedValue(() => {
+    'worklet';
+    const text = stepsText.value;
+    return (50 - text.length * charWidth) / 2;
+  }, [stepsText]);
+
+  const stepsLabelX = useDerivedValue(() => {
+    'worklet';
+    const text = stepsLabelText.value;
+    return (50 - text.length * labelCharWidth) / 2;
+  }, [stepsLabelText]);
+
+  // Static text values
+  const noteText = noteValue ?? '';
+  const noteTextX = (50 - noteText.length * charWidth) / 2;
+  const noteLabelX = (50 - 4 * labelCharWidth) / 2; // "NOTE" = 4 chars
+
+  const bpmLabelX = (50 - 3 * labelCharWidth) / 2; // "BPM" = 3 chars
+
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
       {bpm !== undefined && (
-        <Pressable onPress={handleBpmPress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
-          <Animated.Text style={[styles.value, { color: theme.text }, bpmAnimatedStyle]}>
-            {bpm}
-          </Animated.Text>
-          <Animated.Text style={[styles.label, { color: theme.textSecondary }, bpmAnimatedStyle]}>
-            BPM
-          </Animated.Text>
-        </Pressable>
+        <View style={styles.item}>
+          <Canvas style={{ width: 50, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={bpmTextX}
+              y={VALUE_Y}
+              text={bpmText}
+              font={valueFont}
+              color={theme.text}
+              opacity={bpmOpacity}
+            />
+            <SkiaText
+              x={bpmLabelX}
+              y={LABEL_Y}
+              text="BPM"
+              font={labelFont}
+              color={theme.textSecondary}
+              opacity={bpmOpacity}
+            />
+          </Canvas>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleBpmPress}
+            hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
+          />
+        </View>
       )}
 
       {cycleTimeMs !== undefined && (
-        <Pressable onPress={handleCyclePress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
-          <Text style={[styles.value, styles.cycleValue, { color: theme.text }]}>
-            {showElapsedTime ? formatTime(elapsedTimeMs) : formatTime(cycleTimeMs)}
-          </Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>
-            {showElapsedTime ? 'TIME' : 'CYCLE'}
-          </Text>
-        </Pressable>
+        <View style={styles.item}>
+          <Canvas style={{ width: 60, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={cycleTextX}
+              y={VALUE_Y}
+              text={cycleText}
+              font={valueFont}
+              color={theme.text}
+            />
+            <SkiaText
+              x={cycleLabelX}
+              y={LABEL_Y}
+              text={cycleLabelText}
+              font={labelFont}
+              color={theme.textSecondary}
+            />
+          </Canvas>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleCyclePress}
+            hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
+          />
+        </View>
       )}
 
       {noteValue && (
         <View style={styles.item}>
-          <Text style={[styles.value, { color: theme.text }]}>{noteValue}</Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>NOTE</Text>
+          <Canvas style={{ width: 50, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={noteTextX}
+              y={VALUE_Y}
+              text={noteText}
+              font={valueFont}
+              color={theme.text}
+            />
+            <SkiaText
+              x={noteLabelX}
+              y={LABEL_Y}
+              text="NOTE"
+              font={labelFont}
+              color={theme.textSecondary}
+            />
+          </Canvas>
         </View>
       )}
 
       {steps !== undefined && steps > 0 && (
-        <Pressable onPress={handleStepsPress} style={styles.item} hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}>
-          <Text style={[styles.value, styles.stepsValue, { color: theme.text }]}>
-            {showCurrentStep ? currentStep : formatSteps(steps)}
-          </Text>
-          <Text style={[styles.label, { color: theme.textSecondary }]}>
-            {showCurrentStep ? 'STEP' : 'STEPS'}
-          </Text>
-        </Pressable>
+        <View style={styles.item}>
+          <Canvas style={{ width: 50, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={stepsTextX}
+              y={VALUE_Y}
+              text={stepsText}
+              font={valueFont}
+              color={theme.text}
+            />
+            <SkiaText
+              x={stepsLabelX}
+              y={LABEL_Y}
+              text={stepsLabelText}
+              font={labelFont}
+              color={theme.textSecondary}
+            />
+          </Canvas>
+          <Pressable
+            style={StyleSheet.absoluteFill}
+            onPress={handleStepsPress}
+            hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
+          />
+        </View>
       )}
     </View>
   );
@@ -213,25 +353,5 @@ const styles = StyleSheet.create({
   },
   item: {
     alignItems: 'center',
-  },
-  value: {
-    fontSize: 14,
-    fontWeight: '700',
-    fontFamily: 'monospace',
-  },
-  stepsValue: {
-    minWidth: 32,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-  cycleValue: {
-    minWidth: 48,
-    textAlign: 'center',
-    fontVariant: ['tabular-nums'],
-  },
-  label: {
-    fontSize: 10,
-    fontWeight: '500',
-    marginTop: 2,
   },
 });

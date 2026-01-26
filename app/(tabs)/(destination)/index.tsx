@@ -2,7 +2,8 @@ import React, { useEffect, useState } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from 'expo-router';
-import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
@@ -71,7 +72,7 @@ export default function DestinationScreen() {
       const newValue = Math.round(
         Math.max(destMin, Math.min(destMax, centerValue + modulation))
       );
-      runOnJS(setComputedValue)(newValue);
+      scheduleOnRN(setComputedValue, newValue);
     },
     [centerValue, maxModulation, destMin, destMax]
   );

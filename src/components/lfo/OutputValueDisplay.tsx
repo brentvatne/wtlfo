@@ -1,6 +1,7 @@
 import React, { useState, useCallback } from 'react';
 import { View, StyleSheet, Text } from 'react-native';
-import { useAnimatedReaction, runOnJS } from 'react-native-reanimated';
+import { useAnimatedReaction } from 'react-native-reanimated';
+import { scheduleOnRN } from 'react-native-worklets';
 import type { OutputValueDisplayProps } from './types';
 
 export function OutputValueDisplay({ output, theme, isEditing }: OutputValueDisplayProps) {
@@ -18,7 +19,7 @@ export function OutputValueDisplay({ output, theme, isEditing }: OutputValueDisp
   useAnimatedReaction(
     () => output.value,
     (currentValue) => {
-      runOnJS(updateDisplay)(currentValue);
+      scheduleOnRN(updateDisplay, currentValue);
     },
     [output]
   );

@@ -493,8 +493,9 @@ const styles = StyleSheet.create({
     textTransform: 'uppercase',
     letterSpacing: 1,
     paddingHorizontal: 20,
-    marginTop: 12,
-    marginBottom: 8,
+    paddingVertical: 10,
+    marginTop: 8,
+    backgroundColor: '#1a1a1a',
   },
   meterContainer: {
     justifyContent: 'center',
