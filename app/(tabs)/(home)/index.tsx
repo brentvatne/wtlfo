@@ -1,7 +1,7 @@
-import React, { useRef, useCallback, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { usePathname, router } from 'expo-router';
+import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
 import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, Easing, FadeIn, runOnJS } from 'react-native-reanimated';
 import {
@@ -72,27 +72,6 @@ export default function HomeScreen() {
   const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
   const navigation = useNavigation();
-
-  // Track when param modal is open for overlay
-  const isParamModalOpen = pathname.includes('/param/');
-  const overlayOpacity = useSharedValue(0);
-
-  // Animate overlay when modal opens/closes
-  useEffect(() => {
-    overlayOpacity.value = withTiming(isParamModalOpen ? 1 : 0, {
-      duration: 200,
-      easing: Easing.out(Easing.ease),
-    });
-  }, [isParamModalOpen, overlayOpacity]);
-
-  const overlayStyle = useAnimatedStyle(() => ({
-    opacity: overlayOpacity.value,
-    pointerEvents: overlayOpacity.value > 0 ? 'auto' : 'none',
-  }));
-
-  const handleOverlayPress = useCallback(() => {
-    router.back();
-  }, []);
 
   // Track when splash fade completes to defer expensive Skia rendering
   const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
@@ -444,7 +423,7 @@ export default function HomeScreen() {
           </Pressable>
         </Animated.View>
 
-        {/* Content below visualization - with overlay for param modal */}
+        {/* Content below visualization */}
         <View style={styles.belowVisualization}>
           {/* Parameter Grid - Full width */}
           <View style={styles.gridContainer}>
@@ -467,11 +446,6 @@ export default function HomeScreen() {
             />
             <TestTone visible={hasDestination} />
           </View>
-
-          {/* Overlay when param modal is open */}
-          <Animated.View style={[styles.modalOverlay, overlayStyle]}>
-            <Pressable style={styles.modalOverlayPressable} onPress={handleOverlayPress} />
-          </Animated.View>
         </View>
       </Animated.View>
     </ScrollView>
@@ -485,14 +459,7 @@ const styles = StyleSheet.create({
     marginBottom: 8,
   },
   belowVisualization: {
-    position: 'relative',
-  },
-  modalOverlay: {
-    ...StyleSheet.absoluteFillObject,
-    backgroundColor: 'rgba(0, 0, 0, 0.5)',
-  },
-  modalOverlayPressable: {
-    flex: 1,
+    // Content container
   },
   visualizerColumn: {
     flex: 1,

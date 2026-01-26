@@ -8,7 +8,7 @@ import { useFrameRate } from '@/src/context/frame-rate-context';
 
 // Frame rate display for header - custom component needed for dynamic text
 function HeaderFrameRateItem() {
-  const { showOverlay, setShowOverlay } = useFrameRate();
+  const { showOverlay } = useFrameRate();
   const [jsFps, setJsFps] = React.useState(0);
   const frameTimesRef = React.useRef<number[]>([]);
   const lastTimeRef = React.useRef(performance.now());
@@ -194,8 +194,6 @@ export default function HomeLayout() {
           sheetGrabberVisible: true,
           sheetAllowedDetents: [0.35, 0.5],
           contentStyle: { backgroundColor: '#0a0a0a' },
-          // @ts-expect-error - sheetBackdropColor is available in newer react-native-screens
-          sheetBackdropColor: 'transparent',
         }}
       />
     </Stack>
