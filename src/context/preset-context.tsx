@@ -390,6 +390,11 @@ interface PresetContextValue {
   setPhaseAnimationDuration: (duration: number) => void;
   tabSwitchFadeOpacity: number;
   setTabSwitchFadeOpacity: (opacity: number) => void;
+
+  // Preset transition state
+  isChangingPreset: boolean;
+  /** Change preset with fade transition - fades out, changes preset, fades back in */
+  changePresetWithTransition: (index: number) => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -443,6 +448,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [smoothPhaseAnimation, setSmoothPhaseAnimationState] = useState(INITIAL_SMOOTH_PHASE_ANIMATION);
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
   const [tabSwitchFadeOpacity, setTabSwitchFadeOpacityState] = useState(INITIAL_TAB_SWITCH_FADE_OPACITY);
+  const [isChangingPreset, setIsChangingPreset] = useState(false);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -456,6 +462,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const phaseStartTime = useSharedValue(0); // timestamp when animation started
   const phaseStartValue = useSharedValue(INITIAL_START_PHASE); // phase value at start
   const phaseCycleMs = useSharedValue(1000); // cycle duration in ms
+  // Mode for one-shot animations: 0=loop, 1=ONE (stop at 1 cycle), 2=HLF (stop at 0.5 cycle)
+  const phaseAnimationMode = useSharedValue(INITIAL_CONFIG.mode === 'ONE' ? 1 : INITIAL_CONFIG.mode === 'HLF' ? 2 : 0);
 
   // Create LFO engine immediately (not after debounce) to avoid jitter on app start
   const lfoRef = useRef<LFO | null>(null);
@@ -570,6 +578,29 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to save preset');
     }
   }, []);
+
+  // Change preset with fade transition - fades out, changes preset, fades back in
+  const changePresetWithTransition = useCallback((index: number) => {
+    // Signal fade out
+    setIsChangingPreset(true);
+
+    // Wait for fade out, then change preset
+    setTimeout(() => {
+      setActivePresetState(index);
+      // Persist to storage
+      try {
+        Storage.setItemSync(STORAGE_KEY, String(index));
+        Storage.removeItem(CONFIG_STORAGE_KEY);
+      } catch {
+        console.warn('Failed to save preset');
+      }
+
+      // Wait a frame for state to update, then signal fade in
+      requestAnimationFrame(() => {
+        setIsChangingPreset(false);
+      });
+    }, visualizationFadeDuration);
+  }, [visualizationFadeDuration]);
 
   const setBPM = useCallback((newBPM: number) => {
     const clampedBPM = Math.max(30, Math.min(300, Math.round(newBPM)));
@@ -759,16 +790,29 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Calculate elapsed time since animation started
     const elapsed = frameInfo.timestamp - phaseStartTime.value;
 
-    // Calculate phase: linear progression, wrapping at 1
-    // Start from phaseStartValue and progress based on elapsed time
+    // Calculate phase: linear progression
     const phaseProgress = elapsed / phaseCycleMs.value;
-    const newPhase = (phaseStartValue.value + phaseProgress) % 1;
 
+    // Handle one-shot modes (ONE and HLF)
+    const mode = phaseAnimationMode.value;
+    if (mode === 1 && phaseProgress >= 1) {
+      // ONE mode: stop at end of one full cycle
+      lfoPhase.value = (phaseStartValue.value + 1) % 1;
+      return; // Stop updating - frameCallback stays active but phase is frozen
+    } else if (mode === 2 && phaseProgress >= 0.5) {
+      // HLF mode: stop at half cycle
+      lfoPhase.value = (phaseStartValue.value + 0.5) % 1;
+      return; // Stop updating - frameCallback stays active but phase is frozen
+    }
+
+    // Normal looping: wrap phase at 1
+    const newPhase = (phaseStartValue.value + phaseProgress) % 1;
     lfoPhase.value = newPhase;
   }, true); // true = autostart
 
   // Start/restart phase animation by updating the shared control values
-  const startPhaseAnimation = useCallback((startFromPhase: number, cycleDurationMs: number) => {
+  // mode: 'FRE'|'TRG'|'HLD' = loop, 'ONE' = one cycle, 'HLF' = half cycle
+  const startPhaseAnimation = useCallback((startFromPhase: number, cycleDurationMs: number, mode?: string) => {
     // Cancel any existing withTiming animation on lfoPhase
     cancelAnimation(lfoPhase);
     // Set initial phase value
@@ -776,11 +820,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Configure the animation parameters
     phaseStartValue.value = startFromPhase;
     phaseCycleMs.value = cycleDurationMs;
+    // Set animation mode: 0=loop, 1=ONE, 2=HLF
+    phaseAnimationMode.value = mode === 'ONE' ? 1 : mode === 'HLF' ? 2 : 0;
     // Reset start time to 0 - the frame callback will set it on first frame
     phaseStartTime.value = 0;
     // Activate the frame callback
     frameCallback.setActive(true);
-  }, [lfoPhase, phaseStartValue, phaseCycleMs, phaseStartTime, frameCallback]);
+  }, [lfoPhase, phaseStartValue, phaseCycleMs, phaseAnimationMode, phaseStartTime, frameCallback]);
 
   // Stop phase animation (for pause, background, editing)
   const stopPhaseAnimation = useCallback(() => {
@@ -791,6 +837,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const isEditingRef = useRef(false);
   // Ref for fade-out timeout
   const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Ref to track if we've already handled config change in this cycle (prevents double trigger)
+  const hasHandledConfigChangeRef = useRef(false);
 
   // Coordinate LFO stop/start with editing fade animations
   // Flow: fade out → stop LFO → (editing happens) → reset LFO → start LFO → fade in
@@ -835,10 +883,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         const initialState = lfoRef.current.update(performance.now());
         // Restart precomputed phase animation
         const newTimingInfo = calculateTimingInfo(currentConfig, effectiveBpm);
-        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs);
+        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, currentConfig.mode);
         lfoOutput.value = initialState.output;
         lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
       }
+
+      // Mark that we've handled this config change to prevent double trigger
+      hasHandledConfigChangeRef.current = true;
 
       // Sync debouncedConfig to prevent the recreation effect from running again
       setDebouncedConfig({ ...currentConfig });
@@ -878,7 +929,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     } else if (!isPaused && wasPaused && hasMainLoopStarted.current) {
       // Just became unpaused - restart the phase animation
       const currentPhase = lfoPhase.value;
-      startPhaseAnimation(currentPhase, timingInfo.cycleTimeMs);
+      startPhaseAnimation(currentPhase, timingInfo.cycleTimeMs, currentConfig.mode);
 
       // Also restart the rAF loop if it was stopped (e.g., from background)
       if (animationRef.current === 0) {
@@ -904,6 +955,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
+    // Skip if we already handled this config change in the editing coordination effect
+    if (hasHandledConfigChangeRef.current) {
+      hasHandledConfigChangeRef.current = false;
+      return;
+    }
+
     lfoRef.current = new LFO(debouncedConfig, effectiveBpm);
 
     // Note: timing info is now computed live from currentConfig via useMemo,
@@ -917,7 +974,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       const initialState = lfoRef.current.update(performance.now());
       // Restart precomputed phase animation from startPhase
       const newTimingInfo = calculateTimingInfo(debouncedConfig, effectiveBpm);
-      startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs);
+      startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, debouncedConfig.mode);
       lfoOutput.value = initialState.output;
       lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
       // Clear pause state when config changes
@@ -932,7 +989,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Start the precomputed phase animation
     const startPhase = currentConfig.startPhase / 128;
-    startPhaseAnimation(startPhase, timingInfo.cycleTimeMs);
+    startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
 
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
@@ -997,7 +1054,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
               lfoRef.current?.resetTiming();
               // Restart precomputed phase animation from startPhase
               const startPhase = currentConfig.startPhase / 128;
-              startPhaseAnimation(startPhase, timingInfo.cycleTimeMs);
+              startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
               // Restart the animation loop for output/fadeMultiplier
               const animate = (timestamp: number) => {
                 if (lfoRef.current) {
@@ -1092,6 +1149,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setPhaseAnimationDuration,
     tabSwitchFadeOpacity,
     setTabSwitchFadeOpacity,
+    // Preset transition
+    isChangingPreset,
+    changePresetWithTransition,
   };
 
   return (

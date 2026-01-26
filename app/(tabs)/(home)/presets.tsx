@@ -7,12 +7,11 @@ import { useModulation } from '@/src/context/modulation-context';
 import { colors } from '@/src/theme';
 
 export default function PresetsScreen() {
-  const { presets, activePreset, setActivePreset } = usePreset();
+  const { presets, activePreset, changePresetWithTransition } = usePreset();
   const { setActiveDestinationId, setCenterValue } = useModulation();
 
   const handleSelect = (index: number) => {
     const preset = presets[index];
-    setActivePreset(index);
 
     // Also load destination settings from preset
     if (preset.destination) {
@@ -22,7 +21,9 @@ export default function PresetsScreen() {
       }
     }
 
+    // Navigate back immediately, preset change happens with fade transition
     router.back();
+    changePresetWithTransition(index);
   };
 
   return (
