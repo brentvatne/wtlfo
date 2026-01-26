@@ -213,23 +213,34 @@ export default function SettingsScreen() {
       contentInsetAdjustmentBehavior="automatic"
     >
       <Animated.View style={screenFadeStyle}>
-      <View style={styles.section}>
+      <Animated.View style={styles.section} layout={LinearTransition.duration(250)}>
         <View style={styles.sectionHeader}>
           <Text style={styles.sectionHeaderTitle}>Tempo</Text>
           {midiClockActive && (
-            <View style={styles.midiClockBadge}>
+            <Animated.View
+              style={styles.midiClockBadge}
+              entering={FadeIn.duration(200)}
+              exiting={FadeOut.duration(150)}
+            >
               <SymbolView name="link" size={12} tintColor="#ff6600" />
               <Text style={styles.midiClockText}>MIDI</Text>
-            </View>
+            </Animated.View>
           )}
         </View>
         {midiClockActive ? (
-          <View style={styles.midiClockInfo}>
+          <Animated.View
+            style={styles.midiClockInfo}
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+          >
             <Text style={styles.midiClockBpm}>{Math.round(externalBpm)}</Text>
             <Text style={styles.midiClockLabel}>BPM from {connectedDeviceName}</Text>
-          </View>
+          </Animated.View>
         ) : (
-          <>
+          <Animated.View
+            entering={FadeIn.duration(200)}
+            exiting={FadeOut.duration(150)}
+          >
             <ParameterSlider
               label="BPM"
               min={30}
@@ -262,9 +273,9 @@ export default function SettingsScreen() {
                 );
               })}
             </View>
-          </>
+          </Animated.View>
         )}
-      </View>
+      </Animated.View>
 
       <CollapsibleSection title="Visualization" defaultCollapsed>
         <View style={styles.settingRow}>
