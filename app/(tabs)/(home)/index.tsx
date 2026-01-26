@@ -1,4 +1,4 @@
-import React, { useRef, useEffect, useState } from 'react';
+import React, { useRef, useEffect, useState, useLayoutEffect } from 'react';
 import { View, Pressable, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import AppMetrics from 'expo-eas-observe';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -91,6 +91,14 @@ export default function HomeScreen() {
       AppMetrics.markInteractive();
     }
   }, [visualizationsReady]);
+
+  // DEBUG: Log when this component re-renders due to context changes
+  // Remove this after verifying render frequency during slider drags
+  const renderCountRef = useRef(0);
+  useLayoutEffect(() => {
+    renderCountRef.current += 1;
+    console.log(`[PERF] HomeScreen render #${renderCountRef.current}`);
+  });
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
