@@ -95,6 +95,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // These are updated by effects but read by the animation loop
   const isPlayingRef = useRef(false);
   const activeDestinationIdRef = useRef<DestinationId>(activeDestinationId);
+  const getCenterValueRef = useRef(getCenterValue);
 
   // Keep refs in sync with state/props
   useEffect(() => {
@@ -104,6 +105,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     activeDestinationIdRef.current = activeDestinationId;
   }, [activeDestinationId]);
+
+  useEffect(() => {
+    getCenterValueRef.current = getCenterValue;
+  }, [getCenterValue]);
 
   // Build the audio graph synchronously
   // This only builds the persistent nodes (gain, filter, panner) - oscillator is created on each start
@@ -217,7 +222,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
       // Get current destination and center value from refs
       const destId = activeDestinationIdRef.current;
-      const centerValue = getCenterValue(destId);
+      const centerValue = getCenterValueRef.current(destId);
 
       // The LFO output is already scaled by depth (-1 to +1 at max depth)
       // We just need to map it to the appropriate audio parameter range
@@ -284,7 +289,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
     // Start the loop
     animationFrameRef.current = requestAnimationFrame(updateAudioParams);
-  }, [lfoOutput, getCenterValue]);
+  }, [lfoOutput]);
 
   // Start audio - builds graph on first call, then reuses it
   const start = useCallback(async () => {
