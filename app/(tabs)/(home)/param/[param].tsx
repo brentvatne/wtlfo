@@ -373,20 +373,28 @@ export default function EditParamScreen() {
       <Stack.Screen
         options={{
           title: info.title,
-          headerLeft: () => (
-            <NavButton
-              direction="prev"
-              label={prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
-              onPress={goToPrev}
-            />
-          ),
-          headerRight: () => (
-            <NavButton
-              direction="next"
-              label={nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]}
-              onPress={goToNext}
-            />
-          ),
+          unstable_headerLeftItems: () => [{
+            type: 'custom',
+            element: (
+              <NavButton
+                direction="prev"
+                label={prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
+                onPress={goToPrev}
+              />
+            ),
+            hidesSharedBackground: true,
+          }],
+          unstable_headerRightItems: () => [{
+            type: 'custom',
+            element: (
+              <NavButton
+                direction="next"
+                label={nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]}
+                onPress={goToNext}
+              />
+            ),
+            hidesSharedBackground: true,
+          }],
         }}
       />
       <Text style={styles.description}>{info.description}</Text>
