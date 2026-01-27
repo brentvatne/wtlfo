@@ -40,7 +40,6 @@ export function LFOVisualizer({
   showPhaseIndicator = true,
   strokeWidth = 2,
   isEditing = false,
-  hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
   editFadeOutDuration = DEFAULT_EDIT_FADE_OUT,
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
@@ -50,8 +49,8 @@ export function LFOVisualizer({
   showFadeEnvelope = true,
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: LFOVisualizerProps) {
-  // Only apply editing fade if setting is enabled
-  const shouldHideValue = isEditing && hideValuesWhileEditing;
+  // Always hide values while editing
+  const shouldHideValue = isEditing;
   // Only hide fills if editing AND the setting says to hide them (showFillsWhenEditing=false)
   const shouldHideFill = isEditing && !showFillsWhenEditing;
   // Check if user prefers reduced motion (accessibility setting)

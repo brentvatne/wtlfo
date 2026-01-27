@@ -12,7 +12,6 @@ const ENGINE_DEBOUNCE_MS = 100;
 const STORAGE_KEY = 'activePreset';
 const CONFIG_STORAGE_KEY = 'currentConfig';
 const BPM_STORAGE_KEY = 'bpm';
-const HIDE_VALUES_KEY = 'hideValuesWhileEditing';
 const SHOW_FILLS_KEY = 'showFillsWhenEditing';
 const FADE_IN_KEY = 'fadeInOnOpen';
 const VISUALIZATION_FADE_KEY = 'fadeInVisualization';
@@ -91,19 +90,6 @@ function getInitialBPM(): number {
     console.warn('Failed to load saved BPM');
   }
   return DEFAULT_BPM;
-}
-
-// Load initial hide values setting synchronously
-function getInitialHideValues(): boolean {
-  try {
-    const saved = Storage.getItemSync(HIDE_VALUES_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load hide values setting');
-  }
-  return true; // Default to hiding values while editing
 }
 
 // Load initial show fills setting synchronously
@@ -376,8 +362,6 @@ interface PresetContextValue {
   setIsPaused: (paused: boolean) => void;
 
   // Settings
-  hideValuesWhileEditing: boolean;
-  setHideValuesWhileEditing: (hide: boolean) => void;
   showFillsWhenEditing: boolean;
   setShowFillsWhenEditing: (show: boolean) => void;
   fadeInOnOpen: boolean;
@@ -432,7 +416,6 @@ const INITIAL_PRESET_INDEX = getInitialPreset();
 const INITIAL_CONFIG = getInitialConfig(INITIAL_PRESET_INDEX);
 const INITIAL_BPM = getInitialBPM();
 const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
-const INITIAL_HIDE_VALUES = getInitialHideValues();
 const INITIAL_SHOW_FILLS = getInitialShowFills();
 const INITIAL_FADE_IN = getInitialFadeIn();
 const INITIAL_VISUALIZATION_FADE = getInitialVisualizationFade();
@@ -462,7 +445,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const effectiveBpm = receiveClock && externalBpm > 0 ? Math.round(externalBpm) : bpm;
   const [isEditing, setIsEditing] = useState(false);
   const [isPaused, setIsPaused] = useState(false);
-  const [hideValuesWhileEditing, setHideValuesWhileEditingState] = useState(INITIAL_HIDE_VALUES);
   const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
   const [fadeInVisualization, setFadeInVisualizationState] = useState(INITIAL_VISUALIZATION_FADE);
@@ -663,15 +645,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(BPM_STORAGE_KEY, String(clampedBPM));
     } catch {
       console.warn('Failed to save BPM');
-    }
-  }, []);
-
-  const setHideValuesWhileEditing = useCallback((hide: boolean) => {
-    setHideValuesWhileEditingState(hide);
-    try {
-      Storage.setItemSync(HIDE_VALUES_KEY, String(hide));
-    } catch {
-      console.warn('Failed to save hide values setting');
     }
   }, []);
 
@@ -902,17 +875,20 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
   // Ref to track isEditing for coordination (avoids stale closure issues)
   const isEditingRef = useRef(false);
-  // Ref for fade-out timeout
-  const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Ref to track if we've already handled config change in this cycle (prevents double trigger)
   const hasHandledConfigChangeRef = useRef(false);
 
   // Coordinate LFO stop/start with editing fade animations
   // Flow: fade out → stop LFO → (editing happens) → reset LFO → start LFO → fade in
+  // Ref for fade-out timeout
+  const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+
+  // Coordinate LFO stop/start with editing fade animations
+  // Always hide values while editing (no longer a toggle)
   useEffect(() => {
     isEditingRef.current = isEditing;
 
-    if (isEditing && hideValuesWhileEditing) {
+    if (isEditing) {
       // Editing started: wait for fade-out to complete, then stop LFO
       fadeOutTimeoutRef.current = setTimeout(() => {
         // Stop the animation loop after fade-out completes
@@ -923,7 +899,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         // Also pause the phase animation
         stopPhaseAnimation();
       }, editFadeOutDuration);
-    } else if (!isEditing && hideValuesWhileEditing) {
+    } else {
       // Editing ended: flush debounce, recreate LFO synchronously, restart animation
       if (fadeOutTimeoutRef.current) {
         clearTimeout(fadeOutTimeoutRef.current);
@@ -942,20 +918,20 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       // the animation runs with the old LFO before React re-renders.
       lfoRef.current = new LFO(currentConfig, effectiveBpm);
 
-      // Reset and get the correct initial state
-      if (resetLFOOnChange) {
+      // Reset and get the correct initial state - but NOT if paused
+      // When paused, user wants to see current position, not have it jump around
+      if (resetLFOOnChange && !isPausedRef.current) {
         // Trigger resets to startPhase
         lfoRef.current.trigger();
         // Get the actual initial state from the new LFO
         const initialState = lfoRef.current.update(performance.now());
         lfoOutput.value = initialState.output;
         lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+        // Reset cycle count so RND waveform regenerates from fresh seed
+        lfoCycleCount.value = 0;
 
-        // Only restart animation if not paused
-        if (!isPausedRef.current) {
-          const newTimingInfo = calculateTimingInfo(currentConfig, effectiveBpm);
-          startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, currentConfig.mode);
-        }
+        const newTimingInfo = calculateTimingInfo(currentConfig, effectiveBpm);
+        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, currentConfig.mode);
       }
 
       // Mark that we've handled this config change to prevent double trigger
@@ -984,7 +960,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(fadeOutTimeoutRef.current);
       }
     };
-  }, [isEditing, hideValuesWhileEditing, editFadeOutDuration, resetLFOOnChange, currentConfig, effectiveBpm, lfoPhase, lfoOutput, startPhaseAnimation, stopPhaseAnimation]);
+  }, [isEditing, editFadeOutDuration, resetLFOOnChange, currentConfig, effectiveBpm, lfoOutput, startPhaseAnimation, stopPhaseAnimation, lfoCycleCount]);
 
   // Handle pause/unpause state changes
   // This handles tab switches, manual pause, and returning from background
@@ -1036,31 +1012,40 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Note: timing info is now computed live from currentConfig via useMemo,
     // so no need to update it here
 
-    // Only reset phase/output and trigger if resetLFOOnChange is enabled
-    if (resetLFOOnChange) {
+    // Only reset phase/output and trigger if resetLFOOnChange is enabled AND not paused
+    // When paused, user wants to see current position, not have it jump around
+    if (resetLFOOnChange && !isPausedRef.current) {
       // Trigger resets to startPhase
       lfoRef.current.trigger();
       // Get the actual initial state (don't assume output is 0 - it depends on waveform)
       const initialState = lfoRef.current.update(performance.now());
       lfoOutput.value = initialState.output;
       lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+      // Reset cycle count so RND waveform regenerates from fresh seed
+      lfoCycleCount.value = 0;
 
-      // Only restart animation if not paused - preserve pause state across preset changes
-      if (!isPausedRef.current) {
-        const newTimingInfo = calculateTimingInfo(debouncedConfig, effectiveBpm);
-        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, debouncedConfig.mode);
-      }
+      const newTimingInfo = calculateTimingInfo(debouncedConfig, effectiveBpm);
+      startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, debouncedConfig.mode);
     }
   }, [debouncedConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange, startPhaseAnimation]);
 
   // Animation loop - runs at provider level, independent of tabs
   // Phase is now precomputed via withRepeat, so this loop only updates output/fadeMultiplier
+  // Track if this effect has run before (to distinguish initial mount from re-runs)
+  const isInitialAnimationMount = useRef(true);
   useEffect(() => {
+    const isInitialRun = isInitialAnimationMount.current;
+    if (isInitialAnimationMount.current) {
+      isInitialAnimationMount.current = false;
+    }
     hasMainLoopStarted.current = true;
 
-    // Start the precomputed phase animation
-    const startPhase = currentConfig.startPhase / 128;
-    startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
+    // Start/restart the precomputed phase animation
+    // On initial mount, always start. On re-runs (e.g., timing change), respect pause state.
+    if (isInitialRun || !isPausedRef.current) {
+      const startPhase = currentConfig.startPhase / 128;
+      startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
+    }
 
     const animate = (timestamp: number) => {
       if (lfoRef.current) {
@@ -1123,6 +1108,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
             if (!isPausedRef.current && animationRef.current === 0) {
               // Reset timing again right before restart for accurate delta
               lfoRef.current?.resetTiming();
+              // Reset cycle count so RND waveform regenerates from fresh seed
+              lfoCycleCount.value = 0;
               // Restart precomputed phase animation from startPhase
               const startPhase = currentConfig.startPhase / 128;
               startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
@@ -1157,10 +1144,12 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const triggerLFO = useCallback(() => {
     // Trigger resets the LFO to startPhase
     lfoRef.current?.trigger();
+    // Reset cycle count so RND waveform regenerates from fresh seed
+    lfoCycleCount.value = 0;
     // Also restart the phase animation from startPhase
     const startPhase = currentConfig.startPhase / 128;
     startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
-  }, [currentConfig.startPhase, currentConfig.mode, timingInfo.cycleTimeMs, startPhaseAnimation]);
+  }, [currentConfig.startPhase, currentConfig.mode, timingInfo.cycleTimeMs, startPhaseAnimation, lfoCycleCount]);
   const startLFO = useCallback(() => lfoRef.current?.start(), []);
   const stopLFO = useCallback(() => lfoRef.current?.stop(), []);
   const resetLFOTiming = useCallback(() => lfoRef.current?.resetTiming(), []);
@@ -1197,8 +1186,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     isPaused,
     setIsPaused,
     // Settings
-    hideValuesWhileEditing,
-    setHideValuesWhileEditing,
     showFillsWhenEditing,
     setShowFillsWhenEditing,
     fadeInOnOpen,

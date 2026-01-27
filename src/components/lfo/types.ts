@@ -86,9 +86,6 @@ export interface LFOVisualizerProps {
   /** When true, shows placeholder values instead of live data (during parameter editing) */
   isEditing?: boolean;
 
-  /** When false, disables hiding values while editing */
-  hideValuesWhileEditing?: boolean;
-
   /** When true, keeps fill areas visible while editing depth (default true) */
   showFillsWhenEditing?: boolean;
 

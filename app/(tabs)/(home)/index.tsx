@@ -39,7 +39,6 @@ export default function HomeScreen() {
     currentConfig,
     effectiveBpm,
     isEditing,
-    hideValuesWhileEditing,
     showFillsWhenEditing,
     fadeInOnOpen,
     fadeInVisualization,
@@ -528,7 +527,6 @@ export default function HomeScreen() {
                       showTiming={false}
                       showOutput={false}
                       isEditing={isEditing}
-                      hideValuesWhileEditing={hideValuesWhileEditing}
                       showFillsWhenEditing={showFillsWhenEditing}
                       editFadeOutDuration={editFadeOutDuration}
                       editFadeInDuration={editFadeInDuration}
@@ -563,7 +561,6 @@ export default function HomeScreen() {
                           showTiming={false}
                           showOutput={false}
                           isEditing={false}
-                          hideValuesWhileEditing={false}
                           showFillsWhenEditing={true}
                           editFadeOutDuration={0}
                           editFadeInDuration={0}
@@ -599,7 +596,6 @@ export default function HomeScreen() {
                       height={METER_HEIGHT}
                       showValue={false}
                       isEditing={isEditing}
-                      hideValuesWhileEditing={hideValuesWhileEditing}
                       showFillsWhenEditing={showFillsWhenEditing}
                       editFadeOutDuration={editFadeOutDuration}
                       editFadeInDuration={editFadeInDuration}

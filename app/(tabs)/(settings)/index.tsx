@@ -115,7 +115,6 @@ export default function SettingsScreen() {
   const pathname = usePathname();
   const {
     bpm, setBPM,
-    hideValuesWhileEditing, setHideValuesWhileEditing,
     showFillsWhenEditing, setShowFillsWhenEditing,
     fadeInOnOpen, setFadeInOnOpen,
     fadeInVisualization, setFadeInVisualization,
@@ -324,20 +323,6 @@ export default function SettingsScreen() {
           <Switch
             value={fadeInVisualization}
             onValueChange={setFadeInVisualization}
-            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
-            thumbColor="#ffffff"
-          />
-        </View>
-        <View style={[styles.settingRow, { marginTop: 16 }]}>
-          <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Hide values while editing</Text>
-            <Text style={styles.settingDescription}>
-              Fade out current value indicators when adjusting parameters
-            </Text>
-          </View>
-          <Switch
-            value={hideValuesWhileEditing}
-            onValueChange={setHideValuesWhileEditing}
             trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
             thumbColor="#ffffff"
           />

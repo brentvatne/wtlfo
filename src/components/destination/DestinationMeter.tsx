@@ -33,8 +33,6 @@ interface DestinationMeterProps {
   showValue?: boolean;
   /** When true, hides the current value line and shows center value instead */
   isEditing?: boolean;
-  /** When false, disables hiding values while editing */
-  hideValuesWhileEditing?: boolean;
   /** When true, keeps fill areas visible while editing (default true) */
   showFillsWhenEditing?: boolean;
   /** Duration in ms for fade-out when editing starts (default 100) */
@@ -60,14 +58,13 @@ export function DestinationMeter({
   style,
   showValue = false,
   isEditing = false,
-  hideValuesWhileEditing = true,
   showFillsWhenEditing = true,
   editFadeOutDuration = DEFAULT_EDIT_FADE_OUT,
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   isPaused = false,
 }: DestinationMeterProps) {
-  // Only apply editing fade if setting is enabled
-  const shouldHideValue = isEditing && hideValuesWhileEditing;
+  // Always hide values while editing
+  const shouldHideValue = isEditing;
   // Only hide fills if editing AND the setting says to hide them
   const shouldHideFill = isEditing && !showFillsWhenEditing;
 
