@@ -24,6 +24,7 @@ const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
 const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
+const PRESET_SWITCH_DURATION_KEY = 'presetSwitchDuration';
 const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
 const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
 const TAB_SWITCH_FADE_OPACITY_KEY = 'tabSwitchFadeOpacity';
@@ -32,8 +33,9 @@ export const DEFAULT_FADE_IN_DURATION = 500; // ms
 export const DEFAULT_VISUALIZATION_FADE_DURATION = 448; // ms (28 frames @ 60fps)
 export const DEFAULT_EDIT_FADE_OUT = 0; // ms
 export const DEFAULT_EDIT_FADE_IN = 150; // ms
-export const DEFAULT_DEPTH_ANIM_DURATION = 16; // ms (1 frame @ 60fps)
+export const DEFAULT_DEPTH_ANIM_DURATION = 58; // ms
 export const DEFAULT_SPLASH_FADE_DURATION = 144; // ms (9 frames @ 60fps)
+export const DEFAULT_PRESET_SWITCH_DURATION = 250; // ms - faster transition when switching presets
 export const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms (1 frame @ 60fps)
 export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.7; // Starting opacity for tab switch fade
 
@@ -265,6 +267,22 @@ function getInitialSplashFadeDuration(): number {
   return DEFAULT_SPLASH_FADE_DURATION;
 }
 
+// Load initial preset switch duration synchronously
+function getInitialPresetSwitchDuration(): number {
+  try {
+    const saved = Storage.getItemSync(PRESET_SWITCH_DURATION_KEY);
+    if (saved !== null) {
+      const value = parseInt(saved, 10);
+      if (!isNaN(value) && value >= 0 && value <= 1000) {
+        return value;
+      }
+    }
+  } catch {
+    console.warn('Failed to load preset switch duration setting');
+  }
+  return DEFAULT_PRESET_SWITCH_DURATION;
+}
+
 // Load initial smooth phase animation setting synchronously
 function getInitialSmoothPhaseAnimation(): boolean {
   try {
@@ -385,6 +403,8 @@ interface PresetContextValue {
   setDepthAnimationDuration: (duration: number) => void;
   splashFadeDuration: number;
   setSplashFadeDuration: (duration: number) => void;
+  presetSwitchDuration: number;
+  setPresetSwitchDuration: (duration: number) => void;
   smoothPhaseAnimation: boolean;
   setSmoothPhaseAnimation: (enabled: boolean) => void;
   phaseAnimationDuration: number;
@@ -417,6 +437,7 @@ const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
 const INITIAL_SPLASH_FADE_DURATION = getInitialSplashFadeDuration();
+const INITIAL_PRESET_SWITCH_DURATION = getInitialPresetSwitchDuration();
 const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
 const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
 const INITIAL_TAB_SWITCH_FADE_OPACITY = getInitialTabSwitchFadeOpacity();
@@ -446,6 +467,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
   const [depthAnimationDuration, setDepthAnimationDurationState] = useState(INITIAL_DEPTH_ANIM_DURATION);
   const [splashFadeDuration, setSplashFadeDurationState] = useState(INITIAL_SPLASH_FADE_DURATION);
+  const [presetSwitchDuration, setPresetSwitchDurationState] = useState(INITIAL_PRESET_SWITCH_DURATION);
   const [smoothPhaseAnimation, setSmoothPhaseAnimationState] = useState(INITIAL_SMOOTH_PHASE_ANIMATION);
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
   const [tabSwitchFadeOpacity, setTabSwitchFadeOpacityState] = useState(INITIAL_TAB_SWITCH_FADE_OPACITY);
@@ -600,8 +622,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       requestAnimationFrame(() => {
         setIsChangingPreset(false);
       });
-    }, visualizationFadeDuration);
-  }, [visualizationFadeDuration]);
+    }, presetSwitchDuration);
+  }, [presetSwitchDuration]);
 
   const setBPM = useCallback((newBPM: number) => {
     const clampedBPM = Math.max(30, Math.min(300, Math.round(newBPM)));
@@ -718,6 +740,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(SPLASH_FADE_DURATION_KEY, String(duration));
     } catch {
       console.warn('Failed to save splash fade duration setting');
+    }
+  }, []);
+
+  const setPresetSwitchDuration = useCallback((duration: number) => {
+    setPresetSwitchDurationState(duration);
+    try {
+      Storage.setItemSync(PRESET_SWITCH_DURATION_KEY, String(duration));
+    } catch {
+      console.warn('Failed to save preset switch duration setting');
     }
   }, []);
 
@@ -1084,7 +1115,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, [lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, currentConfig.startPhase, timingInfo.cycleTimeMs]);
 
   // LFO control methods
-  const triggerLFO = useCallback(() => lfoRef.current?.trigger(), []);
+  const triggerLFO = useCallback(() => {
+    // Trigger resets the LFO to startPhase
+    lfoRef.current?.trigger();
+    // Also restart the phase animation from startPhase
+    const startPhase = currentConfig.startPhase / 128;
+    startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
+  }, [currentConfig.startPhase, currentConfig.mode, timingInfo.cycleTimeMs, startPhaseAnimation]);
   const startLFO = useCallback(() => lfoRef.current?.start(), []);
   const stopLFO = useCallback(() => lfoRef.current?.stop(), []);
   const resetLFOTiming = useCallback(() => lfoRef.current?.resetTiming(), []);
@@ -1146,6 +1183,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setDepthAnimationDuration,
     splashFadeDuration,
     setSplashFadeDuration,
+    presetSwitchDuration,
+    setPresetSwitchDuration,
     smoothPhaseAnimation,
     setSmoothPhaseAnimation,
     phaseAnimationDuration,

@@ -24,6 +24,7 @@ import {
   DEFAULT_EDIT_FADE_IN,
   DEFAULT_DEPTH_ANIM_DURATION,
   DEFAULT_SPLASH_FADE_DURATION,
+  DEFAULT_PRESET_SWITCH_DURATION,
   DEFAULT_PHASE_ANIMATION_DURATION,
   DEFAULT_TAB_SWITCH_FADE_OPACITY,
 } from '@/src/context/preset-context';
@@ -126,6 +127,7 @@ export default function SettingsScreen() {
     showFadeEnvelope, setShowFadeEnvelope,
     depthAnimationDuration, setDepthAnimationDuration,
     splashFadeDuration, setSplashFadeDuration,
+    presetSwitchDuration, setPresetSwitchDuration,
     smoothPhaseAnimation, setSmoothPhaseAnimation,
     phaseAnimationDuration, setPhaseAnimationDuration,
     tabSwitchFadeOpacity, setTabSwitchFadeOpacity,
@@ -423,6 +425,14 @@ export default function SettingsScreen() {
           formatValue={(v) => `${Math.round(v)}ms`}
         />
         <ParameterSlider
+          label="Preset switch fade"
+          min={0}
+          max={1000}
+          value={presetSwitchDuration}
+          onChange={setPresetSwitchDuration}
+          formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
+        />
+        <ParameterSlider
           label="Edit start fade-out"
           min={0}
           max={500}
@@ -468,6 +478,7 @@ export default function SettingsScreen() {
           const hasNonDefaultTiming =
             Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
             Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
+            Math.round(presetSwitchDuration) !== DEFAULT_PRESET_SWITCH_DURATION ||
             Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
             Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
             Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
@@ -479,6 +490,7 @@ export default function SettingsScreen() {
               onPress={() => {
                 setFadeInDuration(DEFAULT_FADE_IN_DURATION);
                 setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
+                setPresetSwitchDuration(DEFAULT_PRESET_SWITCH_DURATION);
                 setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
                 setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);
                 setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
