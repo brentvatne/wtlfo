@@ -5,9 +5,10 @@ import AppMetrics from 'expo-eas-observe';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeIn } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeIn, runOnJS } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { SymbolView } from 'expo-symbols';
+import { Canvas, Image as SkiaImage, makeImageFromView, type SkImage } from '@shopify/react-native-skia';
 import {
   LFOVisualizer,
   ELEKTRON_THEME,
@@ -60,6 +61,10 @@ export default function HomeScreen() {
     setIsPaused,
     splashFadeDuration,
     isChangingPreset,
+    pendingPresetIndex,
+    commitPresetChange,
+    finishPresetTransition,
+    presetSwitchDuration,
   } = usePreset();
 
   // Tab switch fade - wraps entire screen content
@@ -78,6 +83,11 @@ export default function HomeScreen() {
   const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
   const navigation = useNavigation();
+
+  // Crossfade state for preset transitions
+  const visualizerRowRef = useRef<View>(null);
+  const [presetSnapshot, setPresetSnapshot] = useState<SkImage | null>(null);
+  const snapshotOpacity = useSharedValue(0);
 
   // Track when splash fade completes to defer expensive Skia rendering
   const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
@@ -192,22 +202,45 @@ export default function HomeScreen() {
     }
   }, [isPaused, fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
-  // Fade visualization during preset change
+  // Crossfade visualization during preset change
+  // When pendingPresetIndex is set, capture snapshot, then commit preset change
   useEffect(() => {
-    if (isChangingPreset) {
-      // Fade out
-      visualizerOpacity.value = withTiming(0, {
-        duration: visualizationFadeDuration,
-        easing: Easing.out(Easing.ease),
-      });
-    } else {
-      // Fade in (preset has changed)
-      visualizerOpacity.value = withTiming(1, {
-        duration: visualizationFadeDuration,
-        easing: Easing.out(Easing.ease),
+    if (pendingPresetIndex !== null && visualizerRowRef.current) {
+      // Capture snapshot of current visualization
+      makeImageFromView(visualizerRowRef).then((image) => {
+        if (image) {
+          setPresetSnapshot(image);
+          snapshotOpacity.value = 1;
+
+          // Commit the preset change (this changes the actual preset state)
+          commitPresetChange();
+
+          // Fade out the snapshot to reveal new preset underneath
+          snapshotOpacity.value = withTiming(0, {
+            duration: presetSwitchDuration,
+            easing: Easing.out(Easing.ease),
+          }, () => {
+            // Animation complete - clean up
+            runOnJS(setPresetSnapshot)(null);
+            runOnJS(finishPresetTransition)();
+          });
+        } else {
+          // Snapshot failed - fall back to immediate change
+          commitPresetChange();
+          finishPresetTransition();
+        }
+      }).catch(() => {
+        // Snapshot failed - fall back to immediate change
+        commitPresetChange();
+        finishPresetTransition();
       });
     }
-  }, [isChangingPreset, visualizationFadeDuration, visualizerOpacity]);
+  }, [pendingPresetIndex, commitPresetChange, finishPresetTransition, presetSwitchDuration, snapshotOpacity]);
+
+  // Animated style for snapshot overlay
+  const snapshotStyle = useAnimatedStyle(() => ({
+    opacity: snapshotOpacity.value,
+  }));
 
   useEffect(() => {
     const subscription = AppState.addEventListener('change', (nextAppState) => {
@@ -478,14 +511,16 @@ export default function HomeScreen() {
       <Animated.View style={screenFadeStyle}>
         {/* LFO Visualizer + Destination Meter Row - single gesture area */}
         <Animated.View style={visualizerFadeStyle}>
-          <GestureDetector gesture={visualizationGesture}>
-            <Animated.View
-              style={[styles.visualizerRow, isPaused && styles.paused]}
-              accessibilityLabel={`LFO visualization, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
-              accessibilityRole="button"
-              accessibilityState={{ selected: isPaused }}
-              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
-            >
+          {/* Wrapper View for snapshot capture - collapsable={false} required for makeImageFromView */}
+          <View ref={visualizerRowRef} collapsable={false}>
+            <GestureDetector gesture={visualizationGesture}>
+              <Animated.View
+                style={[styles.visualizerRow, isPaused && styles.paused]}
+                accessibilityLabel={`LFO visualization, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
+                accessibilityRole="button"
+                accessibilityState={{ selected: isPaused }}
+                accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
+              >
               {/* LFO Visualizer */}
               <View style={styles.visualizerContainer}>
                 {visualizationsReady ? (
@@ -571,22 +606,39 @@ export default function HomeScreen() {
             </Animated.View>
           </GestureDetector>
 
-          {/* Timing info - spans full width below visualization */}
-          <View style={styles.timingContainer}>
-            <TimingInfo
-              bpm={effectiveBpm}
-              cycleTimeMs={timingInfo.cycleTimeMs}
-              noteValue={timingInfo.noteValue}
-              steps={timingInfo.steps}
-              theme={ELEKTRON_THEME}
-              phase={lfoPhase}
-              startPhase={currentConfig.startPhase}
-              destinationValue={destinationDisplayValue}
-              destinationMin={destBoundsMin}
-              destinationMax={destBoundsMax}
-              hasDestination={hasDestination}
-            />
+            {/* Timing info - spans full width below visualization */}
+            <View style={styles.timingContainer}>
+              <TimingInfo
+                bpm={effectiveBpm}
+                cycleTimeMs={timingInfo.cycleTimeMs}
+                noteValue={timingInfo.noteValue}
+                steps={timingInfo.steps}
+                theme={ELEKTRON_THEME}
+                phase={lfoPhase}
+                startPhase={currentConfig.startPhase}
+                destinationValue={destinationDisplayValue}
+                destinationMin={destBoundsMin}
+                destinationMax={destBoundsMax}
+                hasDestination={hasDestination}
+              />
+            </View>
           </View>
+
+          {/* Snapshot overlay for crossfade during preset switch */}
+          {presetSnapshot && (
+            <Animated.View style={[styles.snapshotOverlay, snapshotStyle]} pointerEvents="none">
+              <Canvas style={StyleSheet.absoluteFill}>
+                <SkiaImage
+                  image={presetSnapshot}
+                  x={0}
+                  y={0}
+                  width={presetSnapshot.width()}
+                  height={presetSnapshot.height()}
+                  fit="cover"
+                />
+              </Canvas>
+            </Animated.View>
+          )}
         </Animated.View>
 
         {/* Content below visualization */}
@@ -646,6 +698,10 @@ const styles = StyleSheet.create({
   },
   feedbackIcon: {
     position: 'absolute',
+  },
+  snapshotOverlay: {
+    ...StyleSheet.absoluteFillObject,
+    zIndex: 10,
   },
   gridContainer: {
     // Full width

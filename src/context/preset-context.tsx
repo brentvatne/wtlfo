@@ -416,6 +416,12 @@ interface PresetContextValue {
   isChangingPreset: boolean;
   /** Change preset with fade transition - fades out, changes preset, fades back in */
   changePresetWithTransition: (index: number) => void;
+  /** Pending preset index for crossfade - null when no change pending */
+  pendingPresetIndex: number | null;
+  /** Complete the pending preset change (called after snapshot captured) */
+  commitPresetChange: () => void;
+  /** Signal that crossfade animation has completed */
+  finishPresetTransition: () => void;
 }
 
 const PresetContext = createContext<PresetContextValue | null>(null);
@@ -472,6 +478,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
   const [tabSwitchFadeOpacity, setTabSwitchFadeOpacityState] = useState(INITIAL_TAB_SWITCH_FADE_OPACITY);
   const [isChangingPreset, setIsChangingPreset] = useState(false);
+  const [pendingPresetIndex, setPendingPresetIndex] = useState<number | null>(null);
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -602,28 +609,39 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Change preset with fade transition - fades out, changes preset, fades back in
+  // Change preset with crossfade transition
+  // Sets pendingPresetIndex to signal home screen to capture snapshot
+  // Home screen will call commitPresetChange after capturing
   const changePresetWithTransition = useCallback((index: number) => {
-    // Signal fade out
+    // Signal that we're starting a preset change - home screen will capture snapshot
+    setPendingPresetIndex(index);
     setIsChangingPreset(true);
+  }, []);
 
-    // Wait for fade out, then change preset
-    setTimeout(() => {
-      setActivePresetState(index);
-      // Persist to storage
-      try {
-        Storage.setItemSync(STORAGE_KEY, String(index));
-        Storage.removeItem(CONFIG_STORAGE_KEY);
-      } catch {
-        console.warn('Failed to save preset');
-      }
+  // Complete the preset change after snapshot is captured
+  const commitPresetChange = useCallback(() => {
+    const index = pendingPresetIndex;
+    if (index === null) return;
 
-      // Wait a frame for state to update, then signal fade in
-      requestAnimationFrame(() => {
-        setIsChangingPreset(false);
-      });
-    }, presetSwitchDuration);
-  }, [presetSwitchDuration]);
+    // Actually change the preset
+    setActivePresetState(index);
+    // Persist to storage
+    try {
+      Storage.setItemSync(STORAGE_KEY, String(index));
+      Storage.removeItem(CONFIG_STORAGE_KEY);
+    } catch {
+      console.warn('Failed to save preset');
+    }
+
+    // Clear pending state
+    setPendingPresetIndex(null);
+    // isChangingPreset stays true - will be set false when crossfade animation completes
+  }, [pendingPresetIndex]);
+
+  // Called when crossfade animation completes
+  const finishPresetTransition = useCallback(() => {
+    setIsChangingPreset(false);
+  }, []);
 
   const setBPM = useCallback((newBPM: number) => {
     const clampedBPM = Math.max(30, Math.min(300, Math.round(newBPM)));
@@ -1194,6 +1212,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Preset transition
     isChangingPreset,
     changePresetWithTransition,
+    pendingPresetIndex,
+    commitPresetChange,
+    finishPresetTransition,
   };
 
   return (
