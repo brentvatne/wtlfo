@@ -12,6 +12,7 @@ type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' 
 interface ParamGridProps {
   onParamPress?: (param: ParamKey) => void;
   activeParam?: ParamKey | null;
+  shakeMode?: boolean; // Trigger shake on mode param (e.g., when trying to retrigger in FREE mode)
 }
 
 function formatValue(key: ParamKey, value: number | string, useFixedBPM?: boolean): string {
@@ -54,7 +55,7 @@ function getStartPhaseLabel(waveform: string): string {
 // All param routes to prefetch
 const PARAM_ROUTES: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
 
-export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
+export function ParamGrid({ onParamPress, activeParam, shakeMode = false }: ParamGridProps) {
   const { currentConfig } = usePreset();
   const { activeDestinationId } = useModulation();
   const router = useRouter();
@@ -136,6 +137,7 @@ export function ParamGrid({ onParamPress, activeParam }: ParamGridProps) {
           onPress={() => handlePress('mode')}
           isActive={activeParam === 'mode'}
           icon={<PARAM_ICONS.mode />}
+          shake={shakeMode}
         />
         <ParamBox
           label={PARAM_LABELS.depth}

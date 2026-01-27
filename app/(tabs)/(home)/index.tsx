@@ -1,5 +1,6 @@
 import React, { useRef, useEffect, useState, useLayoutEffect, useCallback } from 'react';
 import { View, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import * as Haptics from 'expo-haptics';
 import AppMetrics from 'expo-eas-observe';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
@@ -356,12 +357,11 @@ export default function HomeScreen() {
   const destBoundsMax = Math.min(destMax, destCenterValue + destSwing);
 
   // Visual feedback state for gesture interactions
-  // Use ref instead of state to avoid re-render flash when icon changes
-  const feedbackIconRef = useRef<'pause' | 'play'>('pause');
-  const feedbackOpacity = useSharedValue(0);
+  // Use separate opacity for each icon to avoid re-render flash
+  const pauseIconOpacity = useSharedValue(0);
+  const playIconOpacity = useSharedValue(0);
+  const retriggerIconOpacity = useSharedValue(0);
   const feedbackTranslateY = useSharedValue(0);
-  // Force re-render when we need to update the icon
-  const [, forceUpdate] = useState(0);
 
   // Use shared value for isPaused so worklets can read current value
   const isPausedShared = useSharedValue(isPaused);
@@ -369,27 +369,48 @@ export default function HomeScreen() {
     isPausedShared.value = isPaused;
   }, [isPaused, isPausedShared]);
 
-  const feedbackAnimatedStyle = useAnimatedStyle(() => ({
-    opacity: feedbackOpacity.value,
+  // Overlay background opacity is max of all icon opacities
+  const overlayBackgroundStyle = useAnimatedStyle(() => ({
+    opacity: Math.max(pauseIconOpacity.value, playIconOpacity.value, retriggerIconOpacity.value),
+  }));
+
+  const pauseIconStyle = useAnimatedStyle(() => ({
+    opacity: pauseIconOpacity.value,
+    transform: [{ translateY: feedbackTranslateY.value }],
+  }));
+
+  const playIconStyle = useAnimatedStyle(() => ({
+    opacity: playIconOpacity.value,
+    transform: [{ translateY: feedbackTranslateY.value }],
+  }));
+
+  const retriggerIconStyle = useAnimatedStyle(() => ({
+    opacity: retriggerIconOpacity.value,
     transform: [{ translateY: feedbackTranslateY.value }],
   }));
 
   // Show feedback icon with fade in/out and upward movement
-  const showFeedback = useCallback((icon: 'pause' | 'play') => {
-    // Update icon ref and force re-render
-    feedbackIconRef.current = icon;
-    forceUpdate(n => n + 1);
+  const showFeedback = useCallback((icon: 'pause' | 'play' | 'retrigger') => {
+    // Reset all icons to 0
+    pauseIconOpacity.value = 0;
+    playIconOpacity.value = 0;
+    retriggerIconOpacity.value = 0;
+
+    // Select the right opacity shared value
+    const targetOpacity = icon === 'pause' ? pauseIconOpacity : icon === 'play' ? playIconOpacity : retriggerIconOpacity;
+
     // Reset and animate
     feedbackTranslateY.value = 0;
-    feedbackOpacity.value = withSequence(
+    targetOpacity.value = withSequence(
       withTiming(1, { duration: 100 }),
       withDelay(200, withTiming(0, { duration: 300 }))
     );
     feedbackTranslateY.value = withTiming(-20, { duration: 600, easing: Easing.out(Easing.ease) });
-  }, [feedbackOpacity, feedbackTranslateY]);
+  }, [pauseIconOpacity, playIconOpacity, retriggerIconOpacity, feedbackTranslateY]);
 
   // Pause handler
   const handlePause = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Heavy);
     stopLFO();
     setIsPaused(true);
     showFeedback('pause');
@@ -397,11 +418,30 @@ export default function HomeScreen() {
 
   // Resume handler
   const handleResume = useCallback(() => {
+    Haptics.impactAsync(Haptics.ImpactFeedbackStyle.Light);
     resetLFOTiming(); // Prevent phase jump on resume
     startLFO();
     setIsPaused(false);
     showFeedback('play');
   }, [resetLFOTiming, startLFO, setIsPaused, showFeedback]);
+
+  // State to trigger mode param shake (for FREE mode retrigger attempt)
+  const [shakeMode, setShakeMode] = useState(false);
+
+  // Retrigger handler - resets LFO to start phase (disabled in FREE mode)
+  const handleRetrigger = useCallback(() => {
+    if (currentConfig.mode === 'FRE') {
+      // Can't retrigger in FREE mode - show error feedback
+      Haptics.notificationAsync(Haptics.NotificationFeedbackType.Error);
+      setShakeMode(true);
+      // Reset shake after animation completes
+      setTimeout(() => setShakeMode(false), 350);
+      return;
+    }
+    Haptics.selectionAsync();
+    triggerLFO();
+    showFeedback('retrigger');
+  }, [currentConfig.mode, triggerLFO, showFeedback]);
 
   // Long press toggles pause/play
   const longPressGesture = Gesture.LongPress()
@@ -415,7 +455,19 @@ export default function HomeScreen() {
       }
     });
 
-  const visualizationGesture = longPressGesture;
+  // Single tap: retrigger when playing, resume when paused
+  const tapGesture = Gesture.Tap()
+    .onEnd(() => {
+      'worklet';
+      if (isPausedShared.value) {
+        scheduleOnRN(handleResume);
+      } else {
+        scheduleOnRN(handleRetrigger);
+      }
+    });
+
+  // Combine gestures - Exclusive gives priority to earlier gestures
+  const visualizationGesture = Gesture.Exclusive(longPressGesture, tapGesture);
 
   return (
     <ScrollView
@@ -432,7 +484,7 @@ export default function HomeScreen() {
               accessibilityLabel={`LFO visualization, ${currentConfig.waveform} wave at ${timingInfo.noteValue}`}
               accessibilityRole="button"
               accessibilityState={{ selected: isPaused }}
-              accessibilityHint={isPaused ? 'Long press to resume' : 'Long press to pause'}
+              accessibilityHint={isPaused ? 'Tap to resume' : 'Tap to retrigger, long press to pause'}
             >
               {/* LFO Visualizer */}
               <View style={styles.visualizerContainer}>
@@ -504,13 +556,17 @@ export default function HomeScreen() {
                 )}
               </View>
 
-              {/* Feedback icon overlay - always rendered, visibility controlled by opacity */}
-              <Animated.View style={[styles.feedbackOverlay, feedbackAnimatedStyle]} pointerEvents="none">
-                <SymbolView
-                  name={feedbackIconRef.current === 'pause' ? 'pause.fill' : 'play.fill'}
-                  size={48}
-                  tintColor="#ffffff"
-                />
+              {/* Feedback icons overlay - all rendered, visibility controlled by individual opacity */}
+              <Animated.View style={[styles.feedbackOverlay, overlayBackgroundStyle]} pointerEvents="none">
+                <Animated.View style={[styles.feedbackIcon, pauseIconStyle]}>
+                  <SymbolView name="pause.fill" size={48} tintColor="#ffffff" />
+                </Animated.View>
+                <Animated.View style={[styles.feedbackIcon, playIconStyle]}>
+                  <SymbolView name="play.fill" size={48} tintColor="#ffffff" />
+                </Animated.View>
+                <Animated.View style={[styles.feedbackIcon, retriggerIconStyle]}>
+                  <SymbolView name="dot.radiowaves.right" size={48} tintColor="#ffffff" />
+                </Animated.View>
               </Animated.View>
             </Animated.View>
           </GestureDetector>
@@ -538,7 +594,7 @@ export default function HomeScreen() {
           {/* Parameter Grid - Full width */}
           <View style={styles.gridContainer}>
             <Text style={styles.sectionHeading}>PARAMETERS</Text>
-            <ParamGrid />
+            <ParamGrid shakeMode={shakeMode} />
           </View>
 
           {/* Destination Info - always rendered to prevent layout shift */}
@@ -565,7 +621,8 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   visualizerRow: {
     flexDirection: 'row',
-    marginTop: 8,
+    paddingTop: 8,
+    backgroundColor: '#000000',
   },
   belowVisualization: {
     // Content container
@@ -577,7 +634,6 @@ const styles = StyleSheet.create({
     backgroundColor: '#000000',
     borderBottomLeftRadius: 8,
     borderBottomRightRadius: 8,
-    marginBottom: 8,
   },
   paused: {
     opacity: 0.5,
@@ -587,6 +643,9 @@ const styles = StyleSheet.create({
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
+  },
+  feedbackIcon: {
+    position: 'absolute',
   },
   gridContainer: {
     // Full width
@@ -599,7 +658,6 @@ const styles = StyleSheet.create({
     letterSpacing: 1,
     paddingHorizontal: 20,
     paddingVertical: 10,
-    marginTop: 8,
     backgroundColor: '#1a1a1a',
   },
   meterContainer: {

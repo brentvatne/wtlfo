@@ -1,5 +1,6 @@
-import React from 'react';
+import React, { useEffect } from 'react';
 import { Pressable, Text, StyleSheet, View } from 'react-native';
+import Animated, { useSharedValue, useAnimatedStyle, withSequence, withTiming } from 'react-native-reanimated';
 import { colors } from '@/src/theme';
 
 export interface ParamBoxProps {
@@ -9,15 +10,35 @@ export interface ParamBoxProps {
   isActive?: boolean;
   disabled?: boolean;
   icon?: React.ReactNode;
+  shake?: boolean; // Trigger shake animation when this changes to true
 }
 
-export function ParamBox({ label, value, onPress, isActive = false, disabled = false, icon }: ParamBoxProps) {
+export function ParamBox({ label, value, onPress, isActive = false, disabled = false, icon, shake = false }: ParamBoxProps) {
+  const translateX = useSharedValue(0);
+
+  // Trigger shake animation when shake prop becomes true
+  useEffect(() => {
+    if (shake) {
+      translateX.value = withSequence(
+        withTiming(-6, { duration: 50 }),
+        withTiming(6, { duration: 50 }),
+        withTiming(-4, { duration: 50 }),
+        withTiming(4, { duration: 50 }),
+        withTiming(-2, { duration: 50 }),
+        withTiming(0, { duration: 50 })
+      );
+    }
+  }, [shake, translateX]);
+
+  const shakeStyle = useAnimatedStyle(() => ({
+    transform: [{ translateX: translateX.value }],
+  }));
+
   return (
     <Pressable
       onPress={onPress}
-      style={({ pressed }) => [
+      style={[
         styles.box,
-        pressed && styles.pressed,
         isActive && styles.active,
         disabled && styles.disabled,
       ]}
@@ -26,11 +47,17 @@ export function ParamBox({ label, value, onPress, isActive = false, disabled = f
       accessibilityHint={`Double tap to edit ${label} parameter`}
       accessibilityState={{ selected: isActive, disabled }}
     >
-      <View style={styles.valueRow}>
-        {icon && <View style={[styles.iconContainer, disabled && styles.disabledIcon]}>{icon}</View>}
-        <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
-      </View>
-      <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
+      {({ pressed }) => (
+        <View style={[styles.inner, pressed && styles.pressed]}>
+          <Animated.View style={[styles.content, shakeStyle]}>
+            <View style={styles.valueRow}>
+              {icon && <View style={[styles.iconContainer, disabled && styles.disabledIcon]}>{icon}</View>}
+              <Text style={[styles.value, disabled && styles.disabledText]}>{value}</Text>
+            </View>
+            <Text style={[styles.label, disabled && styles.disabledText]}>{label}</Text>
+          </Animated.View>
+        </View>
+      )}
     </Pressable>
   );
 }
@@ -39,14 +66,20 @@ const styles = StyleSheet.create({
   box: {
     backgroundColor: 'transparent', // Seamless with background
     borderRadius: 0,
-    paddingVertical: 10,
-    paddingHorizontal: 4,
     flex: 1,
     minHeight: 52,
-    justifyContent: 'center',
-    alignItems: 'center',
     borderRightWidth: StyleSheet.hairlineWidth,
     borderRightColor: '#1a1a1a',
+  },
+  inner: {
+    paddingVertical: 10,
+    paddingHorizontal: 4,
+    justifyContent: 'center',
+    alignItems: 'center',
+    flex: 1,
+  },
+  content: {
+    alignItems: 'center',
   },
   pressed: {
     backgroundColor: 'rgba(255, 255, 255, 0.05)',
