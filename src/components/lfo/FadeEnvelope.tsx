@@ -49,7 +49,9 @@ export function FadeEnvelope({
   const hasNegativeSpeed = speed !== undefined && speed < 0;
   const isUnipolar = isUnipolarWorklet(waveform);
   const isExp = waveform === 'EXP';
-  const startPhaseNormalized = (startPhase || 0) / 128;
+  // For EXP, divide by 127 so SPH=127 wraps to same as SPH=0
+  // Use SPH/127 so SPH=127 wraps to look like SPH=0 (matches Digitakt visualization)
+  const startPhaseNormalized = (startPhase || 0) / 127;
 
   // Create the path for the trajectory with fade applied
   const path = useMemo(() => {
@@ -62,7 +64,8 @@ export function FadeEnvelope({
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      // Shift phase for waveform sampling (same as WaveformDisplay)
+      // All waveforms use phase wrapping with startPhase offset
+      // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
       const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
 
       let value: number;

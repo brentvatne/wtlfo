@@ -61,7 +61,11 @@ export function WaveformDisplay({
   const isRandom = waveform === 'RND';
   const isExp = waveform === 'EXP';
   const slewValue = isRandom ? (startPhase || 0) : 0;
-  const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
+  // For EXP, divide by 127 so SPH=127 wraps to same as SPH=0
+  // For other waveforms, divide by 128 as normal
+  // Use SPH/127 so SPH=127 wraps to look like SPH=0 (matches Digitakt visualization)
+  // RND uses startPhase as SLEW, not phase offset
+  const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 127;
 
   // Generate stroke path on UI thread with animated depth
   const strokePath = useDerivedValue(() => {
@@ -76,23 +80,49 @@ export function WaveformDisplay({
     // For EXP, determine if decay or rise
     const isExpDecay = isExp && !hasNegativeSpeed;
     const isExpRise = isExp && hasNegativeSpeed;
+    const isSaw = waveform === 'SAW';
+    const isSqr = waveform === 'SQR';
 
-    // For EXP decay, start at center and draw vertical line to peak
-    // This matches Digitakt II visualization
+    // Several waveforms need a vertical line at the start to show the cycle reset:
+    // - EXP decay: jumps from ~0 (end of previous cycle) to peak at start
+    // - SAW: jumps from -1 (end) to +1 (start)
+    // - SQR: jumps from -1 (end) to +1 (start)
+    let drewStartVerticalLine = false;
+    const firstPhase = startPhaseNormalized;
+
     if (isExpDecay) {
-      const startX = padding + startPhaseNormalized * drawWidth;
-      path.moveTo(startX, centerY); // Start at center
-      const peakY = centerY + currentDepthScale * scaleY; // Peak position
-      path.lineTo(startX, peakY); // Vertical line to peak
+      // EXP decay: vertical line from center to first value
+      const firstValue = sampleExpDecay(firstPhase) * currentDepthScale;
+      const firstY = centerY + firstValue * scaleY;
+      path.moveTo(padding, centerY);
+      path.lineTo(padding, firstY);
+      drewStartVerticalLine = true;
+    } else if ((isSaw || isSqr) && !hasNegativeSpeed) {
+      // SAW/SQR with positive speed: vertical line from -1 to first value (+1 at phase 0)
+      const firstValue = sampleWaveformWorklet(waveform, firstPhase, seedValue) * currentDepthScale;
+      const endOfCycleValue = -1 * currentDepthScale; // Both end at -1
+      const firstY = centerY + firstValue * scaleY;
+      const endY = centerY + endOfCycleValue * scaleY;
+      path.moveTo(padding, endY);
+      path.lineTo(padding, firstY);
+      drewStartVerticalLine = true;
     }
+
+    // Threshold for hiding EXP end step (SPH < 5 or SPH > 122)
+    const expSphThreshold = 5 / 127;
+    const hideExpEndLine = startPhaseNormalized < expSphThreshold || startPhaseNormalized > (1 - expSphThreshold);
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      // For EXP, don't wrap the phase - we want to show 0 to 1 without looping
-      // This prevents the curve from jumping back at the end
-      const phase = isExp
-        ? Math.min(xNormalized + startPhaseNormalized, 1)
-        : (xNormalized + startPhaseNormalized) % 1;
+      // All waveforms use phase wrapping with startPhase offset
+      // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
+      let phase = (xNormalized + startPhaseNormalized) % 1;
+
+      // For EXP with SPH near 0 or 127, prevent visual wrap at the end
+      // Sample near phase=1 instead of wrapped phase=0 so curve reaches full height
+      if (isExp && hideExpEndLine && i === resolution && phase < 0.01) {
+        phase = 1 - 1e-4;
+      }
 
       let value: number;
       if (isExp) {
@@ -121,14 +151,16 @@ export function WaveformDisplay({
       const y = centerY + value * scaleY;
 
       if (i === 0) {
-        if (isExpDecay) {
-          // Already drew vertical line, continue the path
+        if (drewStartVerticalLine) {
+          // Continue from the vertical line we drew
           path.lineTo(x, y);
         } else {
           path.moveTo(x, y);
         }
       } else {
+        // Draw step for large value changes (square wave, random)
         const threshold = 0.5;
+
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
           const prevY = centerY + prevValue * scaleY;
           path.lineTo(x, prevY);
@@ -142,8 +174,10 @@ export function WaveformDisplay({
     }
 
     // For EXP rise, add vertical line at the end from peak to center
-    if (isExpRise) {
-      path.lineTo(padding + drawWidth, centerY);
+    // Only when SPH is between 5 and 122 (matches Digitakt behavior)
+    if (isExpRise && !hideExpEndLine) {
+      const endX = padding + drawWidth;
+      path.lineTo(endX, centerY);
     }
 
     return path;
@@ -163,22 +197,46 @@ export function WaveformDisplay({
 
     // For EXP, determine if decay or rise
     const isExpDecay = isExp && !hasNegativeSpeed;
-    const isExpRise = isExp && hasNegativeSpeed;
+    const isSaw = waveform === 'SAW';
+    const isSqr = waveform === 'SQR';
 
-    // For EXP decay, start at center and draw vertical line to peak
+    // Several waveforms need a vertical line at the start to show the cycle reset
+    let drewStartVerticalLine = false;
+    const firstPhase = startPhaseNormalized;
+
     if (isExpDecay) {
-      const expStartX = padding + startPhaseNormalized * drawWidth;
-      path.moveTo(expStartX, centerY); // Start at center
-      const peakY = centerY + currentDepthScale * scaleY;
-      path.lineTo(expStartX, peakY); // Vertical line to peak
+      // EXP decay: vertical line from center to first value
+      const firstValue = sampleExpDecay(firstPhase) * currentDepthScale;
+      const firstY = centerY + firstValue * scaleY;
+      path.moveTo(padding, centerY);
+      path.lineTo(padding, firstY);
+      drewStartVerticalLine = true;
+    } else if ((isSaw || isSqr) && !hasNegativeSpeed) {
+      // SAW/SQR with positive speed: vertical line from -1 to first value (+1 at phase 0)
+      const firstValue = sampleWaveformWorklet(waveform, firstPhase, seedValue) * currentDepthScale;
+      const endOfCycleValue = -1 * currentDepthScale;
+      const firstY = centerY + firstValue * scaleY;
+      const endY = centerY + endOfCycleValue * scaleY;
+      path.moveTo(padding, endY);
+      path.lineTo(padding, firstY);
+      drewStartVerticalLine = true;
     }
+
+    // Threshold for hiding EXP end step (SPH < 5 or SPH > 122)
+    const expSphThreshold = 5 / 127;
+    const hideExpEndLine = startPhaseNormalized < expSphThreshold || startPhaseNormalized > (1 - expSphThreshold);
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      // For EXP, don't wrap the phase - we want to show 0 to 1 without looping
-      const phase = isExp
-        ? Math.min(xNormalized + startPhaseNormalized, 1)
-        : (xNormalized + startPhaseNormalized) % 1;
+      // All waveforms use phase wrapping with startPhase offset
+      // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
+      let phase = (xNormalized + startPhaseNormalized) % 1;
+
+      // For EXP with SPH near 0 or 127, prevent visual wrap at the end
+      // Sample near phase=1 instead of wrapped phase=0 so curve reaches full height
+      if (isExp && hideExpEndLine && i === resolution && phase < 0.01) {
+        phase = 1 - 1e-4;
+      }
 
       let value: number;
       if (isExp) {
@@ -207,13 +265,13 @@ export function WaveformDisplay({
       const y = centerY + value * scaleY;
 
       if (i === 0) {
-        if (isExpDecay) {
-          // Already drew vertical line, continue the path
+        if (drewStartVerticalLine) {
           path.lineTo(x, y);
         } else {
           path.moveTo(x, y);
         }
       } else {
+        // Draw step for large value changes (square wave, random)
         const threshold = 0.5;
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
           const prevY = centerY + prevValue * scaleY;
@@ -225,11 +283,6 @@ export function WaveformDisplay({
       }
 
       prevValue = value;
-    }
-
-    // For EXP rise, add vertical line at the end from peak to center
-    if (isExpRise) {
-      path.lineTo(endX, centerY);
     }
 
     // Close path to baseline for fill
