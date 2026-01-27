@@ -44,6 +44,7 @@ export function LFOVisualizer({
   editFadeOutDuration = DEFAULT_EDIT_FADE_OUT,
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   fadeMultiplier,
+  cycleCount,
   randomSamples,
   randomSeed,
   showFadeEnvelope = true,
@@ -239,6 +240,7 @@ export function LFOVisualizer({
               fade={fade}
               mode={mode}
               fadeMultiplier={fadeMultiplier}
+              cycleCount={cycleCount}
               randomSeed={randomSeed}
             />
           )}

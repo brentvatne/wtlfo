@@ -23,6 +23,7 @@ export default function DestinationScreen() {
     bpm,
     lfoPhase,
     lfoOutput,
+    lfoCycleCount,
     timingInfo,
     isEditing,
   } = usePreset();
@@ -109,6 +110,7 @@ export default function DestinationScreen() {
             showOutput={false}
             isEditing={isEditing}
             strokeWidth={2}
+            cycleCount={lfoCycleCount}
           />
         </View>
 

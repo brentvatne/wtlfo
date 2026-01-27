@@ -21,6 +21,7 @@ export function PhaseIndicator({
   fade,
   mode,
   fadeMultiplier,
+  cycleCount,
   randomSeed,
 }: PhaseIndicatorProps) {
   // Default opacity to 1 if not provided
@@ -33,15 +34,18 @@ export function PhaseIndicator({
   // For RND waveform, startPhase acts as SLEW (0=sharp S&H, 127=max smoothing)
   // For other waveforms, it's a phase offset (0-127 → 0.0-~1.0)
   const isRandom = waveform === 'RND';
+  const isExp = waveform === 'EXP';
   const slewValue = isRandom ? (startPhase || 0) : 0;
+  // Standard SPH/128 for all waveforms (matches engine behavior)
+  // Note: visualization uses SPH/127 for EXP display quirk, but indicator tracks engine
   const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
   const hasNegativeSpeed = speed !== undefined && speed < 0;
   const isUnipolar = waveform ? isUnipolarWorklet(waveform) : false;
-  const isExp = waveform === 'EXP';
-  // Check if fade applies (only when fade is set and mode is not FRE)
-  const fadeApplies = fade !== undefined && fade !== 0 && mode !== 'FRE';
+  // Base fade check (without cycle count, which is checked in worklet)
+  // Fade only affects the first cycle - the cycleCount check happens in the worklet
+  const fadeCanApply = fade !== undefined && fade !== 0 && mode !== 'FRE';
   const fadeValue = fade ?? 0;
 
   // Always use bipolar coordinate system (-1 to 1, centered) for consistency
@@ -52,7 +56,7 @@ export function PhaseIndicator({
   const xPosition = useDerivedValue(() => {
     'worklet';
     const phaseVal = typeof phase === 'number' ? phase : phase.value;
-    // Shift phase so startPhaseNormalized appears at x=0
+    // Calculate display phase (offset from start phase)
     const displayPhase = ((phaseVal - startPhaseNormalized) % 1 + 1) % 1;
     return padding + displayPhase * drawWidth;
   }, [phase, padding, drawWidth, startPhaseNormalized]);
@@ -68,12 +72,12 @@ export function PhaseIndicator({
 
     // If we have waveform info, calculate position to match visualization
     if (waveform) {
-      // Get the display phase (shifted for visualization)
+      // Get the display phase (offset from start phase)
       const displayPhase = ((phaseVal - startPhaseNormalized) % 1 + 1) % 1;
 
-      // Sample the waveform at the actual phase position
-      // Use slew for RND waveform to match visualization
+      // Sample the waveform at the engine phase
       const waveformPhase = phaseVal;
+
       let value: number;
       if (isExp) {
         // EXP needs different formulas to maintain concave shape in both directions
@@ -101,6 +105,9 @@ export function PhaseIndicator({
       // Apply fade envelope
       // When fadeMultiplier is provided from the engine, use it for accurate tracking
       // Otherwise fall back to local calculation matching FadeEnvelope component
+      // Fade only applies on the first cycle (cycleCount === 0)
+      const cycleCountVal = cycleCount === undefined ? 0 : (typeof cycleCount === 'number' ? cycleCount : cycleCount.value);
+      const fadeApplies = fadeCanApply && cycleCountVal === 0;
       if (fadeApplies) {
         let fadeEnvelope: number;
         if (fadeMultiplier !== undefined) {
@@ -126,7 +133,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, hasNegativeSpeed, isUnipolar, isExp, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, hasNegativeSpeed, isUnipolar, isExp, fadeCanApply, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue, cycleCount]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {

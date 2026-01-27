@@ -479,6 +479,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const phaseCycleMs = useSharedValue(1000); // cycle duration in ms
   // Mode for one-shot animations: 0=loop, 1=ONE (stop at 1 cycle), 2=HLF (stop at 0.5 cycle)
   const phaseAnimationMode = useSharedValue(INITIAL_CONFIG.mode === 'ONE' ? 1 : INITIAL_CONFIG.mode === 'HLF' ? 2 : 0);
+  // Progress already made before current animation segment (for pause/resume in ONE/HLF modes)
+  // When resuming mid-cycle, this tracks how much of the cycle was already completed
+  const phaseInitialProgress = useSharedValue(0);
 
   // Create LFO engine immediately (not after debounce) to avoid jitter on app start
   const lfoRef = useRef<LFO | null>(null);
@@ -826,33 +829,41 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Calculate elapsed time since animation started
     const elapsed = frameInfo.timestamp - phaseStartTime.value;
 
-    // Calculate phase: linear progression
+    // Calculate phase progress for this animation segment
     const phaseProgress = elapsed / phaseCycleMs.value;
+
+    // Total progress includes any progress made before pause (for ONE/HLF resume)
+    const totalProgress = phaseInitialProgress.value + phaseProgress;
 
     // Handle one-shot modes (ONE and HLF)
     const mode = phaseAnimationMode.value;
-    if (mode === 1 && phaseProgress >= 1) {
+    if (mode === 1 && totalProgress >= 1) {
       // ONE mode: stop at end of one full cycle
-      lfoPhase.value = (phaseStartValue.value + 1) % 1;
+      // Calculate remaining distance from when this animation segment started
+      const remaining = 1 - phaseInitialProgress.value;
+      // Use remaining - epsilon to keep indicator at visual end position
+      lfoPhase.value = (phaseStartValue.value + remaining - 0.0001) % 1;
       return; // Stop updating - frameCallback stays active but phase is frozen
-    } else if (mode === 2 && phaseProgress >= 0.5) {
+    } else if (mode === 2 && totalProgress >= 0.5) {
       // HLF mode: stop at half cycle
-      lfoPhase.value = (phaseStartValue.value + 0.5) % 1;
+      const remaining = 0.5 - phaseInitialProgress.value;
+      lfoPhase.value = (phaseStartValue.value + remaining) % 1;
       return; // Stop updating - frameCallback stays active but phase is frozen
     }
 
     // Normal looping: wrap phase at 1
     const newPhase = (phaseStartValue.value + phaseProgress) % 1;
 
-    // Update cycle count - phaseProgress is cumulative, so floor gives completed cycles
-    lfoCycleCount.value = Math.floor(phaseProgress);
+    // Update cycle count - totalProgress is cumulative, so floor gives completed cycles
+    lfoCycleCount.value = Math.floor(totalProgress);
 
     lfoPhase.value = newPhase;
   }, true); // true = autostart
 
   // Start/restart phase animation by updating the shared control values
   // mode: 'FRE'|'TRG'|'HLD' = loop, 'ONE' = one cycle, 'HLF' = half cycle
-  const startPhaseAnimation = useCallback((startFromPhase: number, cycleDurationMs: number, mode?: string) => {
+  // initialProgress: for resume mid-cycle, how much progress was already made (0-1)
+  const startPhaseAnimation = useCallback((startFromPhase: number, cycleDurationMs: number, mode?: string, initialProgress?: number) => {
     // Cancel any existing withTiming animation on lfoPhase
     cancelAnimation(lfoPhase);
     // Set initial phase value
@@ -862,11 +873,13 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     phaseCycleMs.value = cycleDurationMs;
     // Set animation mode: 0=loop, 1=ONE, 2=HLF
     phaseAnimationMode.value = mode === 'ONE' ? 1 : mode === 'HLF' ? 2 : 0;
+    // Set initial progress (for resume mid-cycle in ONE/HLF modes)
+    phaseInitialProgress.value = initialProgress ?? 0;
     // Reset start time to 0 - the frame callback will set it on first frame
     phaseStartTime.value = 0;
     // Activate the frame callback
     frameCallback.setActive(true);
-  }, [lfoPhase, phaseStartValue, phaseCycleMs, phaseAnimationMode, phaseStartTime, frameCallback]);
+  }, [lfoPhase, phaseStartValue, phaseCycleMs, phaseAnimationMode, phaseInitialProgress, phaseStartTime, frameCallback]);
 
   // Stop phase animation (for pause, background, editing)
   const stopPhaseAnimation = useCallback(() => {
@@ -975,7 +988,19 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     } else if (!isPaused && wasPaused && hasMainLoopStarted.current) {
       // Just became unpaused - restart the phase animation
       const currentPhase = lfoPhase.value;
-      startPhaseAnimation(currentPhase, timingInfo.cycleTimeMs, currentConfig.mode);
+
+      // For ONE/HLF modes, calculate how much progress was already made
+      // This ensures we complete the remaining cycle portion, not a full cycle
+      let initialProgress: number | undefined;
+      if (currentConfig.mode === 'ONE' || currentConfig.mode === 'HLF') {
+        const startPhase = currentConfig.startPhase / 128;
+        // Calculate how far we've traveled from the original start phase
+        // Handle wrap-around correctly
+        const traveled = ((currentPhase - startPhase) % 1 + 1) % 1;
+        initialProgress = traveled;
+      }
+
+      startPhaseAnimation(currentPhase, timingInfo.cycleTimeMs, currentConfig.mode, initialProgress);
 
       // Also restart the rAF loop if it was stopped (e.g., from background)
       if (animationRef.current === 0) {
@@ -990,7 +1015,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         animationRef.current = requestAnimationFrame(animate);
       }
     }
-  }, [isPaused, lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, timingInfo.cycleTimeMs]);
+  }, [isPaused, lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, timingInfo.cycleTimeMs, currentConfig.mode, currentConfig.startPhase]);
 
   // Recreate LFO when debounced config changes (after initial creation)
   // Skip on first render - LFO is already created synchronously above

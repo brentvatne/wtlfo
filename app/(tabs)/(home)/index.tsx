@@ -14,6 +14,7 @@ import {
   LFOVisualizer,
   ELEKTRON_THEME,
   sampleWaveformWorklet,
+  isUnipolarWorklet,
   TimingInfo,
   VisualizationPlaceholder,
 } from '@/src/components/lfo';
@@ -314,6 +315,9 @@ export default function HomeScreen() {
   const waveformForWorklet = currentConfig.waveform as WaveformType;
   // Pre-compute clamped depth scale (handles asymmetric range -64 to +63)
   const depthScaleForWorklet = Math.max(-1, Math.min(1, currentConfig.depth / 63));
+  // Pre-compute speed info for negative speed handling
+  const hasNegativeSpeed = currentConfig.speed < 0;
+  const isUnipolar = isUnipolarWorklet(waveformForWorklet);
   // Pre-compute fade parameters for worklet
   const fadeValue = currentConfig.fade;
   const modeValue = currentConfig.mode as TriggerMode;
@@ -351,10 +355,20 @@ export default function HomeScreen() {
   const displayOutput = useDerivedValue(() => {
     'worklet';
     // Sample the waveform at current phase
-    const rawOutput = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
+    let value = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
+    // Apply negative speed transformation (matches visualization and engine)
+    // For unipolar waveforms (EXP, RMP), negative speed flips the shape (1-x)
+    // For bipolar waveforms, negative speed inverts polarity (*-1)
+    if (hasNegativeSpeed) {
+      if (isUnipolar) {
+        value = 1 - value;
+      } else {
+        value = -value;
+      }
+    }
     // Apply depth scaling
-    return rawOutput * depthScaleForWorklet;
-  }, [waveformForWorklet, depthScaleForWorklet, displayPhase]);
+    return value * depthScaleForWorklet;
+  }, [waveformForWorklet, depthScaleForWorklet, displayPhase, hasNegativeSpeed, isUnipolar]);
 
   // Destination modulated value for TimingInfo display
   const destinationDisplayValue = useDerivedValue(() => {
@@ -535,6 +549,7 @@ export default function HomeScreen() {
                       depthAnimationDuration={depthAnimationDuration}
                       showPhaseIndicator={!isBackgrounded}
                       randomSeed={lfoCycleCount}
+                      cycleCount={lfoCycleCount}
                     />
 
                     {/* Previous (old) visualization - rendered during crossfade, fades out */}

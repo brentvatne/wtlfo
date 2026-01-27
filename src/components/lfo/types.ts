@@ -98,6 +98,9 @@ export interface LFOVisualizerProps {
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
   fadeMultiplier?: number;
 
+  /** Number of complete cycles (fade only applies during cycle 0) */
+  cycleCount?: number | SharedValue<number>;
+
   /** Random sample history for RND waveform visualization */
   randomSamples?: Array<{ phase: number; value: number }>;
 
@@ -180,6 +183,8 @@ export interface PhaseIndicatorProps {
   mode?: TriggerMode;
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state - when provided, used instead of local calculation */
   fadeMultiplier?: number;
+  /** Number of complete cycles - fade only applies during cycle 0 */
+  cycleCount?: number | SharedValue<number>;
   /** Random seed for RND waveform to ensure dot position matches waveform visualization */
   randomSeed?: number | SharedValue<number>;
 }
