@@ -70,7 +70,7 @@ export default function DepthScreen() {
           </Text>
         </View>
         <Text style={[styles.paragraph, { color: '#888899' }]}>
-          Higher absolute values = faster fade. Only works in trigger modes.
+          Higher absolute values = slower fade (more cycles to complete). Only works in trigger modes.
         </Text>
       </Section>
     </ScrollView>

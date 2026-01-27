@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { useSafeAreaInsets } from 'react-native-safe-area-context';
 import { router } from 'expo-router';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
@@ -9,6 +10,7 @@ import { colors } from '@/src/theme';
 export default function PresetsScreen() {
   const { presets, activePreset, changePresetWithTransition } = usePreset();
   const { setActiveDestinationId, setCenterValue } = useModulation();
+  const insets = useSafeAreaInsets();
 
   const handleSelect = (index: number) => {
     const preset = presets[index];
@@ -29,7 +31,7 @@ export default function PresetsScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, { paddingBottom: 20 + insets.bottom }]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <View style={styles.list}>

@@ -339,7 +339,7 @@ export function TriggersIcon({
   );
 }
 
-// Icon 7: Destinations (routing arrow)
+// Icon 7: Destinations (target/bullseye - matches editor icon)
 export function DestinationsIcon({
   size = DEFAULT_SIZE,
   color = DEFAULT_COLOR,
@@ -348,22 +348,10 @@ export function DestinationsIcon({
   borderRadius = 8,
   style,
 }: SkiaIconProps) {
-  const padding = 6;
-  const canvas = size - padding * 2;
-  const radius = canvas * 0.18;
-  const leftX = padding + canvas * 0.22;
-  const rightX = padding + canvas * 0.78;
+  const centerX = size / 2;
   const centerY = size / 2;
-
-  const arrowPath = Skia.Path.Make();
-  arrowPath.moveTo(leftX + radius + 2, centerY);
-  arrowPath.lineTo(rightX - radius - 2, centerY);
-
-  // Arrow head
-  const headSize = strokeWidth * 2.5;
-  arrowPath.moveTo(rightX - radius - headSize - 2, centerY - headSize * 0.6);
-  arrowPath.lineTo(rightX - radius - 2, centerY);
-  arrowPath.lineTo(rightX - radius - headSize - 2, centerY + headSize * 0.6);
+  const outerRadius = size * 0.35;
+  const innerRadius = size * 0.08;
 
   return (
     <View
@@ -376,9 +364,8 @@ export function DestinationsIcon({
     >
       <Canvas style={{ width: size, height: size }}>
         <Group>
-          <Circle cx={leftX} cy={centerY} r={radius} color={color} style="stroke" strokeWidth={strokeWidth} />
-          <Circle cx={rightX} cy={centerY} r={radius} color={color} style="stroke" strokeWidth={strokeWidth} />
-          <Path path={arrowPath} color={color} style="stroke" strokeWidth={strokeWidth} strokeCap="round" strokeJoin="round" />
+          <Circle cx={centerX} cy={centerY} r={outerRadius} color={color} style="stroke" strokeWidth={strokeWidth} />
+          <Circle cx={centerX} cy={centerY} r={innerRadius} color={color} />
         </Group>
       </Canvas>
     </View>

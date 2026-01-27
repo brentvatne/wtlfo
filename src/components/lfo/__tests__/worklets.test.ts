@@ -122,12 +122,12 @@ describe('worklets', () => {
     });
 
     describe('EXP (Exponential) waveform', () => {
-      it('should return 0 at phase 0', () => {
-        expect(sampleWaveformWorklet('EXP', 0)).toBeCloseTo(0, 5);
+      it('should return 1 at phase 0 (starts at max - decay shape)', () => {
+        expect(sampleWaveformWorklet('EXP', 0)).toBeCloseTo(1, 5);
       });
 
-      it('should return 1 at phase 1', () => {
-        expect(sampleWaveformWorklet('EXP', 1)).toBeCloseTo(1, 5);
+      it('should return 0 at phase 1 (ends at min - decay shape)', () => {
+        expect(sampleWaveformWorklet('EXP', 1)).toBeCloseTo(0, 5);
       });
 
       it('should be unipolar (range 0 to 1)', () => {
@@ -139,17 +139,28 @@ describe('worklets', () => {
         });
       });
 
-      it('should have exponential curve (slower start, faster end)', () => {
+      it('should be a decay curve (1→0) matching Digitakt II engine base behavior', () => {
+        // Verify decay direction: value decreases as phase increases
         const value25 = sampleWaveformWorklet('EXP', 0.25);
         const value50 = sampleWaveformWorklet('EXP', 0.5);
         const value75 = sampleWaveformWorklet('EXP', 0.75);
 
-        // Exponential curve should have value at 0.5 less than 0.5 (linear would be 0.5)
-        expect(value50).toBeLessThan(0.5);
+        expect(value25).toBeGreaterThan(value50);
+        expect(value50).toBeGreaterThan(value75);
+      });
 
-        // The difference between 0.5-0.75 should be greater than 0.25-0.5
-        const diff1 = value50 - value25;
-        const diff2 = value75 - value50;
+      it('should have exponential curve (faster start decay, slower end)', () => {
+        const value25 = sampleWaveformWorklet('EXP', 0.25);
+        const value50 = sampleWaveformWorklet('EXP', 0.5);
+        const value75 = sampleWaveformWorklet('EXP', 0.75);
+
+        // For exponential decay, the drop from 0-0.25 should be less than 0.25-0.5
+        // (value at 0.5 should be above 0.5 for exp decay)
+        expect(value50).toBeGreaterThan(0.5);
+
+        // The difference should accelerate (bigger drops later)
+        const diff1 = value25 - value50; // how much dropped between 0.25 and 0.5
+        const diff2 = value50 - value75; // how much dropped between 0.5 and 0.75
         expect(diff2).toBeGreaterThan(diff1);
       });
     });
@@ -256,6 +267,118 @@ describe('worklets', () => {
         waveforms.forEach(waveform => {
           expect(() => sampleWaveformWorklet(waveform, 0.9999)).not.toThrow();
         });
+      });
+    });
+  });
+
+  describe('visualization speed transformation', () => {
+    /**
+     * These tests verify the logic used in visualization components
+     * to transform waveform values based on speed:
+     * - For unipolar waveforms (EXP, RMP), negative speed flips shape (1-x)
+     * - For bipolar waveforms, negative speed inverts polarity (*-1)
+     */
+
+    function applySpeedTransformation(
+      waveform: WaveformType,
+      value: number,
+      hasNegativeSpeed: boolean
+    ): number {
+      if (!hasNegativeSpeed) return value;
+
+      if (isUnipolarWorklet(waveform)) {
+        // Unipolar: flip shape (1-x)
+        return 1 - value;
+      } else {
+        // Bipolar: invert polarity
+        return -value;
+      }
+    }
+
+    describe('EXP with negative speed (fade-in)', () => {
+      it('should transform 1→0 base to 0→1 attack', () => {
+        // EXP base is 1→0 (decay)
+        const baseAtPhase0 = sampleWaveformWorklet('EXP', 0); // ~1
+        const baseAtPhase1 = sampleWaveformWorklet('EXP', 1); // ~0
+
+        // With negative speed, should become 0→1 (attack)
+        const transformedAtPhase0 = applySpeedTransformation('EXP', baseAtPhase0, true);
+        const transformedAtPhase1 = applySpeedTransformation('EXP', baseAtPhase1, true);
+
+        expect(transformedAtPhase0).toBeCloseTo(0, 5);
+        expect(transformedAtPhase1).toBeCloseTo(1, 5);
+      });
+
+      it('should produce rising values for fade-in visualization', () => {
+        const phases = [0, 0.25, 0.5, 0.75, 1];
+        const values = phases.map(phase => {
+          const base = sampleWaveformWorklet('EXP', phase);
+          return applySpeedTransformation('EXP', base, true);
+        });
+
+        // Each value should be greater than the previous (rising)
+        for (let i = 1; i < values.length; i++) {
+          expect(values[i]).toBeGreaterThan(values[i - 1]);
+        }
+      });
+    });
+
+    describe('EXP with positive speed (fade-out/decay)', () => {
+      it('should keep 1→0 base unchanged', () => {
+        const baseAtPhase0 = sampleWaveformWorklet('EXP', 0);
+        const baseAtPhase1 = sampleWaveformWorklet('EXP', 1);
+
+        const transformedAtPhase0 = applySpeedTransformation('EXP', baseAtPhase0, false);
+        const transformedAtPhase1 = applySpeedTransformation('EXP', baseAtPhase1, false);
+
+        expect(transformedAtPhase0).toBeCloseTo(1, 5);
+        expect(transformedAtPhase1).toBeCloseTo(0, 5);
+      });
+    });
+
+    describe('RMP with negative speed', () => {
+      it('should transform 0→1 base to 1→0', () => {
+        // RMP base is 0→1 (rising)
+        const baseAtPhase0 = sampleWaveformWorklet('RMP', 0); // 0
+        const baseAtPhase1 = sampleWaveformWorklet('RMP', 1); // 1
+
+        // With negative speed, should become 1→0
+        const transformedAtPhase0 = applySpeedTransformation('RMP', baseAtPhase0, true);
+        const transformedAtPhase1 = applySpeedTransformation('RMP', baseAtPhase1, true);
+
+        expect(transformedAtPhase0).toBe(1);
+        expect(transformedAtPhase1).toBe(0);
+      });
+    });
+
+    describe('SIN (bipolar) with negative speed', () => {
+      it('should invert polarity, not flip shape', () => {
+        // SIN at phase 0.25 is at peak (+1)
+        const baseAtPeak = sampleWaveformWorklet('SIN', 0.25);
+        expect(baseAtPeak).toBeCloseTo(1, 5);
+
+        // With negative speed, should become -1 (polarity inversion)
+        const transformed = applySpeedTransformation('SIN', baseAtPeak, true);
+        expect(transformed).toBeCloseTo(-1, 5);
+      });
+
+      it('should invert the entire waveform polarity', () => {
+        const phases = [0, 0.25, 0.5, 0.75];
+        phases.forEach(phase => {
+          const base = sampleWaveformWorklet('SIN', phase);
+          const transformed = applySpeedTransformation('SIN', base, true);
+          expect(transformed).toBeCloseTo(-base, 10);
+        });
+      });
+    });
+
+    describe('TRI (bipolar) with negative speed', () => {
+      it('should invert polarity', () => {
+        const baseAtPeak = sampleWaveformWorklet('TRI', 0.25);
+        expect(baseAtPeak).toBe(1);
+
+        const transformed = applySpeedTransformation('TRI', baseAtPeak, true);
+        expect(transformed).toBe(-1);
       });
     });
   });

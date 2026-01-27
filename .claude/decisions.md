@@ -211,6 +211,76 @@ This differs from bipolar waveforms (SIN, TRI, SAW, SQR) which use simple sign i
 - Very slow fade tests (8s+ cycle) may show fade verification mismatches due to timing
 - Fade-in cycle 1 behavior may differ from expectations (needs more hardware investigation)
 
+## 2026-01-26
+
+### Three Parallel Output Systems Must Stay in Sync
+
+**Architecture overview:**
+The app has THREE separate systems that compute LFO output, and they MUST produce identical values:
+
+1. **elektron-lfo engine** (`/Users/brent/code/elektron-lfo`)
+   - Source of truth for LFO behavior
+   - Runs on JS thread via `requestAnimationFrame` in `preset-context.tsx`
+   - Outputs to `lfoOutput` and `lfoPhase` SharedValues
+   - Handles: phase progression, speed/depth/fade/mode logic, waveform generation
+
+2. **Visualization worklets** (`src/components/lfo/`)
+   - `WaveformDisplay.tsx`: Draws the waveform curve
+   - `PhaseIndicator.tsx`: Draws the dot that follows the curve
+   - `FadeEnvelope.tsx`: Draws the fade envelope overlay
+   - Uses `sampleWaveformWorklet()` from `worklets.ts`
+   - Must apply same transformations as engine (speed, depth, fade)
+
+3. **Destination display** (`app/(tabs)/(home)/index.tsx`)
+   - `displayOutput` useDerivedValue: Computes output for destination meter
+   - Uses same `sampleWaveformWorklet()` as visualization
+   - Must apply same transformations as engine and visualization
+
+**Common bug pattern:**
+When adding a new transformation (like negative speed handling), it's easy to update one or two systems but miss the third. This causes the visualization to show one thing while the destination value shows another.
+
+**Bug fixed (2026-01-26):**
+The Fade In preset (EXP with negative speed) showed the visualization correctly going 0→1, but the destination value went 63→0 (opposite direction).
+
+**Root cause:** `displayOutput` in index.tsx was missing the negative speed transformation:
+```typescript
+// BEFORE (broken) - missing speed handling
+const displayOutput = useDerivedValue(() => {
+  const rawOutput = sampleWaveformWorklet(waveform, phase.value);
+  return rawOutput * depthScale;
+});
+
+// AFTER (fixed) - matches visualization and engine
+const displayOutput = useDerivedValue(() => {
+  let value = sampleWaveformWorklet(waveform, phase.value);
+  if (hasNegativeSpeed) {
+    if (isUnipolar) {
+      value = 1 - value;  // Flip shape for EXP/RMP
+    } else {
+      value = -value;     // Invert polarity for bipolar
+    }
+  }
+  return value * depthScale;
+});
+```
+
+**Debugging checklist for output mismatches:**
+1. Check if visualization matches engine (compare `lfoOutput.value` vs displayed curve)
+2. Check if destination matches visualization (compare meter movement vs dot movement)
+3. Search for ALL places that call `sampleWaveformWorklet` and verify they apply the same transformations
+4. Run standalone engine tests (`/tmp/test-exp*.ts`) to verify engine behavior in isolation
+
+**Key files to check when modifying output logic:**
+- `elektron-lfo/src/engine/lfo.ts` - Engine transformations
+- `src/components/lfo/worklets.ts` - Base waveform sampling
+- `src/components/lfo/WaveformDisplay.tsx` - Visualization curve
+- `src/components/lfo/PhaseIndicator.tsx` - Visualization dot
+- `src/components/lfo/FadeEnvelope.tsx` - Fade overlay
+- `app/(tabs)/(home)/index.tsx` - `displayOutput` for destination
+
+**Prevention:**
+Consider extracting shared transformation logic into a single worklet function that all three systems use, rather than duplicating the logic in multiple places.
+
 ## Technical Debt
 
 ### Reanimated Strict Mode Disabled

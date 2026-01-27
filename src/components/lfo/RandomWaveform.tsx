@@ -60,8 +60,12 @@ export function RandomWaveform({
   }, [isEditing, editFadeInDuration, fillOpacity]);
 
   const padding = 8;
+  // Account for stroke extending beyond path centerline
+  const strokePadding = strokeWidth / 2;
+  const effectivePadding = padding + strokePadding;
   const drawWidth = width - padding * 2;
-  const drawHeight = height - padding * 2;
+  // Use effective padding for vertical bounds to prevent clipping
+  const drawHeight = height - effectivePadding * 2;
   const centerY = height / 2;
   const scaleY = -drawHeight / 2;
   const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
