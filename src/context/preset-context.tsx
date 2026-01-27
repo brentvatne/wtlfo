@@ -35,7 +35,7 @@ export const DEFAULT_EDIT_FADE_OUT = 0; // ms
 export const DEFAULT_EDIT_FADE_IN = 150; // ms
 export const DEFAULT_DEPTH_ANIM_DURATION = 58; // ms
 export const DEFAULT_SPLASH_FADE_DURATION = 144; // ms (9 frames @ 60fps)
-export const DEFAULT_PRESET_SWITCH_DURATION = 250; // ms - faster transition when switching presets
+export const DEFAULT_PRESET_SWITCH_DURATION = 400; // ms - smooth crossfade when switching presets
 export const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms (1 frame @ 60fps)
 export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.7; // Starting opacity for tab switch fade
 
@@ -414,12 +414,12 @@ interface PresetContextValue {
 
   // Preset transition state
   isChangingPreset: boolean;
-  /** Change preset with fade transition - fades out, changes preset, fades back in */
+  /** Change preset with crossfade transition */
   changePresetWithTransition: (index: number) => void;
-  /** Pending preset index for crossfade - null when no change pending */
-  pendingPresetIndex: number | null;
-  /** Complete the pending preset change (called after snapshot captured) */
-  commitPresetChange: () => void;
+  /** Previous config for crossfade - null when not transitioning */
+  previousConfig: LFOPresetConfig | null;
+  /** Crossfade opacity (1 = showing old, 0 = showing new) */
+  crossfadeOpacity: SharedValue<number>;
   /** Signal that crossfade animation has completed */
   finishPresetTransition: () => void;
 }
@@ -478,7 +478,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
   const [tabSwitchFadeOpacity, setTabSwitchFadeOpacityState] = useState(INITIAL_TAB_SWITCH_FADE_OPACITY);
   const [isChangingPreset, setIsChangingPreset] = useState(false);
-  const [pendingPresetIndex, setPendingPresetIndex] = useState<number | null>(null);
+  const [previousConfig, setPreviousConfig] = useState<LFOPresetConfig | null>(null);
+  const crossfadeOpacity = useSharedValue(0); // 0 = showing new, 1 = showing old
   const debounceRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // LFO animation state - persists across tab switches
@@ -609,21 +610,21 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Change preset with crossfade transition
-  // Sets pendingPresetIndex to signal home screen to capture snapshot
-  // Home screen will call commitPresetChange after capturing
+  // Change preset with Skia-native crossfade transition
+  // Stores current config, immediately applies new preset, and animates opacity
   const changePresetWithTransition = useCallback((index: number) => {
-    // Signal that we're starting a preset change - home screen will capture snapshot
-    setPendingPresetIndex(index);
+    // Store the current config for crossfade (the "old" visualization)
+    setPreviousConfig({ ...currentConfig });
     setIsChangingPreset(true);
-  }, []);
 
-  // Complete the preset change after snapshot is captured
-  const commitPresetChange = useCallback(() => {
-    const index = pendingPresetIndex;
-    if (index === null) return;
+    // Set opacity to 1 (showing old) then animate to 0 (showing new)
+    crossfadeOpacity.value = 1;
+    crossfadeOpacity.value = withTiming(0, {
+      duration: presetSwitchDuration,
+      easing: Easing.out(Easing.ease),
+    });
 
-    // Actually change the preset
+    // Actually change the preset immediately
     setActivePresetState(index);
     // Persist to storage
     try {
@@ -632,14 +633,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     } catch {
       console.warn('Failed to save preset');
     }
+  }, [currentConfig, crossfadeOpacity, presetSwitchDuration]);
 
-    // Clear pending state
-    setPendingPresetIndex(null);
-    // isChangingPreset stays true - will be set false when crossfade animation completes
-  }, [pendingPresetIndex]);
-
-  // Called when crossfade animation completes
+  // Called when crossfade animation completes - clears the previous config
   const finishPresetTransition = useCallback(() => {
+    setPreviousConfig(null);
     setIsChangingPreset(false);
   }, []);
 
@@ -1212,8 +1210,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     // Preset transition
     isChangingPreset,
     changePresetWithTransition,
-    pendingPresetIndex,
-    commitPresetChange,
+    previousConfig,
+    crossfadeOpacity,
     finishPresetTransition,
   };
 
