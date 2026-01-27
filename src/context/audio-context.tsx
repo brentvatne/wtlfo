@@ -65,7 +65,6 @@ const AudioContextReact = createContext<AudioContextValue | null>(null);
 const DEFAULT_GAIN = 0.35;
 const DEFAULT_FILTER_FREQ = 4000;
 const DEFAULT_FILTER_Q = 1;
-const FADE_DURATION = 0.05; // 50ms fade to prevent click
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { lfoOutput, isPaused } = usePreset();
@@ -88,10 +87,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const wasEnabledBeforeBackgroundRef = useRef(false);
   const animationFrameRef = useRef<number>(0);
-  // Timeout for fade-out cleanup
-  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Operation ID to handle concurrent start/stop calls
-  const operationIdRef = useRef(0);
 
   // Use refs for values accessed in animation loop to avoid stale closures
   const activeDestinationIdRef = useRef<DestinationId>(activeDestinationId);
@@ -113,7 +108,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       audioContextRef.current = ctx;
 
       const gain = ctx.createGain();
-      gain.gain.value = 0;
+      gain.gain.value = DEFAULT_GAIN;
       gainNodeRef.current = gain;
 
       const filter = ctx.createBiquadFilter();
@@ -153,14 +148,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       filter.Q.value = DEFAULT_FILTER_Q;
     }
     if (panner) panner.pan.value = 0;
-  }, []);
-
-  // Cancel any pending fade timeout
-  const cancelFadeTimeout = useCallback(() => {
-    if (fadeTimeoutRef.current) {
-      clearTimeout(fadeTimeoutRef.current);
-      fadeTimeoutRef.current = null;
-    }
   }, []);
 
   // Stop oscillator and animation loop
@@ -203,13 +190,10 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       const maxMod = 63.5;
       const modulation = lfoValue * maxMod;
 
-      const now = ctx.currentTime;
-
       switch (destId) {
         case 'volume': {
           const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-          gain.gain.cancelScheduledValues(now);
-          gain.gain.setValueAtTime(midiToGain(finalValue), now);
+          gain.gain.value = midiToGain(finalValue);
           break;
         }
         case 'filter_freq': {
@@ -233,8 +217,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           break;
         }
         default:
-          gain.gain.cancelScheduledValues(now);
-          gain.gain.setValueAtTime(DEFAULT_GAIN, now);
+          // Non-audio destination - use defaults
+          gain.gain.value = DEFAULT_GAIN;
           filter.frequency.value = DEFAULT_FILTER_FREQ;
           filter.Q.value = DEFAULT_FILTER_Q;
           panner.pan.value = 0;
@@ -248,12 +232,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [lfoOutput]);
 
   // Internal: Activate audio (start oscillator and animation)
-  const activateAudio = useCallback(async (opId: number): Promise<boolean> => {
-    // Check if this operation is still valid
-    if (opId !== operationIdRef.current) return false;
-
-    // Cancel any pending fade and stop existing oscillator
-    cancelFadeTimeout();
+  const activateAudio = useCallback(async (): Promise<boolean> => {
+    // Stop any existing oscillator first
     stopOscillator();
 
     // Build graph if needed
@@ -272,9 +252,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       if (!success) return false;
     }
 
-    // Check operation still valid after potential async work
-    if (opId !== operationIdRef.current) return false;
-
     try {
       const ctx = audioContextRef.current;
       const gain = gainNodeRef.current;
@@ -286,24 +263,16 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         await ctx.resume();
       }
 
-      // Check operation still valid after async resume
-      if (opId !== operationIdRef.current) return false;
-
-      // Create fresh oscillator (Web Audio oscillators are one-shot, can't be restarted)
+      // Create fresh oscillator (Web Audio oscillators are one-shot)
       const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.value = BASE_FREQUENCY;
       osc.connect(gain);
       oscillatorRef.current = osc;
 
-      // Cancel any scheduled gain changes from previous fade-out
-      gain.gain.cancelScheduledValues(ctx.currentTime);
-      // Start with gain at 0 for fade-in
-      gain.gain.setValueAtTime(0, ctx.currentTime);
+      // Set gain to default and start
+      gain.gain.value = DEFAULT_GAIN;
       osc.start();
-
-      // Fade in
-      gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, ctx.currentTime + FADE_DURATION);
 
       // Start animation loop
       runAnimationLoop();
@@ -314,49 +283,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       console.warn('Failed to activate audio:', error);
       return false;
     }
-  }, [buildAudioGraph, cancelFadeTimeout, stopOscillator, runAnimationLoop]);
+  }, [buildAudioGraph, stopOscillator, runAnimationLoop]);
 
-  // Internal: Deactivate audio (stop oscillator with fade-out)
-  const deactivateAudio = useCallback((opId: number) => {
-    // Check if this operation is still valid
-    if (opId !== operationIdRef.current) return;
-
+  // Internal: Deactivate audio (stop oscillator immediately)
+  const deactivateAudio = useCallback(() => {
     setIsActive(false);
+    stopOscillator();
 
-    // Stop animation loop FIRST so it doesn't interfere with fade-out
-    if (animationFrameRef.current) {
-      cancelAnimationFrame(animationFrameRef.current);
-      animationFrameRef.current = 0;
+    // Suspend context to free resources
+    if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
+      audioContextRef.current.suspend();
     }
-
-    const ctx = audioContextRef.current;
-    const gain = gainNodeRef.current;
-
-    if (!ctx || !gain) {
-      stopOscillator();
-      return;
-    }
-
-    // Fade out (now safe since animation loop is stopped)
-    gain.gain.cancelScheduledValues(ctx.currentTime);
-    gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_DURATION);
-
-    // Cancel any existing fade timeout
-    cancelFadeTimeout();
-
-    // After fade completes, clean up
-    fadeTimeoutRef.current = setTimeout(() => {
-      fadeTimeoutRef.current = null;
-      // Check operation still valid
-      if (opId !== operationIdRef.current) return;
-      stopOscillator();
-      // Suspend context to free resources
-      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
-        audioContextRef.current.suspend();
-      }
-    }, FADE_DURATION * 1000 + 10);
-  }, [cancelFadeTimeout, stopOscillator]);
+  }, [stopOscillator]);
 
   // User-facing: Start audio (sets enabled state)
   const start = useCallback(() => {
@@ -381,11 +319,9 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     const shouldBeActive = isEnabled && !isPaused && appStateRef.current === 'active';
 
     if (shouldBeActive && !isActive) {
-      const opId = ++operationIdRef.current;
-      activateAudio(opId);
+      activateAudio();
     } else if (!shouldBeActive && isActive) {
-      const opId = ++operationIdRef.current;
-      deactivateAudio(opId);
+      deactivateAudio();
     }
   }, [isEnabled, isPaused, isActive, activateAudio, deactivateAudio]);
 
@@ -411,8 +347,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         // Going to background
         wasEnabledBeforeBackgroundRef.current = isEnabled;
         if (isActive) {
-          const opId = ++operationIdRef.current;
-          deactivateAudio(opId);
+          deactivateAudio();
         }
       } else if (
         (previousState === 'inactive' || previousState === 'background') &&
@@ -420,8 +355,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       ) {
         // Coming back to foreground
         if (wasEnabledBeforeBackgroundRef.current && isEnabled && !isPaused) {
-          const opId = ++operationIdRef.current;
-          activateAudio(opId);
+          activateAudio();
         }
         wasEnabledBeforeBackgroundRef.current = false;
       }
@@ -434,9 +368,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      // Increment operation ID to invalidate any pending operations
-      operationIdRef.current++;
-      cancelFadeTimeout();
       stopOscillator();
 
       if (audioContextRef.current) {
@@ -444,7 +375,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
         audioContextRef.current = null;
       }
     };
-  }, [cancelFadeTimeout, stopOscillator]);
+  }, [stopOscillator]);
 
   const value: AudioContextValue = {
     isEnabled,
