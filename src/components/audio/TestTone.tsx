@@ -8,7 +8,7 @@ interface TestToneProps {
 }
 
 export function TestTone({ visible = true }: TestToneProps) {
-  const { isPlaying, isSupported, toggle } = useAudio();
+  const { isEnabled, isActive, isSupported, toggle } = useAudio();
 
   if (!visible || !isSupported) {
     return null;
@@ -19,13 +19,13 @@ export function TestTone({ visible = true }: TestToneProps) {
       <View style={styles.labelContainer}>
         <View style={styles.titleRow}>
           <Text style={styles.label}>Test Tone</Text>
-          {isPlaying && <View style={styles.playingIndicator} />}
+          {isActive && <View style={styles.playingIndicator} />}
         </View>
         <Text style={styles.subtitle}>Hear LFO modulation on a saw wave</Text>
         <Text style={styles.supported}>Supports: PITCH, AMP VOL, FLTF, FLTR, PAN</Text>
       </View>
       <Switch
-        value={isPlaying}
+        value={isEnabled}
         onValueChange={toggle}
         trackColor={{ false: '#3e3e3e', true: colors.accent }}
         thumbColor="#ffffff"

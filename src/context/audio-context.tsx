@@ -49,7 +49,10 @@ function midiToPitch(value: number, baseFreq: number = BASE_FREQUENCY): number {
 }
 
 interface AudioContextValue {
-  isPlaying: boolean;
+  /** Whether user has toggled audio on (persists through pauses) */
+  isEnabled: boolean;
+  /** Whether audio is actually producing sound right now */
+  isActive: boolean;
   isSupported: boolean;
   start: () => void;
   stop: () => void;
@@ -62,18 +65,17 @@ const AudioContextReact = createContext<AudioContextValue | null>(null);
 const DEFAULT_GAIN = 0.35;
 const DEFAULT_FILTER_FREQ = 4000;
 const DEFAULT_FILTER_Q = 1;
-const FADE_IN_DURATION = 0.05; // 50ms fade-in to prevent click
-const FADE_OUT_DURATION = 0.05; // 50ms fade-out to prevent click
+const FADE_DURATION = 0.05; // 50ms fade to prevent click
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
   const { lfoOutput, isPaused } = usePreset();
   const { activeDestinationId, getCenterValue } = useModulation();
 
-  const [isPlaying, setIsPlaying] = useState(false);
+  // User toggle state - persists through pauses
+  const [isEnabled, setIsEnabled] = useState(false);
+  // Whether audio is actually producing sound
+  const [isActive, setIsActive] = useState(false);
   const [isSupported, setIsSupported] = useState(true);
-
-  // Track if audio graph has been built (persistent across toggles)
-  const audioGraphReadyRef = useRef(false);
 
   // Audio node refs
   const audioContextRef = useRef<AudioContextType | null>(null);
@@ -84,26 +86,18 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
 
   // Track app state for background handling
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
-  const wasPlayingBeforeBackgroundRef = useRef(false);
+  const wasEnabledBeforeBackgroundRef = useRef(false);
   const animationFrameRef = useRef<number>(0);
-  // Track pending fade-out timeout so we can cancel it on restart
-  const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  // Track if audio was stopped due to LFO pause (not user toggle)
-  const stoppedDueToPauseRef = useRef(false);
-  // Track cleanup state to prevent operations on unmounted component (fast refresh)
-  const isCleaningUpRef = useRef(false);
+  // Timeout for fade-out cleanup
+  const fadeTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
+  // Operation ID to handle concurrent start/stop calls
+  const operationIdRef = useRef(0);
 
   // Use refs for values accessed in animation loop to avoid stale closures
-  // These are updated by effects but read by the animation loop
-  const isPlayingRef = useRef(false);
   const activeDestinationIdRef = useRef<DestinationId>(activeDestinationId);
   const getCenterValueRef = useRef(getCenterValue);
 
   // Keep refs in sync with state/props
-  useEffect(() => {
-    isPlayingRef.current = isPlaying;
-  }, [isPlaying]);
-
   useEffect(() => {
     activeDestinationIdRef.current = activeDestinationId;
   }, [activeDestinationId]);
@@ -113,7 +107,6 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   }, [getCenterValue]);
 
   // Build the audio graph synchronously
-  // This only builds the persistent nodes (gain, filter, panner) - oscillator is created on each start
   const buildAudioGraph = useCallback((): boolean => {
     try {
       const ctx = new AudioContextClass();
@@ -146,7 +139,7 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Reset all audio parameters to defaults (used when destination changes)
+  // Reset all audio parameters to defaults
   const resetAudioParams = useCallback(() => {
     const osc = oscillatorRef.current;
     const gain = gainNodeRef.current;
@@ -162,7 +155,15 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     if (panner) panner.pan.value = 0;
   }, []);
 
-  // Stop oscillator only (keeps audio graph alive for quick restart)
+  // Cancel any pending fade timeout
+  const cancelFadeTimeout = useCallback(() => {
+    if (fadeTimeoutRef.current) {
+      clearTimeout(fadeTimeoutRef.current);
+      fadeTimeoutRef.current = null;
+    }
+  }, []);
+
+  // Stop oscillator and animation loop
   const stopOscillator = useCallback(() => {
     if (animationFrameRef.current) {
       cancelAnimationFrame(animationFrameRef.current);
@@ -179,54 +180,19 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     }
   }, []);
 
-  // Fully destroy audio graph (on unmount or fast refresh)
-  const destroyAudioGraph = useCallback(async () => {
-    isCleaningUpRef.current = true;
-
-    // Cancel any pending fade-out timeout
-    if (fadeOutTimeoutRef.current) {
-      clearTimeout(fadeOutTimeoutRef.current);
-      fadeOutTimeoutRef.current = null;
-    }
-
-    stopOscillator();
-
-    gainNodeRef.current = null;
-    filterNodeRef.current = null;
-    pannerNodeRef.current = null;
-
-    if (audioContextRef.current) {
-      try {
-        // Must await close() to properly release system audio resources
-        await audioContextRef.current.close();
-      } catch (error) {
-        console.warn('Error closing AudioContext:', error);
-      }
-      audioContextRef.current = null;
-    }
-
-    audioGraphReadyRef.current = false;
-    // Note: Don't reset isCleaningUpRef here - it stays true until component remounts
-  }, [stopOscillator]);
-
-  // Animation loop function - uses refs to avoid stale closures
-  // This runs at ~60fps when audio is playing
+  // Animation loop - uses refs to avoid stale closures
   const runAnimationLoop = useCallback(() => {
     const updateAudioParams = () => {
-      // Early exit if not playing (check ref, not state)
-      if (!isPlayingRef.current) return;
-
       const ctx = audioContextRef.current;
       const osc = oscillatorRef.current;
       const gain = gainNodeRef.current;
       const filter = filterNodeRef.current;
       const panner = pannerNodeRef.current;
 
-      // Guard against missing audio nodes
+      // Guard against missing audio nodes - exits loop if any are missing
       if (!ctx || !osc || !gain || !filter || !panner) return;
 
-      // Read LFO output - this already has depth and fade applied by the engine!
-      // IMPORTANT: Do NOT apply depth or fade again here
+      // Read LFO output - already has depth and fade applied
       const lfoValue = lfoOutput.value;
 
       // Get current destination and center value from refs
@@ -234,55 +200,39 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       const centerValue = getCenterValueRef.current(destId);
 
       // The LFO output is already scaled by depth (-1 to +1 at max depth)
-      // We just need to map it to the appropriate audio parameter range
-      // maxMod is half the MIDI range (63.5) since LFO swings both directions
       const maxMod = 63.5;
-
-      // Modulation amount: LFO output (already depth-scaled) * parameter range
-      // lfoValue ranges from -1 to +1 (after depth scaling in engine)
       const modulation = lfoValue * maxMod;
 
-      // Get current time for Web Audio automation
-      // Using setValueAtTime instead of .value ensures proper interaction with
-      // scheduled automation (like fade-in/fade-out ramps)
       const now = ctx.currentTime;
 
       switch (destId) {
         case 'volume': {
-          // Volume: 0-127 MIDI range
           const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
-          // Use cancelScheduledValues + setValueAtTime for gain to override any pending automation
           gain.gain.cancelScheduledValues(now);
           gain.gain.setValueAtTime(midiToGain(finalValue), now);
           break;
         }
         case 'filter_freq': {
-          // Filter freq: 0-127 MIDI range
           const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
           filter.frequency.value = midiToFilterFreq(finalValue);
           break;
         }
         case 'filter_reso': {
-          // Filter resonance: 0-127 MIDI range
           const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
           filter.Q.value = midiToFilterQ(finalValue);
           break;
         }
         case 'pan': {
-          // Pan: -64 to +63 MIDI range (bipolar)
           const finalValue = Math.max(-64, Math.min(63, centerValue + modulation));
           panner.pan.value = midiToPan(finalValue);
           break;
         }
         case 'pitch': {
-          // Pitch: 0-127 MIDI range, 64 = no change from base frequency
           const finalValue = Math.max(0, Math.min(127, centerValue + modulation));
           osc.frequency.value = midiToPitch(finalValue);
           break;
         }
         default:
-          // For non-audio destinations, play with default params (no modulation)
-          // Cancel any scheduled gain automation first
           gain.gain.cancelScheduledValues(now);
           gain.gain.setValueAtTime(DEFAULT_GAIN, now);
           filter.frequency.value = DEFAULT_FILTER_FREQ;
@@ -290,90 +240,94 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
           panner.pan.value = 0;
       }
 
-      // Continue animation loop - always schedule next frame if playing
-      if (isPlayingRef.current) {
-        animationFrameRef.current = requestAnimationFrame(updateAudioParams);
-      }
+      // Continue animation loop
+      animationFrameRef.current = requestAnimationFrame(updateAudioParams);
     };
 
-    // Start the loop
     animationFrameRef.current = requestAnimationFrame(updateAudioParams);
   }, [lfoOutput]);
 
-  // Start audio - builds graph on first call, then reuses it
-  const start = useCallback(async () => {
-    if (isPlaying) return;
+  // Internal: Activate audio (start oscillator and animation)
+  const activateAudio = useCallback(async (opId: number): Promise<boolean> => {
+    // Check if this operation is still valid
+    if (opId !== operationIdRef.current) return false;
 
-    // Cancel any pending fade-out timeout to prevent interference
-    if (fadeOutTimeoutRef.current) {
-      clearTimeout(fadeOutTimeoutRef.current);
-      fadeOutTimeoutRef.current = null;
-    }
+    // Cancel any pending fade and stop existing oscillator
+    cancelFadeTimeout();
+    stopOscillator();
 
-    // Check if existing AudioContext is still valid (handles fast refresh)
+    // Build graph if needed
     const existingCtx = audioContextRef.current;
     const isContextValid = existingCtx && existingCtx.state !== 'closed';
 
-    // Build graph on first start, or rebuild if context became invalid (fast refresh)
-    if (!audioGraphReadyRef.current || !isContextValid || isCleaningUpRef.current) {
-      // Clean up any stale context first
-      if (existingCtx && !isContextValid) {
-        console.log('[Audio] Rebuilding audio graph after invalid context detected');
+    if (!isContextValid) {
+      if (existingCtx) {
         audioContextRef.current = null;
         gainNodeRef.current = null;
         filterNodeRef.current = null;
         pannerNodeRef.current = null;
       }
 
-      // Reset cleanup flag - we're building fresh
-      isCleaningUpRef.current = false;
-
       const success = buildAudioGraph();
-      if (!success) return;
-      audioGraphReadyRef.current = true;
+      if (!success) return false;
     }
 
+    // Check operation still valid after potential async work
+    if (opId !== operationIdRef.current) return false;
+
     try {
-      const audioCtx = audioContextRef.current;
+      const ctx = audioContextRef.current;
       const gain = gainNodeRef.current;
 
-      if (!audioCtx || !gain) return;
+      if (!ctx || !gain) return false;
 
       // Resume context if suspended
-      if (audioCtx.state === 'suspended') {
-        await audioCtx.resume();
+      if (ctx.state === 'suspended') {
+        await ctx.resume();
       }
 
-      // Create fresh oscillator (cheap operation)
-      const osc = audioCtx.createOscillator();
+      // Check operation still valid after async resume
+      if (opId !== operationIdRef.current) return false;
+
+      // Create fresh oscillator (Web Audio oscillators are one-shot, can't be restarted)
+      const osc = ctx.createOscillator();
       osc.type = 'sawtooth';
       osc.frequency.value = BASE_FREQUENCY;
       osc.connect(gain);
       oscillatorRef.current = osc;
 
+      // Cancel any scheduled gain changes from previous fade-out
+      gain.gain.cancelScheduledValues(ctx.currentTime);
       // Start with gain at 0 for fade-in
-      gain.gain.value = 0;
+      gain.gain.setValueAtTime(0, ctx.currentTime);
       osc.start();
 
-      // Fade in to prevent click
-      gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, audioCtx.currentTime + FADE_IN_DURATION);
+      // Fade in
+      gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, ctx.currentTime + FADE_DURATION);
 
-      // Update state and start animation loop
-      setIsPlaying(true);
-      isPlayingRef.current = true;
+      // Start animation loop
       runAnimationLoop();
+      setIsActive(true);
+
+      return true;
     } catch (error) {
-      console.warn('Failed to start audio:', error);
+      console.warn('Failed to activate audio:', error);
+      return false;
     }
-  }, [isPlaying, buildAudioGraph, runAnimationLoop]);
+  }, [buildAudioGraph, cancelFadeTimeout, stopOscillator, runAnimationLoop]);
 
-  // Stop audio with fade-out (keeps audio graph alive for quick restart)
-  const stop = useCallback(() => {
-    if (!isPlaying) return;
+  // Internal: Deactivate audio (stop oscillator with fade-out)
+  const deactivateAudio = useCallback((opId: number) => {
+    // Check if this operation is still valid
+    if (opId !== operationIdRef.current) return;
 
-    stoppedDueToPauseRef.current = false; // User explicitly stopped
-    setIsPlaying(false);
-    isPlayingRef.current = false;
+    setIsActive(false);
+
+    // Stop animation loop FIRST so it doesn't interfere with fade-out
+    if (animationFrameRef.current) {
+      cancelAnimationFrame(animationFrameRef.current);
+      animationFrameRef.current = 0;
+    }
 
     const ctx = audioContextRef.current;
     const gain = gainNodeRef.current;
@@ -383,177 +337,118 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       return;
     }
 
-    // Fade out to prevent click
-    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_OUT_DURATION);
+    // Fade out (now safe since animation loop is stopped)
+    gain.gain.cancelScheduledValues(ctx.currentTime);
+    gain.gain.setValueAtTime(gain.gain.value, ctx.currentTime);
+    gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_DURATION);
 
-    // Clear any pending fade-out timeout
-    if (fadeOutTimeoutRef.current) {
-      clearTimeout(fadeOutTimeoutRef.current);
-    }
+    // Cancel any existing fade timeout
+    cancelFadeTimeout();
 
-    // After fade completes, stop oscillator and suspend context
-    fadeOutTimeoutRef.current = setTimeout(() => {
-      fadeOutTimeoutRef.current = null;
-      // Guard against cleanup during fade (fast refresh)
-      if (isCleaningUpRef.current) return;
+    // After fade completes, clean up
+    fadeTimeoutRef.current = setTimeout(() => {
+      fadeTimeoutRef.current = null;
+      // Check operation still valid
+      if (opId !== operationIdRef.current) return;
       stopOscillator();
-      // Suspend context to free resources but keep graph alive
-      if (audioContextRef.current) {
+      // Suspend context to free resources
+      if (audioContextRef.current && audioContextRef.current.state !== 'closed') {
         audioContextRef.current.suspend();
       }
-    }, FADE_OUT_DURATION * 1000 + 10);
-  }, [isPlaying, stopOscillator]);
+    }, FADE_DURATION * 1000 + 10);
+  }, [cancelFadeTimeout, stopOscillator]);
 
-  // Toggle audio
+  // User-facing: Start audio (sets enabled state)
+  const start = useCallback(() => {
+    if (isEnabled) return;
+    setIsEnabled(true);
+  }, [isEnabled]);
+
+  // User-facing: Stop audio (clears enabled state)
+  const stop = useCallback(() => {
+    if (!isEnabled) return;
+    setIsEnabled(false);
+  }, [isEnabled]);
+
+  // User-facing: Toggle audio
   const toggle = useCallback(() => {
-    if (isPlaying) {
-      stop();
-    } else {
-      start();
-    }
-  }, [isPlaying, start, stop]);
+    setIsEnabled(prev => !prev);
+  }, []);
 
-  // Stop audio when LFO is paused (but keep toggle state and audio graph)
+  // Effect: Sync audio active state with enabled + paused
+  // Audio should be active when: enabled AND not paused AND not backgrounded
   useEffect(() => {
-    if (isPaused && isPlaying && oscillatorRef.current) {
-      stoppedDueToPauseRef.current = true;
-      isPlayingRef.current = false; // Stop animation loop immediately
+    const shouldBeActive = isEnabled && !isPaused && appStateRef.current === 'active';
 
-      const ctx = audioContextRef.current;
-      const gain = gainNodeRef.current;
-
-      if (ctx && gain) {
-        // Fade out then stop oscillator and suspend
-        gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_OUT_DURATION);
-
-        // Clear any pending fade-out timeout
-        if (fadeOutTimeoutRef.current) {
-          clearTimeout(fadeOutTimeoutRef.current);
-        }
-
-        fadeOutTimeoutRef.current = setTimeout(() => {
-          fadeOutTimeoutRef.current = null;
-          // Guard against cleanup during fade (fast refresh)
-          if (isCleaningUpRef.current) return;
-          stopOscillator();
-          if (audioContextRef.current) {
-            audioContextRef.current.suspend();
-          }
-        }, FADE_OUT_DURATION * 1000 + 10);
-      } else {
-        stopOscillator();
-      }
+    if (shouldBeActive && !isActive) {
+      const opId = ++operationIdRef.current;
+      activateAudio(opId);
+    } else if (!shouldBeActive && isActive) {
+      const opId = ++operationIdRef.current;
+      deactivateAudio(opId);
     }
-  }, [isPaused, isPlaying, stopOscillator]);
+  }, [isEnabled, isPaused, isActive, activateAudio, deactivateAudio]);
 
-  // Resume audio when LFO is unpaused (if toggle is still on)
-  useEffect(() => {
-    if (!isPaused && isPlaying && stoppedDueToPauseRef.current) {
-      stoppedDueToPauseRef.current = false;
-
-      // Cancel any pending fade-out timeout to prevent it from interfering with resume
-      if (fadeOutTimeoutRef.current) {
-        clearTimeout(fadeOutTimeoutRef.current);
-        fadeOutTimeoutRef.current = null;
-      }
-
-      (async () => {
-        // Guard against cleanup in progress (fast refresh)
-        if (isCleaningUpRef.current) return;
-
-        try {
-          const ctx = audioContextRef.current;
-          const gain = gainNodeRef.current;
-
-          if (!ctx || !gain) return;
-
-          // Check if context is still valid (not closed from fast refresh)
-          if (ctx.state === 'closed') {
-            console.log('[Audio] Context closed, cannot resume');
-            setIsPlaying(false);
-            isPlayingRef.current = false;
-            return;
-          }
-
-          // Resume context
-          if (ctx.state === 'suspended') {
-            await ctx.resume();
-          }
-
-          // Create fresh oscillator
-          const osc = ctx.createOscillator();
-          osc.type = 'sawtooth';
-          osc.frequency.value = BASE_FREQUENCY;
-          osc.connect(gain);
-          oscillatorRef.current = osc;
-
-          // Fade in
-          gain.gain.value = 0;
-          osc.start();
-          gain.gain.linearRampToValueAtTime(DEFAULT_GAIN, ctx.currentTime + FADE_IN_DURATION);
-
-          // Restart animation loop
-          isPlayingRef.current = true;
-          runAnimationLoop();
-        } catch (error) {
-          console.warn('Failed to restart audio:', error);
-          setIsPlaying(false);
-          isPlayingRef.current = false;
-        }
-      })();
-    }
-  }, [isPaused, isPlaying, runAnimationLoop]);
-
-  // Reset audio params when destination changes to remove modulation from previous destination
+  // Reset audio params when destination changes
   const prevDestinationRef = useRef<DestinationId>(activeDestinationId);
   useEffect(() => {
-    if (isPlaying && prevDestinationRef.current !== activeDestinationId) {
+    if (isActive && prevDestinationRef.current !== activeDestinationId) {
       resetAudioParams();
     }
     prevDestinationRef.current = activeDestinationId;
-  }, [activeDestinationId, isPlaying, resetAudioParams]);
+  }, [activeDestinationId, isActive, resetAudioParams]);
 
   // Handle app background/foreground
   useEffect(() => {
     const handleAppStateChange = (nextAppState: AppStateStatus) => {
       const previousState = appStateRef.current;
+      appStateRef.current = nextAppState;
 
       if (
         previousState === 'active' &&
         (nextAppState === 'inactive' || nextAppState === 'background')
       ) {
-        // Going to background - pause audio
-        wasPlayingBeforeBackgroundRef.current = isPlaying;
-        if (isPlaying) {
-          stop();
+        // Going to background
+        wasEnabledBeforeBackgroundRef.current = isEnabled;
+        if (isActive) {
+          const opId = ++operationIdRef.current;
+          deactivateAudio(opId);
         }
       } else if (
         (previousState === 'inactive' || previousState === 'background') &&
         nextAppState === 'active'
       ) {
-        // Coming back to foreground - resume if was playing
-        if (wasPlayingBeforeBackgroundRef.current) {
-          start();
+        // Coming back to foreground
+        if (wasEnabledBeforeBackgroundRef.current && isEnabled && !isPaused) {
+          const opId = ++operationIdRef.current;
+          activateAudio(opId);
         }
-        wasPlayingBeforeBackgroundRef.current = false;
+        wasEnabledBeforeBackgroundRef.current = false;
       }
-
-      appStateRef.current = nextAppState;
     };
 
     const subscription = AppState.addEventListener('change', handleAppStateChange);
     return () => subscription.remove();
-  }, [isPlaying, start, stop]);
+  }, [isEnabled, isActive, isPaused, activateAudio, deactivateAudio]);
 
   // Clean up on unmount
   useEffect(() => {
     return () => {
-      destroyAudioGraph();
+      // Increment operation ID to invalidate any pending operations
+      operationIdRef.current++;
+      cancelFadeTimeout();
+      stopOscillator();
+
+      if (audioContextRef.current) {
+        audioContextRef.current.close();
+        audioContextRef.current = null;
+      }
     };
-  }, [destroyAudioGraph]);
+  }, [cancelFadeTimeout, stopOscillator]);
 
   const value: AudioContextValue = {
-    isPlaying,
+    isEnabled,
+    isActive,
     isSupported,
     start,
     stop,

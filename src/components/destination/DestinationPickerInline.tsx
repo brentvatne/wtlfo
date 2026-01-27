@@ -27,7 +27,7 @@ interface DestinationPickerInlineProps {
 
 export function DestinationPickerInline({ onSelectionChange }: DestinationPickerInlineProps) {
   const { activeDestinationId, setActiveDestinationId } = useModulation();
-  const { isPlaying: isTonePlaying } = useAudio();
+  const { isEnabled: isToneEnabled } = useAudio();
 
   const handleSelect = (id: DestinationId) => {
     Haptics.selectionAsync();
@@ -49,7 +49,7 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
       accessibilityLabel="Modulation destination selector"
       accessibilityRole="radiogroup"
     >
-      {isTonePlaying && (
+      {isToneEnabled && (
         <View style={styles.hintContainer}>
           <SymbolView name="speaker.wave.2.fill" size={12} tintColor="#8888a0" />
           <Text style={styles.hintText}>can be heard with test tone</Text>
@@ -71,7 +71,7 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
               {destinations.map(dest => {
                 const isSelected = dest.id === activeDestinationId;
                 const supportsAudio = AUDIO_SUPPORTED_DESTINATIONS.has(dest.id);
-                const showAudioIcon = isTonePlaying && supportsAudio;
+                const showAudioIcon = isToneEnabled && supportsAudio;
                 return (
                   <Pressable
                     key={dest.id}
