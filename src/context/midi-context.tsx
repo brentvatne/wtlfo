@@ -104,7 +104,6 @@ export function MidiProvider({ children }: { children: ReactNode }) {
     if (!hasCheckedDevicesRef.current) {
       const timeout = setTimeout(() => {
         if (!hasCheckedDevicesRef.current) {
-          console.log('[MIDI] Initial device check timeout - marking complete');
           setInitialCheckComplete(true);
           hasCheckedDevicesRef.current = true;
         }
@@ -130,15 +129,11 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
     // Connect to Digitakt when it appears
     if (digitakt) {
-      console.log('[MIDI] Auto-connecting to:', digitakt.name);
       autoConnectingRef.current = true;
       setConnecting(true);
       connectToDevice(digitakt.name).then(success => {
         if (success) {
           setConnectedDeviceName(digitakt.name);
-          console.log('[MIDI] Auto-connect successful');
-        } else {
-          console.log('[MIDI] Auto-connect failed');
         }
         setConnecting(false);
         autoConnectingRef.current = false;
@@ -163,7 +158,6 @@ export function MidiProvider({ children }: { children: ReactNode }) {
   // Disconnect when auto-connect is disabled
   useEffect(() => {
     if (!autoConnect && connectedDeviceName !== null) {
-      console.log('[MIDI] Auto-connect disabled, disconnecting');
       disconnectDevice();
       setConnectedDeviceName(null);
     }
