@@ -217,15 +217,18 @@ export default function HomeScreen() {
   }));
 
   // Watch crossfade animation to clean up when complete
+  // finishPresetTransition is idempotent, safe to call multiple times
   useAnimatedReaction(
     () => crossfadeOpacity.value,
     (opacity) => {
       'worklet';
-      if (opacity === 0 && previousConfig !== null) {
+      // Use small threshold instead of exact 0 for floating point safety
+      if (opacity < 0.01) {
+        // Pass function directly - no closures in worklets
         scheduleOnRN(finishPresetTransition);
       }
     },
-    [previousConfig]
+    [finishPresetTransition]
   );
 
   useEffect(() => {

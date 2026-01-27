@@ -557,6 +557,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     };
   }, [currentConfig]);
 
+  // Track whether we're in a preset transition (for idempotent finish)
+  const isTransitioningRef = useRef(false);
+
   // Persist config to storage during idle time
   // Uses requestIdleCallback to avoid blocking UI during animations/interactions
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
@@ -612,10 +615,17 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
   // Change preset with Skia-native crossfade transition
   // Stores current config, immediately applies new preset, and animates opacity
+  // Always unpauses - fresh preset starts fresh
   const changePresetWithTransition = useCallback((index: number) => {
     // Store the current config for crossfade (the "old" visualization)
     setPreviousConfig({ ...currentConfig });
     setIsChangingPreset(true);
+    isTransitioningRef.current = true;
+
+    // Always unpause when switching presets - set both state and ref
+    // Ref must be set synchronously so config change effects see it immediately
+    setIsPaused(false);
+    isPausedRef.current = false;
 
     // Set opacity to 1 (showing old) then animate to 0 (showing new)
     crossfadeOpacity.value = 1;
@@ -636,7 +646,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   }, [currentConfig, crossfadeOpacity, presetSwitchDuration]);
 
   // Called when crossfade animation completes - clears the previous config
+  // Idempotent: safe to call multiple times (e.g., from worklet)
   const finishPresetTransition = useCallback(() => {
+    if (!isTransitioningRef.current) return; // Already finished
+    isTransitioningRef.current = false;
     setPreviousConfig(null);
     setIsChangingPreset(false);
   }, []);
@@ -929,11 +942,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         lfoRef.current.trigger();
         // Get the actual initial state from the new LFO
         const initialState = lfoRef.current.update(performance.now());
-        // Restart precomputed phase animation
-        const newTimingInfo = calculateTimingInfo(currentConfig, effectiveBpm);
-        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, currentConfig.mode);
         lfoOutput.value = initialState.output;
         lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
+
+        // Only restart animation if not paused
+        if (!isPausedRef.current) {
+          const newTimingInfo = calculateTimingInfo(currentConfig, effectiveBpm);
+          startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, currentConfig.mode);
+        }
       }
 
       // Mark that we've handled this config change to prevent double trigger
@@ -1020,13 +1036,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       lfoRef.current.trigger();
       // Get the actual initial state (don't assume output is 0 - it depends on waveform)
       const initialState = lfoRef.current.update(performance.now());
-      // Restart precomputed phase animation from startPhase
-      const newTimingInfo = calculateTimingInfo(debouncedConfig, effectiveBpm);
-      startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, debouncedConfig.mode);
       lfoOutput.value = initialState.output;
       lfoFadeMultiplier.value = initialState.fadeMultiplier ?? 1;
-      // Clear pause state when config changes
-      setIsPaused(false);
+
+      // Only restart animation if not paused - preserve pause state across preset changes
+      if (!isPausedRef.current) {
+        const newTimingInfo = calculateTimingInfo(debouncedConfig, effectiveBpm);
+        startPhaseAnimation(initialState.phase, newTimingInfo.cycleTimeMs, debouncedConfig.mode);
+      }
     }
   }, [debouncedConfig, effectiveBpm, lfoPhase, lfoOutput, lfoFadeMultiplier, resetLFOOnChange, startPhaseAnimation]);
 
