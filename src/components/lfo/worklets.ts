@@ -15,6 +15,28 @@ export function getRandomStepValue(step: number, seed: number = 0): number {
 }
 
 /**
+ * EXP decay: 1 → 0, concave (fast drop, slow approach to 0)
+ */
+export function sampleExpDecay(phase: number): number {
+  'worklet';
+  const k = 3;
+  const decay = Math.exp(-phase * k);
+  const endValue = Math.exp(-k);
+  return (decay - endValue) / (1 - endValue);
+}
+
+/**
+ * EXP rise: 0 → 1, concave (slow rise, fast acceleration to 1)
+ * Used when speed is negative
+ */
+export function sampleExpRise(phase: number): number {
+  'worklet';
+  const k = 3;
+  // Concave rise: slow start, accelerates toward end
+  return (Math.exp(phase * k) - 1) / (Math.exp(k) - 1);
+}
+
+/**
  * Worklet-compatible waveform sampling function
  * Can be called from within Reanimated worklets (useDerivedValue, useAnimatedStyle, etc.)
  * @param waveform - Waveform type
@@ -39,11 +61,11 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number, ran
     case 'SAW': // Sawtooth - Bipolar (falling)
       return 1 - phase * 2;
 
-    case 'EXP': {
-      // Exponential - Unipolar (0 to 1)
-      const k = 4;
-      return (Math.exp(phase * k) - 1) / (Math.exp(k) - 1);
-    }
+    case 'EXP':
+      // Exponential - Unipolar (1 to 0)
+      // Concave decay: fast initial drop, slow approach to 0
+      // Note: For negative speed, WaveformDisplay uses sampleExpRise instead
+      return sampleExpDecay(phase);
 
     case 'RMP': // Ramp - Unipolar (0 to 1, rising)
       return phase;

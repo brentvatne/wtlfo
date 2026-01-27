@@ -3,7 +3,7 @@ import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
-import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
+import { sampleWaveformWorklet, sampleWaveformWithSlew, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
 
 export function PhaseIndicator({
   phase,
@@ -37,8 +37,9 @@ export function PhaseIndicator({
   const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
-  // Negative speed inverts the output (separate from depth inversion)
-  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
+  const hasNegativeSpeed = speed !== undefined && speed < 0;
+  const isUnipolar = waveform ? isUnipolarWorklet(waveform) : false;
+  const isExp = waveform === 'EXP';
   // Check if fade applies (only when fade is set and mode is not FRE)
   const fadeApplies = fade !== undefined && fade !== 0 && mode !== 'FRE';
   const fadeValue = fade ?? 0;
@@ -73,12 +74,26 @@ export function PhaseIndicator({
       // Sample the waveform at the actual phase position
       // Use slew for RND waveform to match visualization
       const waveformPhase = phaseVal;
-      let value = isRandom
-        ? sampleWaveformWithSlew(waveform, waveformPhase, slewValue, seedValue)
-        : sampleWaveformWorklet(waveform, waveformPhase, seedValue);
+      let value: number;
+      if (isExp) {
+        // EXP needs different formulas to maintain concave shape in both directions
+        value = hasNegativeSpeed ? sampleExpRise(waveformPhase) : sampleExpDecay(waveformPhase);
+      } else if (isRandom) {
+        value = sampleWaveformWithSlew(waveform, waveformPhase, slewValue, seedValue);
+      } else {
+        value = sampleWaveformWorklet(waveform, waveformPhase, seedValue);
+      }
 
-      // Apply speed inversion (negative speed inverts raw output)
-      value = value * speedInvert;
+      // Apply speed transformation (except EXP which already handled it)
+      if (hasNegativeSpeed && !isExp) {
+        if (isUnipolar) {
+          // RMP: flip values (1-x works for linear)
+          value = 1 - value;
+        } else {
+          // Bipolar: invert polarity
+          value = -value;
+        }
+      }
 
       // Apply depth scaling
       value = value * depthScale;
@@ -111,7 +126,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, speedInvert, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, hasNegativeSpeed, isUnipolar, isExp, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {

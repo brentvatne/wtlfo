@@ -3,7 +3,7 @@ import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { WaveformDisplayProps } from './types';
-import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
+import { sampleWaveformWorklet, sampleWaveformWithSlew, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
 import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN } from '@/src/context/preset-context';
 
 const BASE_FILL_OPACITY = 0.2;
@@ -30,6 +30,9 @@ export function WaveformDisplay({
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: WaveformDisplayExtendedProps) {
   const padding = 8;
+  // Account for stroke extending beyond path centerline
+  const strokePadding = strokeWidth / 2;
+  const effectivePadding = padding + strokePadding;
 
   // Animated depth scale (-1 to 1, where depth/63 gives the scale factor)
   const depthScale = useSharedValue(depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1);
@@ -49,11 +52,14 @@ export function WaveformDisplay({
 
   // Pre-compute static values
   const drawWidth = width - padding * 2;
-  const drawHeight = height - padding * 2;
+  // Use effective padding (includes stroke width) for vertical bounds
+  const drawHeight = height - effectivePadding * 2;
   const centerY = height / 2;
   const scaleY = -drawHeight / 2;
-  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
+  const hasNegativeSpeed = speed !== undefined && speed < 0;
+  const isUnipolar = isUnipolarWorklet(waveform);
   const isRandom = waveform === 'RND';
+  const isExp = waveform === 'EXP';
   const slewValue = isRandom ? (startPhase || 0) : 0;
   const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 128;
 
@@ -70,11 +76,29 @@ export function WaveformDisplay({
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
       const phase = (xNormalized + startPhaseNormalized) % 1;
-      let value = isRandom
-        ? sampleWaveformWithSlew(waveform, phase, slewValue, seedValue)
-        : sampleWaveformWorklet(waveform, phase, seedValue);
 
-      value = value * speedInvert * currentDepthScale;
+      let value: number;
+      if (isExp) {
+        // EXP needs different formulas to maintain concave shape in both directions
+        value = hasNegativeSpeed ? sampleExpRise(phase) : sampleExpDecay(phase);
+      } else if (isRandom) {
+        value = sampleWaveformWithSlew(waveform, phase, slewValue, seedValue);
+      } else {
+        value = sampleWaveformWorklet(waveform, phase, seedValue);
+      }
+
+      // Apply speed transformation (except EXP which already handled it)
+      if (hasNegativeSpeed && !isExp) {
+        if (isUnipolar) {
+          // RMP: flip values (1-x works for linear)
+          value = 1 - value;
+        } else {
+          // Bipolar: invert polarity
+          value = -value;
+        }
+      }
+
+      value = value * currentDepthScale;
 
       const x = padding + xNormalized * drawWidth;
       const y = centerY + value * scaleY;
@@ -96,7 +120,7 @@ export function WaveformDisplay({
     }
 
     return path;
-  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
+  }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Generate fill path on UI thread with animated depth
   const fillPath = useDerivedValue(() => {
@@ -113,11 +137,29 @@ export function WaveformDisplay({
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
       const phase = (xNormalized + startPhaseNormalized) % 1;
-      let value = isRandom
-        ? sampleWaveformWithSlew(waveform, phase, slewValue, seedValue)
-        : sampleWaveformWorklet(waveform, phase, seedValue);
 
-      value = value * speedInvert * currentDepthScale;
+      let value: number;
+      if (isExp) {
+        // EXP needs different formulas to maintain concave shape in both directions
+        value = hasNegativeSpeed ? sampleExpRise(phase) : sampleExpDecay(phase);
+      } else if (isRandom) {
+        value = sampleWaveformWithSlew(waveform, phase, slewValue, seedValue);
+      } else {
+        value = sampleWaveformWorklet(waveform, phase, seedValue);
+      }
+
+      // Apply speed transformation (except EXP which already handled it)
+      if (hasNegativeSpeed && !isExp) {
+        if (isUnipolar) {
+          // RMP: flip values (1-x works for linear)
+          value = 1 - value;
+        } else {
+          // Bipolar: invert polarity
+          value = -value;
+        }
+      }
+
+      value = value * currentDepthScale;
 
       const x = padding + xNormalized * drawWidth;
       const y = centerY + value * scaleY;
@@ -144,7 +186,7 @@ export function WaveformDisplay({
     path.close();
 
     return path;
-  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
+  }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);

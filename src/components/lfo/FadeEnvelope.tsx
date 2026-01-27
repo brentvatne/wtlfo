@@ -1,7 +1,7 @@
 import React, { useMemo } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
 import type { WaveformType } from './types';
-import { sampleWaveformWorklet } from './worklets';
+import { sampleWaveformWorklet, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
 
 interface FadeEnvelopeProps {
   waveform: WaveformType;
@@ -41,17 +41,22 @@ export function FadeEnvelope({
   opacity = 1,
 }: FadeEnvelopeProps) {
   const padding = 8;
+  // Account for stroke extending beyond path centerline
+  const strokePadding = strokeWidth / 2;
+  const effectivePadding = padding + strokePadding;
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
-  // Negative speed inverts the output (separate from depth inversion)
-  const speedInvert = speed !== undefined && speed < 0 ? -1 : 1;
+  const hasNegativeSpeed = speed !== undefined && speed < 0;
+  const isUnipolar = isUnipolarWorklet(waveform);
+  const isExp = waveform === 'EXP';
   const startPhaseNormalized = (startPhase || 0) / 128;
 
   // Create the path for the trajectory with fade applied
   const path = useMemo(() => {
     const p = Skia.Path.Make();
     const drawWidth = width - padding * 2;
-    const drawHeight = height - padding * 2;
+    // Use effective padding for vertical bounds to prevent clipping
+    const drawHeight = height - effectivePadding * 2;
     const centerY = height / 2;
     const scaleY = -drawHeight / 2;
 
@@ -59,10 +64,25 @@ export function FadeEnvelope({
       const xNormalized = i / resolution;
       // Shift phase for waveform sampling (same as WaveformDisplay)
       const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
-      let value = sampleWaveformWorklet(waveform, waveformPhase);
 
-      // Apply speed inversion (negative speed inverts raw output)
-      value = value * speedInvert;
+      let value: number;
+      if (isExp) {
+        // EXP needs different formulas to maintain concave shape in both directions
+        value = hasNegativeSpeed ? sampleExpRise(waveformPhase) : sampleExpDecay(waveformPhase);
+      } else {
+        value = sampleWaveformWorklet(waveform, waveformPhase);
+      }
+
+      // Apply speed transformation (except EXP which already handled it)
+      if (hasNegativeSpeed && !isExp) {
+        if (isUnipolar) {
+          // RMP: flip values (1-x works for linear)
+          value = 1 - value;
+        } else {
+          // Bipolar: invert polarity
+          value = -value;
+        }
+      }
 
       // Apply depth scaling
       value = value * depthScale;
@@ -102,7 +122,7 @@ export function FadeEnvelope({
     }
 
     return p;
-  }, [waveform, width, height, resolution, depthScale, speedInvert, fade, startPhaseNormalized]);
+  }, [waveform, width, height, resolution, depthScale, hasNegativeSpeed, isUnipolar, isExp, fade, startPhaseNormalized, effectivePadding]);
 
   return (
     <Path
