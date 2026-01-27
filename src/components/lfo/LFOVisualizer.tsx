@@ -46,6 +46,7 @@ export function LFOVisualizer({
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   fadeMultiplier,
   randomSamples,
+  randomSeed,
   showFadeEnvelope = true,
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
 }: LFOVisualizerProps) {
@@ -182,6 +183,7 @@ export function LFOVisualizer({
               depth={depth}
               speed={speed}
               startPhase={startPhase}
+              randomSeed={randomSeed}
               isEditing={shouldHideFill}
               editFadeInDuration={editFadeInDuration}
               depthAnimationDuration={depthAnimationDuration}
@@ -238,6 +240,7 @@ export function LFOVisualizer({
               fade={fade}
               mode={mode}
               fadeMultiplier={fadeMultiplier}
+              randomSeed={randomSeed}
             />
           )}
         </Group>

@@ -104,6 +104,9 @@ export interface LFOVisualizerProps {
   /** Random sample history for RND waveform visualization */
   randomSamples?: Array<{ phase: number; value: number }>;
 
+  /** Seed for RND waveform - changes each cycle to produce different patterns */
+  randomSeed?: number | SharedValue<number>;
+
   /** Whether to show the fade envelope curves (default true) */
   showFadeEnvelope?: boolean;
 
@@ -180,6 +183,8 @@ export interface PhaseIndicatorProps {
   mode?: TriggerMode;
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state - when provided, used instead of local calculation */
   fadeMultiplier?: number;
+  /** Random seed for RND waveform to ensure dot position matches waveform visualization */
+  randomSeed?: number | SharedValue<number>;
 }
 
 /**

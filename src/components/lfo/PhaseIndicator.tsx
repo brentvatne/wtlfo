@@ -1,6 +1,7 @@
 import React from 'react';
 import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 
@@ -20,6 +21,7 @@ export function PhaseIndicator({
   fade,
   mode,
   fadeMultiplier,
+  randomSeed,
 }: PhaseIndicatorProps) {
   // Default opacity to 1 if not provided
   const defaultOpacity = useSharedValue(1);
@@ -60,6 +62,8 @@ export function PhaseIndicator({
   const yPosition = useDerivedValue(() => {
     'worklet';
     const phaseVal = typeof phase === 'number' ? phase : phase.value;
+    // Read randomSeed - handle both number and SharedValue
+    const seedValue = randomSeed === undefined ? 0 : (typeof randomSeed === 'number' ? randomSeed : (randomSeed as SharedValue<number>).value);
 
     // If we have waveform info, calculate position to match visualization
     if (waveform) {
@@ -70,8 +74,8 @@ export function PhaseIndicator({
       // Use slew for RND waveform to match visualization
       const waveformPhase = phaseVal;
       let value = isRandom
-        ? sampleWaveformWithSlew(waveform, waveformPhase, slewValue)
-        : sampleWaveformWorklet(waveform, waveformPhase);
+        ? sampleWaveformWithSlew(waveform, waveformPhase, slewValue, seedValue)
+        : sampleWaveformWorklet(waveform, waveformPhase, seedValue);
 
       // Apply speed inversion (negative speed inverts raw output)
       value = value * speedInvert;
@@ -107,7 +111,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, speedInvert, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, speedInvert, fadeApplies, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {

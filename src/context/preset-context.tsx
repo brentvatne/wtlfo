@@ -360,6 +360,7 @@ interface PresetContextValue {
   lfoPhase: SharedValue<number>;
   lfoOutput: SharedValue<number>;
   lfoFadeMultiplier: SharedValue<number>;
+  lfoCycleCount: SharedValue<number>;
   lfoRef: React.MutableRefObject<LFO | null>;
   timingInfo: TimingInfo;
 
@@ -487,6 +488,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const lfoPhase = useSharedValue(INITIAL_START_PHASE);
   const lfoOutput = useSharedValue(0);
   const lfoFadeMultiplier = useSharedValue(1);
+  const lfoCycleCount = useSharedValue(0);
 
   // Phase animation state for precomputed UI-thread animation
   // These SharedValues control the phase animation without JS thread involvement
@@ -868,6 +870,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Normal looping: wrap phase at 1
     const newPhase = (phaseStartValue.value + phaseProgress) % 1;
+
+    // Update cycle count - phaseProgress is cumulative, so floor gives completed cycles
+    lfoCycleCount.value = Math.floor(phaseProgress);
+
     lfoPhase.value = newPhase;
   }, true); // true = autostart
 
@@ -1179,6 +1185,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     lfoPhase,
     lfoOutput,
     lfoFadeMultiplier,
+    lfoCycleCount,
     lfoRef,
     timingInfo,
     // LFO control

@@ -1,11 +1,17 @@
 import React, { useEffect } from 'react';
 import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import type { WaveformDisplayProps } from './types';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from './worklets';
 import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN } from '@/src/context/preset-context';
 
 const BASE_FILL_OPACITY = 0.2;
+
+interface WaveformDisplayExtendedProps extends WaveformDisplayProps {
+  /** Seed for RND waveform - can be a number or SharedValue for reactive updates */
+  randomSeed?: number | SharedValue<number>;
+}
 
 export function WaveformDisplay({
   waveform,
@@ -18,10 +24,11 @@ export function WaveformDisplay({
   depth,
   speed,
   startPhase,
+  randomSeed = 0,
   isEditing = false,
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
-}: WaveformDisplayProps) {
+}: WaveformDisplayExtendedProps) {
   const padding = 8;
 
   // Animated depth scale (-1 to 1, where depth/63 gives the scale factor)
@@ -55,6 +62,8 @@ export function WaveformDisplay({
     'worklet';
     const path = Skia.Path.Make();
     const currentDepthScale = depthScale.value;
+    // Read randomSeed - handle both number and SharedValue
+    const seedValue = typeof randomSeed === 'number' ? randomSeed : randomSeed.value;
 
     let prevValue: number | null = null;
 
@@ -62,8 +71,8 @@ export function WaveformDisplay({
       const xNormalized = i / resolution;
       const phase = (xNormalized + startPhaseNormalized) % 1;
       let value = isRandom
-        ? sampleWaveformWithSlew(waveform, phase, slewValue)
-        : sampleWaveformWorklet(waveform, phase);
+        ? sampleWaveformWithSlew(waveform, phase, slewValue, seedValue)
+        : sampleWaveformWorklet(waveform, phase, seedValue);
 
       value = value * speedInvert * currentDepthScale;
 
@@ -87,13 +96,15 @@ export function WaveformDisplay({
     }
 
     return path;
-  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, padding, drawWidth, centerY, scaleY]);
+  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Generate fill path on UI thread with animated depth
   const fillPath = useDerivedValue(() => {
     'worklet';
     const path = Skia.Path.Make();
     const currentDepthScale = depthScale.value;
+    // Read randomSeed - handle both number and SharedValue
+    const seedValue = typeof randomSeed === 'number' ? randomSeed : randomSeed.value;
     const startX = padding;
     const endX = padding + drawWidth;
 
@@ -103,8 +114,8 @@ export function WaveformDisplay({
       const xNormalized = i / resolution;
       const phase = (xNormalized + startPhaseNormalized) % 1;
       let value = isRandom
-        ? sampleWaveformWithSlew(waveform, phase, slewValue)
-        : sampleWaveformWorklet(waveform, phase);
+        ? sampleWaveformWithSlew(waveform, phase, slewValue, seedValue)
+        : sampleWaveformWorklet(waveform, phase, seedValue);
 
       value = value * speedInvert * currentDepthScale;
 
@@ -133,7 +144,7 @@ export function WaveformDisplay({
     path.close();
 
     return path;
-  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, padding, drawWidth, centerY, scaleY]);
+  }, [depthScale, waveform, resolution, speedInvert, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);

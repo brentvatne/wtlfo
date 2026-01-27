@@ -1,21 +1,27 @@
 import type { WaveformType } from './types';
 
 /**
- * Get the raw random S&H value for a given step (deterministic)
- * Used for both instant S&H and as the target for slew smoothing
+ * Get the raw random S&H value for a given step
+ * Uses a seed to generate different patterns each cycle
+ * @param step - Step number (0-15)
+ * @param seed - Seed value that changes each cycle (default 0 for backwards compatibility)
  */
-export function getRandomStepValue(step: number): number {
+export function getRandomStepValue(step: number, seed: number = 0): number {
   'worklet';
-  // Deterministic "random" with seed that gives good positive/negative distribution
-  // Seed 78.233 gives 8 positive, 8 negative values across 16 steps
-  return Math.sin(step * 78.233 + 0.5) * 0.9;
+  // Combine step and seed to get varying patterns each cycle
+  // The magic numbers produce a good distribution of positive/negative values
+  const combinedSeed = step * 78.233 + seed * 17.31 + 0.5;
+  return Math.sin(combinedSeed) * 0.9;
 }
 
 /**
  * Worklet-compatible waveform sampling function
  * Can be called from within Reanimated worklets (useDerivedValue, useAnimatedStyle, etc.)
+ * @param waveform - Waveform type
+ * @param phase - Current phase (0-1)
+ * @param randomSeed - Seed for RND waveform (changes each cycle)
  */
-export function sampleWaveformWorklet(waveform: WaveformType, phase: number): number {
+export function sampleWaveformWorklet(waveform: WaveformType, phase: number, randomSeed: number = 0): number {
   'worklet';
 
   switch (waveform) {
@@ -43,11 +49,12 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number): nu
       return phase;
 
     case 'RND': {
-      // Random - show as sample-and-hold pattern for static display
+      // Random - show as sample-and-hold pattern
       // Uses 16 steps per cycle to match the actual LFO engine
+      // randomSeed changes each cycle to produce different patterns
       const steps = 16;
       const step = Math.floor(phase * steps);
-      return getRandomStepValue(step);
+      return getRandomStepValue(step, randomSeed);
     }
 
     default:
@@ -60,18 +67,19 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number): nu
  *
  * @param phase - Current phase (0-1)
  * @param slew - Slew amount (0-127). 0 = no smoothing, 127 = max smoothing
+ * @param randomSeed - Seed for random values (changes each cycle)
  * @returns Smoothed random value
  */
-export function sampleRandomWithSlew(phase: number, slew: number): number {
+export function sampleRandomWithSlew(phase: number, slew: number, randomSeed: number = 0): number {
   'worklet';
   const steps = 16;
   const currentStep = Math.floor(phase * steps);
   const stepPhase = (phase * steps) % 1; // Phase within current step (0-1)
 
   // Get current and previous step values
-  const currentValue = getRandomStepValue(currentStep);
+  const currentValue = getRandomStepValue(currentStep, randomSeed);
   const prevStep = (currentStep - 1 + steps) % steps;
-  const prevValue = getRandomStepValue(prevStep);
+  const prevValue = getRandomStepValue(prevStep, randomSeed);
 
   // No slew = instant transition (classic S&H)
   if (slew === 0) {
@@ -105,15 +113,20 @@ export function isUnipolarWorklet(waveform: WaveformType): boolean {
 /**
  * Sample waveform with optional slew for RND
  * This is the main entry point that handles slew when applicable
+ * @param waveform - Waveform type
+ * @param phase - Current phase (0-1)
+ * @param slew - Slew amount for RND (0-127)
+ * @param randomSeed - Seed for RND waveform (changes each cycle)
  */
 export function sampleWaveformWithSlew(
   waveform: WaveformType,
   phase: number,
-  slew: number = 0
+  slew: number = 0,
+  randomSeed: number = 0
 ): number {
   'worklet';
   if (waveform === 'RND' && slew > 0) {
-    return sampleRandomWithSlew(phase, slew);
+    return sampleRandomWithSlew(phase, slew, randomSeed);
   }
-  return sampleWaveformWorklet(waveform, phase);
+  return sampleWaveformWorklet(waveform, phase, randomSeed);
 }

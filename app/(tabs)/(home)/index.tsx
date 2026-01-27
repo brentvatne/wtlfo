@@ -52,6 +52,7 @@ export default function HomeScreen() {
     depthAnimationDuration,
     lfoPhase,
     lfoOutput,
+    lfoCycleCount,
     timingInfo,
     triggerLFO,
     startLFO,
@@ -535,6 +536,7 @@ export default function HomeScreen() {
                       showFadeEnvelope={showFadeEnvelope}
                       depthAnimationDuration={depthAnimationDuration}
                       showPhaseIndicator={!isBackgrounded}
+                      randomSeed={lfoCycleCount}
                     />
 
                     {/* Previous (old) visualization - rendered during crossfade, fades out */}
@@ -569,6 +571,7 @@ export default function HomeScreen() {
                           showFadeEnvelope={showFadeEnvelope}
                           depthAnimationDuration={0}
                           showPhaseIndicator={false}
+                          randomSeed={lfoCycleCount}
                         />
                       </Animated.View>
                     )}
