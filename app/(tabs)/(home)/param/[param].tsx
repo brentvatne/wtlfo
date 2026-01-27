@@ -65,7 +65,7 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
     title: 'Speed',
     description: 'Controls how fast the LFO cycles. Combined with Multiplier, this determines the cycle rate.',
     details: [
-      'Range: -64 to +63',
+      'Range: -64.00 to +63.99',
       'Negative values run the waveform backward',
       'Product of |SPD| × MULT = cycles per bar',
     ],
@@ -95,10 +95,10 @@ const PARAM_INFO: Record<ParamKey, ParamInfo> = {
     title: 'Depth',
     description: 'Controls the intensity and polarity of the modulation.',
     details: [
-      'Range: -64 to +63',
+      'Range: -128 to +127.98',
       '0 = no modulation output',
       'Negative values invert the waveform',
-      '+63 = full positive modulation',
+      '+127.98 = full positive modulation',
     ],
   },
   fade: {
@@ -282,24 +282,27 @@ export default function EditParamScreen() {
           <ParameterSlider
             label=""
             min={-64}
-            max={63}
+            max={63.99}
+            step={0.01}
             value={currentConfig.speed}
-            onChange={(value) => updateParameter('speed', Math.round(value))}
-            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            onChange={(value) => updateParameter('speed', value)}
+            formatValue={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
             onSlidingStart={handleSlidingStart}
             onSlidingEnd={handleSlidingEnd}
           />
         );
 
       case 'depth':
+        // Display range: -128.00 to +127.98 (internal range: -64 to +63.99)
         return (
           <ParameterSlider
             label=""
-            min={-64}
-            max={63}
-            value={currentConfig.depth}
-            onChange={(value) => updateParameter('depth', Math.round(value))}
-            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            min={-128}
+            max={127.98}
+            step={0.02}
+            value={currentConfig.depth * 2}
+            onChange={(value) => updateParameter('depth', value / 2)}
+            formatValue={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
             onSlidingStart={handleSlidingStart}
             onSlidingEnd={handleSlidingEnd}
           />

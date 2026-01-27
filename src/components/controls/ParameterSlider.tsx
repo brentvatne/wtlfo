@@ -23,11 +23,26 @@ export function ParameterSlider({
   max,
   value,
   onChange,
-  formatValue = (v) => String(Math.round(v)),
+  formatValue,
   step = 1,
   onSlidingStart,
   onSlidingEnd,
 }: ParameterSliderProps) {
+  // Round value to step precision (e.g., step=0.1 rounds to 1 decimal place)
+  const roundToStep = (v: number): number => {
+    const decimals = step < 1 ? Math.ceil(-Math.log10(step)) : 0;
+    const factor = Math.pow(10, decimals);
+    return Math.round(v * factor) / factor;
+  };
+
+  // Default format shows decimals based on step
+  const defaultFormat = (v: number): string => {
+    if (step >= 1) return String(Math.round(v));
+    const decimals = Math.ceil(-Math.log10(step));
+    return v.toFixed(decimals);
+  };
+  const format = formatValue ?? defaultFormat;
+
   // Remap to positive range to work around @react-native-community/slider
   // not respecting initial value prop on iOS for negative values.
   // Supposedly fixed in https://github.com/callstack/react-native-slider/pull/483 but still occurs.
@@ -42,6 +57,8 @@ export function ParameterSlider({
   // Local state for smooth visual updates during dragging (in actual value space)
   const [localValue, setLocalValue] = useState(value);
   const lastCommittedValue = useRef(value);
+  const pendingValue = useRef<number | null>(null);
+  const rafId = useRef<number | null>(null);
 
   // Sync local value when prop changes externally
   React.useEffect(() => {
@@ -51,39 +68,66 @@ export function ParameterSlider({
     }
   }, [value]);
 
-  // Handle slider changes - update local state immediately for smooth visuals
+  // Cleanup RAF on unmount
+  React.useEffect(() => {
+    return () => {
+      if (rafId.current !== null) {
+        cancelAnimationFrame(rafId.current);
+      }
+    };
+  }, []);
+
+  // Handle slider changes - throttle onChange to once per frame for performance
   const handleValueChange = useCallback((sliderValue: number) => {
     const actualValue = fromSliderValue(sliderValue);
     setLocalValue(actualValue);
-    const rounded = Math.round(actualValue);
-    // Only call onChange if the rounded value changed
+    const rounded = roundToStep(actualValue);
+
+    // Only schedule update if value changed
     if (rounded !== lastCommittedValue.current) {
-      lastCommittedValue.current = rounded;
-      onChange(rounded);
+      pendingValue.current = rounded;
+
+      // Throttle to one update per frame
+      if (rafId.current === null) {
+        rafId.current = requestAnimationFrame(() => {
+          rafId.current = null;
+          if (pendingValue.current !== null && pendingValue.current !== lastCommittedValue.current) {
+            lastCommittedValue.current = pendingValue.current;
+            onChange(pendingValue.current);
+          }
+        });
+      }
     }
-  }, [onChange, fromSliderValue]);
+  }, [onChange, fromSliderValue, roundToStep]);
 
   // Called when user starts dragging
   const handleSlidingStart = useCallback(() => {
     onSlidingStart?.();
   }, [onSlidingStart]);
 
-  // Commit final value when sliding completes (in case it wasn't sent yet)
+  // Commit final value when sliding completes (flush any pending RAF)
   const handleSlidingComplete = useCallback((sliderValue: number) => {
+    // Cancel any pending RAF
+    if (rafId.current !== null) {
+      cancelAnimationFrame(rafId.current);
+      rafId.current = null;
+    }
+
     const actualValue = fromSliderValue(sliderValue);
-    const rounded = Math.round(actualValue);
+    const rounded = roundToStep(actualValue);
     if (rounded !== lastCommittedValue.current) {
       lastCommittedValue.current = rounded;
       onChange(rounded);
     }
+    pendingValue.current = null;
     onSlidingEnd?.();
-  }, [onChange, onSlidingEnd, fromSliderValue]);
+  }, [onChange, onSlidingEnd, fromSliderValue, roundToStep]);
 
   return (
     <View style={styles.container}>
       <View style={styles.header}>
         <Text style={styles.label}>{label}</Text>
-        <Text style={styles.value}>{formatValue(localValue)}</Text>
+        <Text style={styles.value}>{format(localValue)}</Text>
       </View>
       <Slider
         style={styles.slider}

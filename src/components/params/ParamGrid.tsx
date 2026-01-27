@@ -20,11 +20,23 @@ function formatValue(key: ParamKey, value: number | string, useFixedBPM?: boolea
     case 'waveform':
     case 'mode':
       return String(value);
-    case 'speed':
-    case 'depth':
-    case 'fade':
+    case 'speed': {
+      // Decimal parameter - always show 2 decimal places
       const numVal = Number(value);
+      const formatted = numVal.toFixed(2);
+      return numVal >= 0 ? `+${formatted}` : formatted;
+    }
+    case 'depth': {
+      // Decimal parameter - display range is 2x internal range (-128 to +128)
+      const numVal = Number(value) * 2;
+      const formatted = numVal.toFixed(2);
+      return numVal >= 0 ? `+${formatted}` : formatted;
+    }
+    case 'fade': {
+      // Integer parameter
+      const numVal = Math.round(Number(value));
       return numVal >= 0 ? `+${numVal}` : String(numVal);
+    }
     case 'multiplier':
       const mult = Number(value);
       const base = mult >= 1024 ? `${mult / 1024}k` : String(mult);

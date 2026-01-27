@@ -59,8 +59,8 @@ export default function DestinationScreen() {
   // Clamp to max 1 to handle asymmetric range (-64 to +63)
   const depthScale = Math.min(1, Math.abs(currentConfig.depth / 63));
   const swing = maxModulation * depthScale;
-  const minValue = Math.max(destMin, Math.round(centerValue - swing));
-  const maxValue = Math.min(destMax, Math.round(centerValue + swing));
+  const minValue = Math.max(destMin, centerValue - swing);
+  const maxValue = Math.min(destMax, centerValue + swing);
 
   // React to LFO output changes and compute the actual value
   // Note: lfoOutput is already depth-scaled by the elektron-lfo engine
@@ -69,9 +69,10 @@ export default function DestinationScreen() {
     () => lfoOutput.value,
     (output) => {
       const modulation = output * maxModulation;
+      // Round to 2 decimal places for display
       const newValue = Math.round(
-        Math.max(destMin, Math.min(destMax, centerValue + modulation))
-      );
+        Math.max(destMin, Math.min(destMax, centerValue + modulation)) * 100
+      ) / 100;
       scheduleOnRN(setComputedValue, newValue);
     },
     [centerValue, maxModulation, destMin, destMax]
@@ -126,15 +127,15 @@ export default function DestinationScreen() {
       <View style={styles.valuesRow}>
         <View style={styles.valueBox}>
           <Text style={styles.valueLabel}>CENTER</Text>
-          <Text style={styles.valueNumber}>{Math.round(centerValue)}</Text>
+          <Text style={styles.valueNumber}>{centerValue.toFixed(2)}</Text>
         </View>
         <View style={[styles.valueBox, styles.valueBoxHighlight]}>
           <Text style={styles.valueLabel}>VALUE</Text>
-          <Text style={styles.valueNumberLive}>{computedValue}</Text>
+          <Text style={styles.valueNumberLive}>{computedValue.toFixed(2)}</Text>
         </View>
         <View style={styles.valueBox}>
           <Text style={styles.valueLabel}>RANGE</Text>
-          <Text style={styles.valueNumber}>{minValue} — {maxValue}</Text>
+          <Text style={styles.valueNumber}>{minValue.toFixed(2)} — {maxValue.toFixed(2)}</Text>
         </View>
       </View>
 
@@ -160,8 +161,8 @@ export default function DestinationScreen() {
             : ' This parameter ranges from minimum to maximum.'}
         </Text>
         <Text style={styles.infoText}>
-          With depth at {currentConfig.depth >= 0 ? '+' : ''}{currentConfig.depth},
-          the value will swing between {minValue} and {maxValue}.
+          With depth at {currentConfig.depth >= 0 ? '+' : ''}{(currentConfig.depth * 2).toFixed(2)},
+          the value will swing between {minValue.toFixed(2)} and {maxValue.toFixed(2)}.
         </Text>
       </View>
     </ScrollView>

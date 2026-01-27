@@ -266,9 +266,10 @@ export default function SettingsScreen() {
               label="BPM"
               min={30}
               max={300}
+              step={0.01}
               value={bpm}
               onChange={setBPM}
-              formatValue={(v) => String(Math.round(v))}
+              formatValue={(v) => v.toFixed(2)}
             />
             <View style={styles.segmentedControl}>
               {COMMON_BPMS.map((tempo) => {

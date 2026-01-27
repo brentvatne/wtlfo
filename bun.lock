@@ -11,7 +11,7 @@
         "@react-navigation/native": "^7.1.8",
         "@sentry/react-native": "^7.10.0",
         "@shopify/react-native-skia": "2.4.14",
-        "elektron-lfo": "1.0.13",
+        "elektron-lfo": "1.0.16",
         "expo": "~55.0.0-preview.6",
         "expo-application": "~55.0.2",
         "expo-build-properties": "~55.0.3",
@@ -935,7 +935,7 @@
 
     "electron-to-chromium": ["electron-to-chromium@1.5.277", "", {}, "sha512-wKXFZw4erWmmOz5N/grBoJ2XrNJGDFMu2+W5ACHza5rHtvsqrK4gb6rnLC7XxKB9WlJ+RmyQatuEXmtm86xbnw=="],
 
-    "elektron-lfo": ["elektron-lfo@1.0.13", "", { "bin": { "elektron-lfo": "src/cli/index.ts" } }, "sha512-pLbjZT5PwEfCh6J3XCYdsPXJ6V31/gXxmj89sXqH+a/tJNmtTbscbJKNNOxQuyahjDAfW6M3Gj40qxdW7tIM7Q=="],
+    "elektron-lfo": ["elektron-lfo@1.0.16", "", { "bin": { "elektron-lfo": "src/cli/index.ts" } }, "sha512-9dUlk6QK012UcNvnXoWjU2LlmiT3BIcLV2K7Qhoj1IMMTy9DETcgh1dPkzwuW7stBurhFg+fTbaRF0OjecxcGg=="],
 
     "emittery": ["emittery@0.13.1", "", {}, "sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ=="],
 

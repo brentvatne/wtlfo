@@ -251,9 +251,13 @@ export function TimingInfo({
   }, [stepsLabelText, labelFont]);
 
   // Static text values - use actual font measurements
+  // NOTE column uses dynamic width to prevent truncation of values like "128 bars"
   const noteText = noteValue ?? '';
-  const noteTextX = noteText ? (50 - valueFont.measureText(noteText).width) / 2 : 0;
-  const noteLabelX = (50 - labelFont.measureText('NOTE').width) / 2;
+  const noteTextWidth = noteText ? valueFont.measureText(noteText).width : 0;
+  const noteLabelWidth = labelFont.measureText('NOTE').width;
+  const noteCanvasWidth = Math.max(50, Math.ceil(noteTextWidth) + 4, Math.ceil(noteLabelWidth) + 4);
+  const noteTextX = noteText ? (noteCanvasWidth - noteTextWidth) / 2 : 0;
+  const noteLabelX = (noteCanvasWidth - noteLabelWidth) / 2;
 
   const bpmLabelX = (50 - labelFont.measureText('BPM').width) / 2;
 
@@ -355,7 +359,7 @@ export function TimingInfo({
 
       {noteValue && (
         <View style={styles.item}>
-          <Canvas style={{ width: 50, height: ITEM_HEIGHT }}>
+          <Canvas style={{ width: noteCanvasWidth, height: ITEM_HEIGHT }}>
             <SkiaText
               x={noteTextX}
               y={VALUE_Y}

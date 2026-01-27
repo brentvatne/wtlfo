@@ -48,10 +48,11 @@ export function QuickEditPanel() {
           <ParameterSlider
             label="Speed"
             min={-64}
-            max={63}
+            max={63.99}
+            step={0.01}
             value={currentConfig.speed}
-            onChange={(value) => updateParameter('speed', Math.round(value))}
-            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            onChange={(value) => updateParameter('speed', value)}
+            formatValue={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
           />
 
           <SegmentedControl
@@ -71,11 +72,12 @@ export function QuickEditPanel() {
 
           <ParameterSlider
             label="Depth"
-            min={-64}
-            max={63}
-            value={currentConfig.depth}
-            onChange={(value) => updateParameter('depth', Math.round(value))}
-            formatValue={(v) => (v >= 0 ? `+${Math.round(v)}` : String(Math.round(v)))}
+            min={-128}
+            max={127.98}
+            step={0.02}
+            value={currentConfig.depth * 2}
+            onChange={(value) => updateParameter('depth', value / 2)}
+            formatValue={(v) => (v >= 0 ? `+${v.toFixed(2)}` : v.toFixed(2))}
           />
 
           <ParameterSlider

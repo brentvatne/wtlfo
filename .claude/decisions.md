@@ -106,13 +106,14 @@
 ### Digitakt II LFO Mode Behaviors (Hardware Verified)
 
 **ONE Mode (One-Shot)**
-- Stops when phase wraps (cycleCount >= 1), not when returning to startPhase
-- This means non-zero startPhase results in partial amplitude coverage:
-  - Phase=0: full waveform traversed before wrap
-  - Phase=32 (90°): full amplitude range (peak to trough)
-  - Phase=64 (180°): half amplitude range (starts at middle)
-  - Phase=96 (270°): half amplitude range (starts at trough)
-- **Note**: Still investigating if behavior is "stop on phase wrap" vs "stop when output returns to starting value" - tests with multiple triggers show full range for startPhase=0
+- Stops when phase wraps (cycleCount >= 1)
+- **Stays at final value** - does NOT snap back to start position (hardware verified Jan 2026)
+- For unipolar waveforms (EXP, RMP), final output depends on speed/depth:
+  - speed+ depth+: ends at 0
+  - speed+ depth-: ends at 0
+  - speed- depth+: ends at +1
+  - speed- depth-: ends at -1
+- Non-zero startPhase results in partial amplitude coverage
 
 **HLD Mode (Hold)**
 - Captures and holds the current LFO value on each trigger
@@ -155,6 +156,29 @@
 | 32   | ~26    |
 | 48   | ~300   |
 | 63   | ~3000  |
+
+### Unipolar Waveform Speed/Depth Interaction (Hardware Verified)
+
+**Applies to**: EXP and RMP waveforms
+
+The combination of speed sign and depth sign creates 4 distinct behaviors:
+
+| Speed | Depth | Start | End | Description |
+|-------|-------|-------|-----|-------------|
+| + | + | +1 | 0 | Decay from positive (sidechain pump) |
+| + | - | -1 | 0 | Rise from negative |
+| - | + | 0 | +1 | Swell to positive (attack envelope) |
+| - | - | 0 | -1 | Fall into negative |
+
+**Key insight**: Negative speed **flips the waveform shape** (via `1-x` transformation), not just the output sign:
+- EXP normal (speed+): 1→0 (exponential decay)
+- EXP flipped (speed-): 0→1 (exponential attack)
+- RMP normal (speed+): 0→1 (ramp up)
+- RMP flipped (speed-): 1→0 (ramp down)
+
+Depth sign then determines the polarity (positive or negative output range).
+
+This differs from bipolar waveforms (SIN, TRI, SAW, SQR) which use simple sign inversion (`-x`) for negative speed.
 
 ### RND Waveform Behavior
 - Random values are unpredictable - can't verify direction or exact range coverage

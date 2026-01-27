@@ -312,18 +312,18 @@ export function DestinationMeter({
       // VALUE mode - compute from lfoOutput
       // When editing, show centerValue instead of computed value
       if (shouldHideValue) {
-        return String(Math.round(centerValue));
+        return centerValue.toFixed(2);
       }
       const fadeMult = fadeMultiplier?.value ?? 1;
       const modulationAmount = lfoOutput.value * maxModulation * fadeMult;
-      const value = Math.round(Math.max(min, Math.min(max, centerValue + modulationAmount)));
-      return String(value);
+      const value = Math.max(min, Math.min(max, centerValue + modulationAmount));
+      return value.toFixed(2);
     } else if (mode === 1) {
       // MIN mode
-      return String(Math.round(minBoundValue));
+      return minBoundValue.toFixed(2);
     } else {
       // MAX mode
-      return String(Math.round(maxBoundValue));
+      return maxBoundValue.toFixed(2);
     }
   }, [showValue, shouldHideValue, centerValue, fadeMultiplier, lfoOutput, maxModulation, min, max, minBoundValue, maxBoundValue, displayModeIndex]);
 
