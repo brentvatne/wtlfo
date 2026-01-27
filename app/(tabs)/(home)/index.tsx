@@ -206,8 +206,33 @@ export default function HomeScreen() {
   // When pendingPresetIndex is set, capture snapshot, then commit preset change
   useEffect(() => {
     if (pendingPresetIndex !== null && visualizerRowRef.current) {
+      const startTime = performance.now();
+      let didTimeout = false;
+      let didComplete = false;
+
+      // Timeout fallback - if snapshot takes too long, skip crossfade
+      const timeoutId = setTimeout(() => {
+        if (!didComplete) {
+          didTimeout = true;
+          if (__DEV__) {
+            console.log('[Crossfade] Snapshot timed out, falling back to instant switch');
+          }
+          commitPresetChange();
+          finishPresetTransition();
+        }
+      }, 100); // 100ms timeout
+
       // Capture snapshot of current visualization
       makeImageFromView(visualizerRowRef).then((image) => {
+        if (didTimeout) return; // Already timed out
+        didComplete = true;
+        clearTimeout(timeoutId);
+
+        const captureTime = performance.now() - startTime;
+        if (__DEV__) {
+          console.log(`[Crossfade] Snapshot captured in ${captureTime.toFixed(1)}ms`);
+        }
+
         if (image) {
           setPresetSnapshot(image);
           snapshotOpacity.value = 1;
@@ -230,6 +255,9 @@ export default function HomeScreen() {
           finishPresetTransition();
         }
       }).catch(() => {
+        if (didTimeout) return;
+        didComplete = true;
+        clearTimeout(timeoutId);
         // Snapshot failed - fall back to immediate change
         commitPresetChange();
         finishPresetTransition();
