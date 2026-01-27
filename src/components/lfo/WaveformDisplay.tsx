@@ -73,9 +73,26 @@ export function WaveformDisplay({
 
     let prevValue: number | null = null;
 
+    // For EXP, determine if decay or rise
+    const isExpDecay = isExp && !hasNegativeSpeed;
+    const isExpRise = isExp && hasNegativeSpeed;
+
+    // For EXP decay, start at center and draw vertical line to peak
+    // This matches Digitakt II visualization
+    if (isExpDecay) {
+      const startX = padding + startPhaseNormalized * drawWidth;
+      path.moveTo(startX, centerY); // Start at center
+      const peakY = centerY + currentDepthScale * scaleY; // Peak position
+      path.lineTo(startX, peakY); // Vertical line to peak
+    }
+
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      const phase = (xNormalized + startPhaseNormalized) % 1;
+      // For EXP, don't wrap the phase - we want to show 0 to 1 without looping
+      // This prevents the curve from jumping back at the end
+      const phase = isExp
+        ? Math.min(xNormalized + startPhaseNormalized, 1)
+        : (xNormalized + startPhaseNormalized) % 1;
 
       let value: number;
       if (isExp) {
@@ -104,7 +121,12 @@ export function WaveformDisplay({
       const y = centerY + value * scaleY;
 
       if (i === 0) {
-        path.moveTo(x, y);
+        if (isExpDecay) {
+          // Already drew vertical line, continue the path
+          path.lineTo(x, y);
+        } else {
+          path.moveTo(x, y);
+        }
       } else {
         const threshold = 0.5;
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
@@ -117,6 +139,11 @@ export function WaveformDisplay({
       }
 
       prevValue = value;
+    }
+
+    // For EXP rise, add vertical line at the end from peak to center
+    if (isExpRise) {
+      path.lineTo(padding + drawWidth, centerY);
     }
 
     return path;
@@ -134,9 +161,24 @@ export function WaveformDisplay({
 
     let prevValue: number | null = null;
 
+    // For EXP, determine if decay or rise
+    const isExpDecay = isExp && !hasNegativeSpeed;
+    const isExpRise = isExp && hasNegativeSpeed;
+
+    // For EXP decay, start at center and draw vertical line to peak
+    if (isExpDecay) {
+      const expStartX = padding + startPhaseNormalized * drawWidth;
+      path.moveTo(expStartX, centerY); // Start at center
+      const peakY = centerY + currentDepthScale * scaleY;
+      path.lineTo(expStartX, peakY); // Vertical line to peak
+    }
+
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
-      const phase = (xNormalized + startPhaseNormalized) % 1;
+      // For EXP, don't wrap the phase - we want to show 0 to 1 without looping
+      const phase = isExp
+        ? Math.min(xNormalized + startPhaseNormalized, 1)
+        : (xNormalized + startPhaseNormalized) % 1;
 
       let value: number;
       if (isExp) {
@@ -165,7 +207,12 @@ export function WaveformDisplay({
       const y = centerY + value * scaleY;
 
       if (i === 0) {
-        path.moveTo(x, y);
+        if (isExpDecay) {
+          // Already drew vertical line, continue the path
+          path.lineTo(x, y);
+        } else {
+          path.moveTo(x, y);
+        }
       } else {
         const threshold = 0.5;
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
@@ -178,6 +225,11 @@ export function WaveformDisplay({
       }
 
       prevValue = value;
+    }
+
+    // For EXP rise, add vertical line at the end from peak to center
+    if (isExpRise) {
+      path.lineTo(endX, centerY);
     }
 
     // Close path to baseline for fill
