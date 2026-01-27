@@ -86,6 +86,8 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const appStateRef = useRef<AppStateStatus>(AppState.currentState);
   const wasPlayingBeforeBackgroundRef = useRef(false);
   const animationFrameRef = useRef<number>(0);
+  // Track pending fade-out timeout so we can cancel it on restart
+  const fadeOutTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
   // Track if audio was stopped due to LFO pause (not user toggle)
   const stoppedDueToPauseRef = useRef(false);
   // Track cleanup state to prevent operations on unmounted component (fast refresh)
@@ -180,6 +182,13 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   // Fully destroy audio graph (on unmount or fast refresh)
   const destroyAudioGraph = useCallback(async () => {
     isCleaningUpRef.current = true;
+
+    // Cancel any pending fade-out timeout
+    if (fadeOutTimeoutRef.current) {
+      clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
+    }
+
     stopOscillator();
 
     gainNodeRef.current = null;
@@ -295,6 +304,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   const start = useCallback(async () => {
     if (isPlaying) return;
 
+    // Cancel any pending fade-out timeout to prevent interference
+    if (fadeOutTimeoutRef.current) {
+      clearTimeout(fadeOutTimeoutRef.current);
+      fadeOutTimeoutRef.current = null;
+    }
+
     // Check if existing AudioContext is still valid (handles fast refresh)
     const existingCtx = audioContextRef.current;
     const isContextValid = existingCtx && existingCtx.state !== 'closed';
@@ -371,8 +386,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
     // Fade out to prevent click
     gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_OUT_DURATION);
 
+    // Clear any pending fade-out timeout
+    if (fadeOutTimeoutRef.current) {
+      clearTimeout(fadeOutTimeoutRef.current);
+    }
+
     // After fade completes, stop oscillator and suspend context
-    setTimeout(() => {
+    fadeOutTimeoutRef.current = setTimeout(() => {
+      fadeOutTimeoutRef.current = null;
       // Guard against cleanup during fade (fast refresh)
       if (isCleaningUpRef.current) return;
       stopOscillator();
@@ -404,7 +425,14 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
       if (ctx && gain) {
         // Fade out then stop oscillator and suspend
         gain.gain.linearRampToValueAtTime(0, ctx.currentTime + FADE_OUT_DURATION);
-        setTimeout(() => {
+
+        // Clear any pending fade-out timeout
+        if (fadeOutTimeoutRef.current) {
+          clearTimeout(fadeOutTimeoutRef.current);
+        }
+
+        fadeOutTimeoutRef.current = setTimeout(() => {
+          fadeOutTimeoutRef.current = null;
           // Guard against cleanup during fade (fast refresh)
           if (isCleaningUpRef.current) return;
           stopOscillator();
@@ -422,6 +450,12 @@ export function AudioProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => {
     if (!isPaused && isPlaying && stoppedDueToPauseRef.current) {
       stoppedDueToPauseRef.current = false;
+
+      // Cancel any pending fade-out timeout to prevent it from interfering with resume
+      if (fadeOutTimeoutRef.current) {
+        clearTimeout(fadeOutTimeoutRef.current);
+        fadeOutTimeoutRef.current = null;
+      }
 
       (async () => {
         // Guard against cleanup in progress (fast refresh)
