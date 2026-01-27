@@ -51,21 +51,6 @@ export const PRESETS: LFOPreset[] = [
     centerValue: 80,
   },
   {
-    name: 'Ambient Drift',
-    config: {
-      waveform: 'SIN',
-      speed: 1,
-      multiplier: 1 as Multiplier,
-      useFixedBPM: false,
-      startPhase: 0,
-      mode: 'FRE',
-      depth: 24,
-      fade: 0,
-    },
-    destination: 'pan',
-    centerValue: 0,
-  },
-  {
     name: 'Hi-Hat Humanizer',
     config: {
       waveform: 'RND',
@@ -109,6 +94,21 @@ export const PRESETS: LFOPreset[] = [
     },
     destination: 'filter_freq',
     centerValue: 32,
+  },
+  {
+    name: 'Ambient Drift',
+    config: {
+      waveform: 'SIN',
+      speed: 1,
+      multiplier: 1 as Multiplier,
+      useFixedBPM: false,
+      startPhase: 0,
+      mode: 'FRE',
+      depth: 24,
+      fade: 0,
+    },
+    destination: 'pan',
+    centerValue: 0,
   },
 ];
 
