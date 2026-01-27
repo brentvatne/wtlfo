@@ -149,19 +149,21 @@ describe('worklets', () => {
         expect(value50).toBeGreaterThan(value75);
       });
 
-      it('should have exponential curve (faster start decay, slower end)', () => {
+      it('should have exponential curve (fast initial drop, slow approach to 0)', () => {
         const value25 = sampleWaveformWorklet('EXP', 0.25);
         const value50 = sampleWaveformWorklet('EXP', 0.5);
         const value75 = sampleWaveformWorklet('EXP', 0.75);
 
-        // For exponential decay, the drop from 0-0.25 should be less than 0.25-0.5
-        // (value at 0.5 should be above 0.5 for exp decay)
-        expect(value50).toBeGreaterThan(0.5);
+        // For exponential decay (concave), the value drops quickly at start
+        // Value at 0.5 should be BELOW 0.5 (already dropped more than half)
+        expect(value50).toBeLessThan(0.5);
 
-        // The difference should accelerate (bigger drops later)
-        const diff1 = value25 - value50; // how much dropped between 0.25 and 0.5
-        const diff2 = value50 - value75; // how much dropped between 0.5 and 0.75
-        expect(diff2).toBeGreaterThan(diff1);
+        // The drops should decelerate (smaller drops later as we approach 0)
+        const diff1 = 1 - value25; // how much dropped from start to 0.25
+        const diff2 = value25 - value50; // how much dropped between 0.25 and 0.5
+        const diff3 = value50 - value75; // how much dropped between 0.5 and 0.75
+        expect(diff1).toBeGreaterThan(diff2);
+        expect(diff2).toBeGreaterThan(diff3);
       });
     });
 
@@ -225,10 +227,9 @@ describe('worklets', () => {
         const phases = Array.from({ length: 100 }, (_, i) => i / 100);
         phases.forEach(phase => {
           const value = sampleWaveformWorklet('RND', phase);
-          // Based on implementation: Math.sin(step * 78.233 + 0.5) * 0.9
-          // Max value is 0.9, min is -0.9
-          expect(value).toBeGreaterThanOrEqual(-0.9);
-          expect(value).toBeLessThanOrEqual(0.9);
+          // seededRandom produces values in range [-1, 1]
+          expect(value).toBeGreaterThanOrEqual(-1);
+          expect(value).toBeLessThanOrEqual(1);
         });
       });
     });

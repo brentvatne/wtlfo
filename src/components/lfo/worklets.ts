@@ -1,21 +1,51 @@
+/**
+ * Worklet-compatible waveform sampling functions
+ *
+ * These are copies of the pure functions from elektron-lfo/core with 'worklet'
+ * directives added. Worklets run in a separate JS context (UI thread) and cannot
+ * import functions from external packages.
+ *
+ * IMPORTANT: Keep these in sync with elektron-lfo/src/core/waveforms.ts
+ * Any changes to the core functions should be reflected here.
+ */
+
 import type { WaveformType } from './types';
 
+// ===== RANDOM NUMBER GENERATION =====
+
 /**
- * Get the raw random S&H value for a given step
- * Uses a seed to generate different patterns each cycle
- * @param step - Step number (0-15)
- * @param seed - Seed value that changes each cycle (default 0 for backwards compatibility)
+ * Seeded PRNG for reproducible random values
+ * Uses mulberry32-inspired bit mixing for good distribution
+ *
+ * Copied from elektron-lfo/core/waveforms.ts
  */
-export function getRandomStepValue(step: number, seed: number = 0): number {
+export function seededRandom(step: number, seed: number): number {
   'worklet';
-  // Combine step and seed to get varying patterns each cycle
-  // The magic numbers produce a good distribution of positive/negative values
-  const combinedSeed = step * 78.233 + seed * 17.31 + 0.5;
-  return Math.sin(combinedSeed) * 0.9;
+  // Combine step and seed with large primes for good mixing
+  let h = ((step * 2654435761) ^ (seed * 1597334677)) >>> 0;
+  // Mix bits using Math.imul for 32-bit integer multiplication
+  h = Math.imul(h ^ (h >>> 16), 2246822507);
+  h = Math.imul(h ^ (h >>> 13), 3266489909);
+  h = (h ^ (h >>> 16)) >>> 0;
+  // Convert to [-1, 1] range
+  return (h / 2147483648) - 1;
 }
 
 /**
+ * @deprecated Use seededRandom instead. Kept for backwards compatibility.
+ */
+export function getRandomStepValue(step: number, seed: number = 0): number {
+  'worklet';
+  return seededRandom(step, seed);
+}
+
+// ===== EXPONENTIAL WAVEFORMS =====
+
+/**
  * EXP decay: 1 → 0, concave (fast drop, slow approach to 0)
+ * Used for positive speed
+ *
+ * Copied from elektron-lfo/core/waveforms.ts
  */
 export function sampleExpDecay(phase: number): number {
   'worklet';
@@ -27,23 +57,33 @@ export function sampleExpDecay(phase: number): number {
 
 /**
  * EXP rise: 0 → 1, concave (slow rise, fast acceleration to 1)
- * Used when speed is negative
+ * Used for negative speed to maintain concave shape
+ *
+ * Copied from elektron-lfo/core/waveforms.ts
  */
 export function sampleExpRise(phase: number): number {
   'worklet';
   const k = 3;
-  // Concave rise: slow start, accelerates toward end
   return (Math.exp(phase * k) - 1) / (Math.exp(k) - 1);
 }
 
+// ===== MAIN SAMPLING FUNCTIONS =====
+
 /**
- * Worklet-compatible waveform sampling function
+ * Sample any waveform by type
  * Can be called from within Reanimated worklets (useDerivedValue, useAnimatedStyle, etc.)
+ *
+ * Copied from elektron-lfo/core/waveforms.ts (sampleWaveform)
+ *
  * @param waveform - Waveform type
  * @param phase - Current phase (0-1)
  * @param randomSeed - Seed for RND waveform (changes each cycle)
  */
-export function sampleWaveformWorklet(waveform: WaveformType, phase: number, randomSeed: number = 0): number {
+export function sampleWaveformWorklet(
+  waveform: WaveformType,
+  phase: number,
+  randomSeed: number = 0
+): number {
   'worklet';
 
   switch (waveform) {
@@ -61,22 +101,17 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number, ran
     case 'SAW': // Sawtooth - Bipolar (falling)
       return 1 - phase * 2;
 
-    case 'EXP':
-      // Exponential - Unipolar (1 to 0)
-      // Concave decay: fast initial drop, slow approach to 0
-      // Note: For negative speed, WaveformDisplay uses sampleExpRise instead
+    case 'EXP': // Exponential - Unipolar (1 to 0)
       return sampleExpDecay(phase);
 
-    case 'RMP': // Ramp - Unipolar (0 to 1, rising)
+    case 'RMP': // Ramp - Unipolar (0 to 1)
       return phase;
 
     case 'RND': {
-      // Random - show as sample-and-hold pattern
-      // Uses 16 steps per cycle to match the actual LFO engine
-      // randomSeed changes each cycle to produce different patterns
+      // Random - 16 steps per cycle
       const steps = 16;
-      const step = Math.floor(phase * steps);
-      return getRandomStepValue(step, randomSeed);
+      const step = Math.floor(phase * steps) % steps;
+      return seededRandom(step, randomSeed);
     }
 
     default:
@@ -87,45 +122,44 @@ export function sampleWaveformWorklet(waveform: WaveformType, phase: number, ran
 /**
  * Sample RND waveform with SLEW (smoothing) applied
  *
+ * Copied from elektron-lfo/core/waveforms.ts (sampleRandomWithSlew)
+ *
  * @param phase - Current phase (0-1)
  * @param slew - Slew amount (0-127). 0 = no smoothing, 127 = max smoothing
  * @param randomSeed - Seed for random values (changes each cycle)
- * @returns Smoothed random value
  */
-export function sampleRandomWithSlew(phase: number, slew: number, randomSeed: number = 0): number {
+export function sampleRandomWithSlew(
+  phase: number,
+  slew: number,
+  randomSeed: number = 0
+): number {
   'worklet';
   const steps = 16;
-  const currentStep = Math.floor(phase * steps);
-  const stepPhase = (phase * steps) % 1; // Phase within current step (0-1)
+  const step = Math.floor(phase * steps) % steps;
+  const prevStep = (step - 1 + steps) % steps;
+  const stepProgress = (phase * steps) % 1;
 
-  // Get current and previous step values
-  const currentValue = getRandomStepValue(currentStep, randomSeed);
-  const prevStep = (currentStep - 1 + steps) % steps;
-  const prevValue = getRandomStepValue(prevStep, randomSeed);
+  const currentValue = seededRandom(step, randomSeed);
+  const prevValue = seededRandom(prevStep, randomSeed);
 
-  // No slew = instant transition (classic S&H)
-  if (slew === 0) {
+  // slew: 0 = sharp S&H, 127 = maximum smoothing
+  const slewAmount = slew / 127;
+  if (slewAmount <= 0) {
     return currentValue;
   }
 
-  // Calculate slew amount (0-127 maps to 0-1 transition time as fraction of step)
-  // At slew=127, we interpolate over the entire step duration
-  const slewFraction = slew / 127;
+  // Smoothstep interpolation
+  const t = stepProgress;
+  const smoothT = t * t * (3 - 2 * t);
+  const interpT = smoothT * slewAmount;
 
-  if (stepPhase < slewFraction) {
-    // During transition: interpolate from previous value to current
-    const t = stepPhase / slewFraction;
-    // Use smoothstep for more natural-feeling transitions
-    const smoothT = t * t * (3 - 2 * t);
-    return prevValue + (currentValue - prevValue) * smoothT;
-  }
-
-  // Past transition: hold at current value
-  return currentValue;
+  return prevValue + (currentValue - prevValue) * interpT;
 }
 
 /**
- * Worklet-compatible check for unipolar waveforms
+ * Check if a waveform is unipolar (0 to +1) vs bipolar (-1 to +1)
+ *
+ * Copied from elektron-lfo/core/waveforms.ts (isUnipolar)
  */
 export function isUnipolarWorklet(waveform: WaveformType): boolean {
   'worklet';
@@ -135,6 +169,7 @@ export function isUnipolarWorklet(waveform: WaveformType): boolean {
 /**
  * Sample waveform with optional slew for RND
  * This is the main entry point that handles slew when applicable
+ *
  * @param waveform - Waveform type
  * @param phase - Current phase (0-1)
  * @param slew - Slew amount for RND (0-127)
