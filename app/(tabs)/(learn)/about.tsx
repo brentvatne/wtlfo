@@ -1,6 +1,7 @@
-import React from 'react';
-import { View, Text, StyleSheet } from 'react-native';
+import React, { useState } from 'react';
+import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
 
 type SymbolName = SymbolViewProps['name'];
@@ -56,6 +57,48 @@ function DestinationRow({ name, icon }: { name: string; icon: SymbolName }) {
   );
 }
 
+// Collapsible section component
+function CollapsibleSection({
+  title,
+  children,
+  defaultCollapsed = true,
+}: {
+  title: string;
+  children: React.ReactNode;
+  defaultCollapsed?: boolean;
+}) {
+  const [isCollapsed, setIsCollapsed] = useState(defaultCollapsed);
+  const chevronRotation = useSharedValue(defaultCollapsed ? 0 : 1);
+
+  const toggleCollapsed = () => {
+    setIsCollapsed(!isCollapsed);
+    chevronRotation.value = withTiming(isCollapsed ? 1 : 0, {
+      duration: 200,
+      easing: Easing.out(Easing.ease),
+    });
+  };
+
+  const chevronStyle = useAnimatedStyle(() => ({
+    transform: [{ rotate: `${chevronRotation.value * 90}deg` }],
+  }));
+
+  return (
+    <View style={styles.collapsibleSection}>
+      <Pressable onPress={toggleCollapsed} style={styles.collapsibleHeader}>
+        <Text style={styles.collapsibleTitle}>{title}</Text>
+        <Animated.Text style={[styles.collapsibleChevron, chevronStyle]}>
+          ›
+        </Animated.Text>
+      </Pressable>
+      {!isCollapsed && (
+        <View style={styles.collapsibleContent}>
+          {children}
+        </View>
+      )}
+    </View>
+  );
+}
+
 export default function AboutScreen() {
   return (
     <ScrollView
@@ -66,12 +109,6 @@ export default function AboutScreen() {
       <Section title="What this app does">
         <Text style={styles.paragraph}>
           This is an LFO simulator and visualizer for the Elektron Digitakt II. It helps you understand what happens when you adjust each parameter, so you can learn how LFOs work and eventually not need the app at all.
-        </Text>
-      </Section>
-
-      <Section title="Accuracy">
-        <Text style={styles.paragraph}>
-          Verified against Digitakt II hardware. LFO behavior is the same across all Elektron devices. Most behavior seems correct, but this is likely not a 100% accurate simulation as there is limited information available about the exact behavior of parameters like fade.
         </Text>
       </Section>
 
@@ -99,7 +136,7 @@ export default function AboutScreen() {
             gesture="Tap"
             gestureIcon="hand.tap.fill"
             result="Retrigger"
-            resultIcon="dot.radiowaves.right"
+            resultIcon="bolt.fill"
             note="Reset to start phase"
           />
           <GestureRow
@@ -184,6 +221,12 @@ export default function AboutScreen() {
           </View>
         </View>
       </Section>
+
+      <CollapsibleSection title="Accuracy">
+        <Text style={styles.paragraph}>
+          Verified against Digitakt II hardware. LFO behavior is the same across all Elektron devices. Most behavior seems correct, but this is likely not a 100% accurate simulation as there is limited information available about the exact behavior of parameters like fade.
+        </Text>
+      </CollapsibleSection>
     </ScrollView>
   );
 }
@@ -323,5 +366,37 @@ const styles = StyleSheet.create({
     color: '#888899',
     fontSize: 13,
     lineHeight: 18,
+  },
+  // Collapsible section styles
+  collapsibleSection: {
+    marginBottom: 24,
+  },
+  collapsibleHeader: {
+    flexDirection: 'row',
+    justifyContent: 'space-between',
+    alignItems: 'center',
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 16,
+    paddingVertical: 12,
+    borderRadius: 8,
+  },
+  collapsibleTitle: {
+    color: '#888899',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  collapsibleChevron: {
+    color: '#888899',
+    fontSize: 24,
+    fontWeight: '300',
+  },
+  collapsibleContent: {
+    backgroundColor: '#1a1a1a',
+    borderBottomLeftRadius: 8,
+    borderBottomRightRadius: 8,
+    marginTop: -8,
+    paddingTop: 8,
+    paddingHorizontal: 16,
+    paddingBottom: 16,
   },
 });

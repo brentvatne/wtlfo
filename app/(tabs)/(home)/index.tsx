@@ -565,7 +565,7 @@ export default function HomeScreen() {
                   <SymbolView name="play.fill" size={48} tintColor="#ffffff" />
                 </Animated.View>
                 <Animated.View style={[styles.feedbackIcon, retriggerIconStyle]}>
-                  <SymbolView name="dot.radiowaves.right" size={48} tintColor="#ffffff" />
+                  <SymbolView name="bolt.fill" size={48} tintColor="#ffffff" />
                 </Animated.View>
               </Animated.View>
             </Animated.View>
