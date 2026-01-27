@@ -1,13 +1,57 @@
 import React from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { SymbolView } from 'expo-symbols';
+import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+
+type SymbolName = SymbolViewProps['name'];
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
     <View style={styles.section}>
       <Text style={styles.sectionTitle}>{title}</Text>
       {children}
+    </View>
+  );
+}
+
+// Gesture control row component
+function GestureRow({
+  gesture,
+  gestureIcon,
+  result,
+  resultIcon,
+  note,
+}: {
+  gesture: string;
+  gestureIcon: SymbolName;
+  result: string;
+  resultIcon: SymbolName;
+  note?: string;
+}) {
+  return (
+    <View style={styles.gestureRow}>
+      <View style={styles.gestureLeft}>
+        <SymbolView name={gestureIcon} size={20} tintColor="#888899" />
+        <Text style={styles.gestureText}>{gesture}</Text>
+      </View>
+      <SymbolView name="arrow.right" size={14} tintColor="#555555" />
+      <View style={styles.gestureRight}>
+        <SymbolView name={resultIcon} size={20} tintColor="#ff6600" />
+        <View>
+          <Text style={styles.resultText}>{result}</Text>
+          {note && <Text style={styles.gestureNote}>{note}</Text>}
+        </View>
+      </View>
+    </View>
+  );
+}
+
+// Test tone destination row
+function DestinationRow({ name, icon }: { name: string; icon: SymbolName }) {
+  return (
+    <View style={styles.destinationRow}>
+      <SymbolView name={icon} size={18} tintColor="#ff6600" />
+      <Text style={styles.destinationText}>{name}</Text>
     </View>
   );
 }
@@ -33,13 +77,47 @@ export default function AboutScreen() {
 
       <Section title="Test tone">
         <Text style={styles.paragraph}>
-          Tap the speaker icon on the main screen to hear the LFO modulating a test tone. Supported destinations are marked with a speaker icon in the destination picker.
+          Tap the speaker icon on the main screen to hear the LFO modulating a test tone.
         </Text>
+        <View style={styles.destinationGrid}>
+          <Text style={styles.destinationLabel}>Supported destinations:</Text>
+          <View style={styles.destinationList}>
+            <DestinationRow name="Volume" icon="speaker.wave.3.fill" />
+            <DestinationRow name="Filter" icon="slider.horizontal.below.square.and.square.filled" />
+            <DestinationRow name="Pan" icon="arrow.left.arrow.right" />
+            <DestinationRow name="Pitch" icon="arrow.up.arrow.down" />
+          </View>
+        </View>
       </Section>
 
       <Section title="Visualization controls">
         <Text style={styles.paragraph}>
-          Long press the visualization to pause. Long press again to resume.
+          Interact with the visualization to control playback:
+        </Text>
+        <View style={styles.gestureList}>
+          <GestureRow
+            gesture="Tap"
+            gestureIcon="hand.tap.fill"
+            result="Retrigger"
+            resultIcon="dot.radiowaves.right"
+            note="Reset to start phase"
+          />
+          <GestureRow
+            gesture="Long press"
+            gestureIcon="hand.tap.fill"
+            result="Pause"
+            resultIcon="pause.fill"
+          />
+          <GestureRow
+            gesture="Tap"
+            gestureIcon="hand.tap.fill"
+            result="Resume"
+            resultIcon="play.fill"
+            note="When paused"
+          />
+        </View>
+        <Text style={styles.noteText}>
+          Note: Retrigger is disabled in FREE mode since the LFO runs continuously without triggers.
         </Text>
       </Section>
 
@@ -132,6 +210,91 @@ const styles = StyleSheet.create({
     fontSize: 15,
     lineHeight: 22,
   },
+  // Gesture controls styles
+  gestureList: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    marginTop: 12,
+    overflow: 'hidden',
+  },
+  gestureRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    paddingVertical: 12,
+    paddingHorizontal: 16,
+    gap: 12,
+    borderBottomWidth: StyleSheet.hairlineWidth,
+    borderBottomColor: '#2a2a2a',
+  },
+  gestureLeft: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    width: 100,
+  },
+  gestureText: {
+    color: '#888899',
+    fontSize: 14,
+    fontWeight: '500',
+  },
+  gestureRight: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 8,
+    flex: 1,
+  },
+  resultText: {
+    color: '#ffffff',
+    fontSize: 14,
+    fontWeight: '600',
+  },
+  gestureNote: {
+    color: '#666677',
+    fontSize: 11,
+    marginTop: 1,
+  },
+  noteText: {
+    color: '#666677',
+    fontSize: 13,
+    lineHeight: 18,
+    marginTop: 12,
+    fontStyle: 'italic',
+  },
+  // Test tone destination styles
+  destinationGrid: {
+    backgroundColor: '#1a1a1a',
+    borderRadius: 8,
+    padding: 12,
+    marginTop: 12,
+  },
+  destinationLabel: {
+    color: '#888899',
+    fontSize: 12,
+    fontWeight: '600',
+    marginBottom: 8,
+    textTransform: 'uppercase',
+    letterSpacing: 0.5,
+  },
+  destinationList: {
+    flexDirection: 'row',
+    flexWrap: 'wrap',
+    gap: 8,
+  },
+  destinationRow: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    gap: 6,
+    backgroundColor: '#252525',
+    paddingVertical: 6,
+    paddingHorizontal: 10,
+    borderRadius: 6,
+  },
+  destinationText: {
+    color: '#cccccc',
+    fontSize: 13,
+    fontWeight: '500',
+  },
+  // Limitations styles
   limitationsList: {
     gap: 12,
   },
