@@ -133,6 +133,25 @@ export const PRESETS: LFOPreset[] = [
     destination: 'filter_freq',
     centerValue: 72,
   },
+  {
+    // One-shot S-curve fade in - volume rises from ~0 to full over 1 bar
+    // Use case: Pads, ambient sounds, cinematic swells
+    // SIN with HLF mode starting at phase 0.75 (-1) runs to phase 0.25 (+1)
+    // S-curve: slow start, fast middle, slow finish - sounds more natural than linear
+    name: 'Fade In',
+    config: {
+      waveform: 'SIN',
+      speed: 16,
+      multiplier: 8 as Multiplier, // 1 bar for half cycle
+      useFixedBPM: false,
+      startPhase: 96, // Start at bottom of sine wave (-1)
+      mode: 'HLF', // Run half cycle: from -1 to +1
+      depth: 63, // Full positive depth
+      fade: 0,
+    },
+    destination: 'volume',
+    centerValue: 64, // Centered at 64: range is 1 to 127
+  },
 ];
 
 export const BPM = 120;
