@@ -6,7 +6,7 @@ import AppMetrics from 'expo-eas-observe';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import { usePathname } from 'expo-router';
 import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing, FadeIn } from 'react-native-reanimated';
+import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing } from 'react-native-reanimated';
 import { scheduleOnRN } from 'react-native-worklets';
 import { SymbolView } from 'expo-symbols';
 import { calculateTimingInfo } from 'elektron-lfo';
@@ -16,13 +16,12 @@ import {
   sampleWaveformWorklet,
   isUnipolarWorklet,
   TimingInfo,
-  VisualizationPlaceholder,
   warmPathCache,
   WAVEFORM_ICON_SIZES,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
-import { DestinationMeter, CenterValueSlider, MeterPlaceholder } from '@/src/components/destination';
+import { DestinationMeter, CenterValueSlider } from '@/src/components/destination';
 import { TestTone } from '@/src/components/audio';
 import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
@@ -44,10 +43,8 @@ export default function HomeScreen() {
     isEditing,
     showFillsWhenEditing,
     fadeInOnOpen,
-    fadeInVisualization,
     fadeInDuration,
     tabSwitchFadeOpacity,
-    visualizationFadeDuration,
     editFadeOutDuration,
     editFadeInDuration,
     showFadeEnvelope,
@@ -74,10 +71,6 @@ export default function HomeScreen() {
   // Tab switch fade - wraps entire screen content
   // Start at 1 (visible) - useFocusEffect will handle the initial fade if needed
   const screenOpacity = useSharedValue(1);
-  // Visualization fade - wraps just the visualizer row
-  // Start at 1 - initial fade-in is handled by FadeIn on Skia components
-  // This is only used for background/foreground transitions now
-  const visualizerOpacity = useSharedValue(1);
 
   const wasInModalRef = useRef(false);
   const isFirstFocusRef = useRef(true);
@@ -101,28 +94,17 @@ export default function HomeScreen() {
       })()
     : null;
 
-  // Track when visualization fade completes to defer expensive Skia rendering
-  const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
-  useEffect(() => {
-    if (!fadeInVisualization) {
-      setVisualizationsReady(true);
-      return;
-    }
-    const timer = setTimeout(() => setVisualizationsReady(true), visualizationFadeDuration);
-    return () => clearTimeout(timer);
-  }, [fadeInVisualization, visualizationFadeDuration]);
-
-  // Mark app as interactive after visualization fade completes (production only)
+  // Mark app as interactive immediately (production only)
   // Then pre-warm Skia path cache for modal icons in idle time
   useEffect(() => {
-    if (visualizationsReady && !__DEV__) {
+    if (!__DEV__) {
       AppMetrics.markInteractive();
       // Defer path cache warming until browser is idle
       requestIdleCallback(() => {
         warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);
       });
     }
-  }, [visualizationsReady]);
+  }, []);
 
   // Track when we're in a modal (pathname changes to param/* or presets)
   useEffect(() => {
@@ -187,29 +169,9 @@ export default function HomeScreen() {
     };
   }, [navigation, fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity, screenOpacity, isPaused, isLFORunning, startLFO, stopLFO, setIsPaused]);
 
-  // Visualization fade - triggers on app open and returning from background
+  // Track app state for background/foreground transitions
   const appStateRef = useRef(AppState.currentState);
-  const hasInitializedVisualization = useRef(false);
-  const prevIsPausedRef = useRef(isPaused);
 
-  useEffect(() => {
-    // Mark as initialized - initial fade-in is handled by FadeIn on Skia components
-    hasInitializedVisualization.current = true;
-  }, []);
-
-  // Fade in visualization when user unpauses (taps to resume)
-  useEffect(() => {
-    const wasPaused = prevIsPausedRef.current;
-    prevIsPausedRef.current = isPaused;
-
-    // Only fade in when transitioning from paused to playing
-    if (wasPaused && !isPaused && fadeInVisualization && hasInitializedVisualization.current) {
-      visualizerOpacity.value = withTiming(1, {
-        duration: visualizationFadeDuration,
-        easing: Easing.out(Easing.ease),
-      });
-    }
-  }, [isPaused, fadeInVisualization, visualizationFadeDuration, visualizerOpacity]);
 
   // Animated style for crossfade - the previous (old) visualization fades out
   const previousVisualizerStyle = useAnimatedStyle(() => ({
@@ -247,9 +209,6 @@ export default function HomeScreen() {
         if (fadeInOnOpen) {
           screenOpacity.value = tabSwitchFadeOpacity;
         }
-        if (fadeInVisualization) {
-          visualizerOpacity.value = tabSwitchFadeOpacity;
-        }
       }
 
       // Coming back from background: fade screen and visualization back in
@@ -263,13 +222,6 @@ export default function HomeScreen() {
             easing: Easing.out(Easing.ease),
           });
         }
-        // Fade visualization back in from tabSwitchFadeOpacity
-        if (fadeInVisualization) {
-          visualizerOpacity.value = withTiming(1, {
-            duration: visualizationFadeDuration,
-            easing: Easing.out(Easing.ease),
-          });
-        }
       }
 
       appStateRef.current = nextAppState;
@@ -277,9 +229,6 @@ export default function HomeScreen() {
 
     return () => subscription.remove();
   }, [
-    fadeInVisualization,
-    visualizationFadeDuration,
-    visualizerOpacity,
     fadeInOnOpen,
     fadeInDuration,
     tabSwitchFadeOpacity,
@@ -312,10 +261,6 @@ export default function HomeScreen() {
   // Animated styles for fade effects
   const screenFadeStyle = useAnimatedStyle(() => ({
     opacity: screenOpacity.value,
-  }));
-
-  const visualizerFadeStyle = useAnimatedStyle(() => ({
-    opacity: visualizerOpacity.value,
   }));
 
   // Derive display output from phase (for destination meter sync)
@@ -498,8 +443,7 @@ export default function HomeScreen() {
     >
       <Animated.View style={screenFadeStyle}>
         {/* LFO Visualizer + Destination Meter Row - single gesture area */}
-        <Animated.View style={visualizerFadeStyle}>
-          <View>
+        <View>
             <GestureDetector gesture={visualizationGesture}>
               <Animated.View
                 style={[styles.visualizerRow, isPaused && styles.paused]}
@@ -510,10 +454,9 @@ export default function HomeScreen() {
               >
               {/* LFO Visualizer */}
               <View style={styles.visualizerContainer}>
-                {visualizationsReady ? (
-                  <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
-                    {/* Current (new) visualization - always rendered */}
-                    <LFOVisualizer
+                <View>
+                  {/* Current (new) visualization - always rendered */}
+                  <LFOVisualizer
                       phase={displayPhase}
                       output={lfoOutput}
                       waveform={currentConfig.waveform as WaveformType}
@@ -581,39 +524,30 @@ export default function HomeScreen() {
                         />
                       </Animated.View>
                     )}
-                  </Animated.View>
-                ) : (
-                  <VisualizationPlaceholder width={visualizerWidth} height={METER_HEIGHT} />
-                )}
+                </View>
               </View>
 
               {/* Destination Meter */}
               <View style={styles.meterContainer}>
-                {visualizationsReady ? (
-                  <Animated.View entering={FadeIn.duration(visualizationFadeDuration)}>
-                    <DestinationMeter
-                      lfoOutput={displayOutput}
-                      destination={activeDestination}
-                      centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
-                      depth={currentConfig.depth}
-                      fade={currentConfig.fade}
-                      mode={currentConfig.mode as TriggerMode}
-                      fadeMultiplier={displayFadeMultiplier}
-                      waveform={currentConfig.waveform as WaveformType}
-                      startPhase={currentConfig.startPhase}
-                      width={METER_WIDTH}
-                      height={METER_HEIGHT}
-                      showValue={false}
-                      isEditing={isEditing}
-                      showFillsWhenEditing={showFillsWhenEditing}
-                      editFadeOutDuration={editFadeOutDuration}
-                      editFadeInDuration={editFadeInDuration}
-                      isPaused={isPaused}
-                    />
-                  </Animated.View>
-                ) : (
-                  <MeterPlaceholder width={METER_WIDTH} height={METER_HEIGHT} />
-                )}
+                <DestinationMeter
+                  lfoOutput={displayOutput}
+                  destination={activeDestination}
+                  centerValue={hasDestination ? getCenterValue(activeDestinationId) : 64}
+                  depth={currentConfig.depth}
+                  fade={currentConfig.fade}
+                  mode={currentConfig.mode as TriggerMode}
+                  fadeMultiplier={displayFadeMultiplier}
+                  waveform={currentConfig.waveform as WaveformType}
+                  startPhase={currentConfig.startPhase}
+                  width={METER_WIDTH}
+                  height={METER_HEIGHT}
+                  showValue={false}
+                  isEditing={isEditing}
+                  showFillsWhenEditing={showFillsWhenEditing}
+                  editFadeOutDuration={editFadeOutDuration}
+                  editFadeInDuration={editFadeInDuration}
+                  isPaused={isPaused}
+                />
               </View>
 
               {/* Feedback icons overlay - all rendered, visibility controlled by individual opacity */}
@@ -647,9 +581,7 @@ export default function HomeScreen() {
                 hasDestination={hasDestination}
               />
             </View>
-          </View>
-
-        </Animated.View>
+        </View>
 
         {/* Content below visualization */}
         <View style={styles.belowVisualization}>

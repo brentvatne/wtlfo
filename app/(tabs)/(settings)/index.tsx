@@ -19,7 +19,6 @@ import { SymbolView } from 'expo-symbols';
 import {
   usePreset,
   DEFAULT_FADE_IN_DURATION,
-  DEFAULT_VISUALIZATION_FADE_DURATION,
   DEFAULT_EDIT_FADE_OUT,
   DEFAULT_EDIT_FADE_IN,
   DEFAULT_DEPTH_ANIM_DURATION,
@@ -116,10 +115,8 @@ export default function SettingsScreen() {
     bpm, setBPM,
     showFillsWhenEditing, setShowFillsWhenEditing,
     fadeInOnOpen, setFadeInOnOpen,
-    fadeInVisualization, setFadeInVisualization,
     resetLFOOnChange, setResetLFOOnChange,
     fadeInDuration, setFadeInDuration,
-    visualizationFadeDuration, setVisualizationFadeDuration,
     editFadeOutDuration, setEditFadeOutDuration,
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
@@ -313,20 +310,6 @@ export default function SettingsScreen() {
         </View>
         <View style={[styles.settingRow, { marginTop: 16 }]}>
           <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Fade in visualization</Text>
-            <Text style={styles.settingDescription}>
-              Fade in visualization on Editor when opening app or returning from background
-            </Text>
-          </View>
-          <Switch
-            value={fadeInVisualization}
-            onValueChange={setFadeInVisualization}
-            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
-            thumbColor="#ffffff"
-          />
-        </View>
-        <View style={[styles.settingRow, { marginTop: 16 }]}>
-          <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Show fills when editing</Text>
             <Text style={styles.settingDescription}>
               Keep waveform fill areas visible when adjusting depth
@@ -401,14 +384,6 @@ export default function SettingsScreen() {
           formatValue={(v) => `${Math.round(v)}%`}
         />
         <ParameterSlider
-          label="Visualization fade-in"
-          min={100}
-          max={2000}
-          value={visualizationFadeDuration}
-          onChange={setVisualizationFadeDuration}
-          formatValue={(v) => `${Math.round(v)}ms`}
-        />
-        <ParameterSlider
           label="Preset switch fade"
           min={0}
           max={1000}
@@ -453,7 +428,6 @@ export default function SettingsScreen() {
         {(() => {
           const hasNonDefaultTiming =
             Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
-            Math.round(visualizationFadeDuration) !== DEFAULT_VISUALIZATION_FADE_DURATION ||
             Math.round(presetSwitchDuration) !== DEFAULT_PRESET_SWITCH_DURATION ||
             Math.round(editFadeOutDuration) !== DEFAULT_EDIT_FADE_OUT ||
             Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
@@ -464,7 +438,6 @@ export default function SettingsScreen() {
             <Pressable
               onPress={() => {
                 setFadeInDuration(DEFAULT_FADE_IN_DURATION);
-                setVisualizationFadeDuration(DEFAULT_VISUALIZATION_FADE_DURATION);
                 setPresetSwitchDuration(DEFAULT_PRESET_SWITCH_DURATION);
                 setEditFadeOutDuration(DEFAULT_EDIT_FADE_OUT);
                 setEditFadeInDuration(DEFAULT_EDIT_FADE_IN);

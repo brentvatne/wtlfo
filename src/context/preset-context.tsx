@@ -11,7 +11,6 @@ const ENGINE_DEBOUNCE_MS = 100;
 
 // Re-export defaults for use in settings screen reset logic
 export const DEFAULT_FADE_IN_DURATION = Settings.DEFAULTS.fadeInDuration;
-export const DEFAULT_VISUALIZATION_FADE_DURATION = Settings.DEFAULTS.visualizationFadeDuration;
 export const DEFAULT_EDIT_FADE_OUT = Settings.DEFAULTS.editFadeOutDuration;
 export const DEFAULT_EDIT_FADE_IN = Settings.DEFAULTS.editFadeInDuration;
 export const DEFAULT_DEPTH_ANIM_DURATION = Settings.DEFAULTS.depthAnimationDuration;
@@ -88,16 +87,12 @@ interface PresetContextValue {
   setShowFillsWhenEditing: (show: boolean) => void;
   fadeInOnOpen: boolean;
   setFadeInOnOpen: (fade: boolean) => void;
-  fadeInVisualization: boolean;
-  setFadeInVisualization: (fade: boolean) => void;
   resetLFOOnChange: boolean;
   setResetLFOOnChange: (reset: boolean) => void;
 
   // Animation timing settings
   fadeInDuration: number;
   setFadeInDuration: (duration: number) => void;
-  visualizationFadeDuration: number;
-  setVisualizationFadeDuration: (duration: number) => void;
   editFadeOutDuration: number;
   setEditFadeOutDuration: (duration: number) => void;
   editFadeInDuration: number;
@@ -147,10 +142,8 @@ const INITIAL_BPM = Settings.getNumber('bpm', Settings.DEFAULTS.bpm);
 const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
 const INITIAL_SHOW_FILLS = Settings.getBoolean('showFillsWhenEditing', Settings.DEFAULTS.showFillsWhenEditing);
 const INITIAL_FADE_IN = Settings.getBoolean('fadeInOnOpen', Settings.DEFAULTS.fadeInOnOpen);
-const INITIAL_VISUALIZATION_FADE = Settings.getBoolean('fadeInVisualization', Settings.DEFAULTS.fadeInVisualization);
 const INITIAL_RESET_LFO = Settings.getBoolean('resetLFOOnChange', Settings.DEFAULTS.resetLFOOnChange);
 const INITIAL_FADE_IN_DURATION = Settings.getNumber('fadeInDuration', Settings.DEFAULTS.fadeInDuration);
-const INITIAL_VISUALIZATION_FADE_DURATION = Settings.getNumber('visualizationFadeDuration', Settings.DEFAULTS.visualizationFadeDuration);
 const INITIAL_EDIT_FADE_OUT = Settings.getNumber('editFadeOutDuration', Settings.DEFAULTS.editFadeOutDuration);
 const INITIAL_EDIT_FADE_IN = Settings.getNumber('editFadeInDuration', Settings.DEFAULTS.editFadeInDuration);
 const INITIAL_SHOW_FADE_ENVELOPE = Settings.getBoolean('showFadeEnvelope', Settings.DEFAULTS.showFadeEnvelope);
@@ -175,10 +168,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [isPaused, setIsPaused] = useState(false);
   const [showFillsWhenEditing, setShowFillsWhenEditingState] = useState(INITIAL_SHOW_FILLS);
   const [fadeInOnOpen, setFadeInOnOpenState] = useState(INITIAL_FADE_IN);
-  const [fadeInVisualization, setFadeInVisualizationState] = useState(INITIAL_VISUALIZATION_FADE);
   const [resetLFOOnChange, setResetLFOOnChangeState] = useState(INITIAL_RESET_LFO);
   const [fadeInDuration, setFadeInDurationState] = useState(INITIAL_FADE_IN_DURATION);
-  const [visualizationFadeDuration, setVisualizationFadeDurationState] = useState(INITIAL_VISUALIZATION_FADE_DURATION);
   const [editFadeOutDuration, setEditFadeOutDurationState] = useState(INITIAL_EDIT_FADE_OUT);
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
@@ -362,11 +353,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     Settings.setBoolean('fadeInOnOpen', fade);
   }, []);
 
-  const setFadeInVisualization = useCallback((fade: boolean) => {
-    setFadeInVisualizationState(fade);
-    Settings.setBoolean('fadeInVisualization', fade);
-  }, []);
-
   const setResetLFOOnChange = useCallback((reset: boolean) => {
     setResetLFOOnChangeState(reset);
     Settings.setBoolean('resetLFOOnChange', reset);
@@ -375,11 +361,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const setFadeInDuration = useCallback((duration: number) => {
     setFadeInDurationState(duration);
     Settings.setNumber('fadeInDuration', duration);
-  }, []);
-
-  const setVisualizationFadeDuration = useCallback((duration: number) => {
-    setVisualizationFadeDurationState(duration);
-    Settings.setNumber('visualizationFadeDuration', duration);
   }, []);
 
   const setEditFadeOutDuration = useCallback((duration: number) => {
@@ -851,15 +832,11 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setShowFillsWhenEditing,
     fadeInOnOpen,
     setFadeInOnOpen,
-    fadeInVisualization,
-    setFadeInVisualization,
     resetLFOOnChange,
     setResetLFOOnChange,
     // Animation timing settings
     fadeInDuration,
     setFadeInDuration,
-    visualizationFadeDuration,
-    setVisualizationFadeDuration,
     editFadeOutDuration,
     setEditFadeOutDuration,
     editFadeInDuration,
