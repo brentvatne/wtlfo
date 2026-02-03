@@ -96,7 +96,7 @@ export interface LFOVisualizerProps {
   editFadeInDuration?: number;
 
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state */
-  fadeMultiplier?: number;
+  fadeMultiplier?: SharedValue<number>;
 
   /** Number of complete cycles (fade only applies during cycle 0) */
   cycleCount?: number | SharedValue<number>;
@@ -182,7 +182,7 @@ export interface PhaseIndicatorProps {
   /** Trigger mode - fade doesn't apply in FRE mode */
   mode?: TriggerMode;
   /** Current fade envelope multiplier (0.0 to 1.0) from LFO state - when provided, used instead of local calculation */
-  fadeMultiplier?: number;
+  fadeMultiplier?: SharedValue<number>;
   /** Number of complete cycles - fade only applies during cycle 0 */
   cycleCount?: number | SharedValue<number>;
   /** Random seed for RND waveform to ensure dot position matches waveform visualization */
@@ -237,6 +237,8 @@ export interface TimingInfoProps {
   destinationMax?: number;
   /** Whether destination is available */
   hasDestination?: boolean;
+  /** Fade duration in milliseconds (0 = no fade) */
+  fadeDurationMs?: number;
 }
 
 /**

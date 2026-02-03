@@ -32,6 +32,7 @@ export function TimingInfo({
   destinationMin,
   destinationMax,
   hasDestination = false,
+  fadeDurationMs = 0,
 }: TimingInfoProps) {
   const [isBpmPulsing, setIsBpmPulsing] = useState(false);
   const [showElapsedTime, setShowElapsedTime] = useState(false);
@@ -301,6 +302,22 @@ export function TimingInfo({
     return (50 - textWidth) / 2;
   }, [destLabelText, labelFont]);
 
+  // Format fade duration for display
+  const fadeText = useMemo(() => {
+    if (fadeDurationMs <= 0) return '';
+    if (fadeDurationMs >= 1000) {
+      return `${(fadeDurationMs / 1000).toFixed(1)}s`;
+    }
+    return `${Math.round(fadeDurationMs)}ms`;
+  }, [fadeDurationMs]);
+
+  // Calculate fade text X position - wider to accommodate longer values like "9.5s"
+  const fadeCanvasWidth = 55;
+  const fadeTextWidth = fadeText ? valueFont.measureText(fadeText).width : 0;
+  const fadeTextX = fadeText ? (fadeCanvasWidth - fadeTextWidth) / 2 : 0;
+  const fadeLabelWidth = labelFont.measureText('FADE').width;
+  const fadeLabelX = (fadeCanvasWidth - fadeLabelWidth) / 2;
+
   return (
     <View style={[styles.container, { borderTopColor: theme.gridLines + '20' }]}>
       {bpm !== undefined && (
@@ -427,6 +444,27 @@ export function TimingInfo({
             onPress={handleDestPress}
             hitSlop={{ top: 4, bottom: 8, left: 8, right: 8 }}
           />
+        </View>
+      )}
+
+      {fadeDurationMs > 0 && (
+        <View style={styles.item}>
+          <Canvas style={{ width: fadeCanvasWidth, height: ITEM_HEIGHT }}>
+            <SkiaText
+              x={fadeTextX}
+              y={VALUE_Y}
+              text={fadeText}
+              font={valueFont}
+              color={theme.text}
+            />
+            <SkiaText
+              x={fadeLabelX}
+              y={LABEL_Y}
+              text="FADE"
+              font={labelFont}
+              color={theme.textSecondary}
+            />
+          </Canvas>
         </View>
       )}
     </View>

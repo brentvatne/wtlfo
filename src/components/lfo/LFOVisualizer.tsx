@@ -6,9 +6,8 @@ import type { SharedValue } from 'react-native-reanimated';
 
 import { WaveformDisplay } from './WaveformDisplay';
 import { RandomWaveform } from './RandomWaveform';
-import { FadeEnvelope } from './FadeEnvelope';
-import { FadeEnvelopeShape } from './FadeEnvelopeShape';
 import { PhaseIndicator } from './PhaseIndicator';
+import { FadedWaveformCurve } from './FadedWaveformCurve';
 import { OutputValueDisplay } from './OutputValueDisplay';
 import { TimingInfo } from './TimingInfo';
 import { ParameterBadges } from './ParameterBadges';
@@ -190,35 +189,19 @@ export function LFOVisualizer({
             />
           )}
 
-          {/* Fade envelope shape - dashed line showing the fade envelope independent of LFO */}
-          {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
-          {showFadeEnvelope && fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
-            <FadeEnvelopeShape
-              width={width}
-              height={canvasHeight}
-              color={resolvedTheme.fadeCurve}
-              depth={depth}
-              fade={fade}
-              strokeWidth={1.5}
-              opacity={0.25}
-            />
-          )}
-
-          {/* Fade trajectory curve - shows path with fade envelope applied to LFO */}
-          {/* Only show when fade is set AND mode is not FRE (fade doesn't apply in FRE) */}
-          {fade !== undefined && fade !== 0 && mode !== 'FRE' && resolvedTheme.fadeCurve && (
-            <FadeEnvelope
+          {/* Fade trajectory curve - shows where output will go during current fade cycle */}
+          {fade !== undefined && fade !== 0 && mode !== 'FRE' && fadeMultiplier && !reducedMotion && (
+            <FadedWaveformCurve
               waveform={waveform}
               width={width}
               height={canvasHeight}
-              color={resolvedTheme.fadeCurve}
+              color={resolvedTheme.waveformStroke}
+              fadeMultiplier={fadeMultiplier}
+              fadeDirection={fade}
               depth={depth}
               speed={speed}
-              fade={fade}
-              strokeWidth={strokeWidth}
-              resolution={128}
               startPhase={startPhase}
-              opacity={0.6}
+              strokeWidth={strokeWidth}
             />
           )}
 
@@ -264,6 +247,9 @@ export function LFOVisualizer({
           noteValue={noteValue}
           steps={steps}
           theme={resolvedTheme}
+          fadeDurationMs={fade !== undefined && fade !== 0 && mode !== 'FRE'
+            ? 40 * Math.pow(1.085, Math.abs(fade))
+            : 0}
         />
       )}
     </View>

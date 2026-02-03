@@ -52,6 +52,7 @@ export default function HomeScreen() {
     depthAnimationDuration,
     lfoPhase,
     lfoOutput,
+    lfoFadeMultiplier,
     lfoCycleCount,
     timingInfo,
     triggerLFO,
@@ -331,26 +332,12 @@ export default function HomeScreen() {
   const destMaxModulation = destRange / 2;
   const destCenterValue = hasDestination ? getCenterValue(activeDestinationId) : 64;
 
-  // Compute fade multiplier based on current phase
+  // Use the actual fade multiplier from the LFO engine (time-based, not per-cycle)
   const displayFadeMultiplier = useDerivedValue(() => {
     'worklet';
     if (!fadeApplies) return 1;
-
-    // Calculate phase (shifted for visualization)
-    const phaseNormalized = ((displayPhase.value - startPhaseNormalized) % 1 + 1) % 1;
-
-    // Calculate fade envelope using same formula as PhaseIndicator
-    const absFade = Math.abs(fadeValue);
-    const fadeDuration = (64 - absFade) / 64;
-
-    if (fadeValue < 0) {
-      // Fade-in: envelope goes from 0 to 1 over fadeDuration
-      return fadeDuration > 0 ? Math.min(1, phaseNormalized / fadeDuration) : 1;
-    } else {
-      // Fade-out: envelope goes from 1 to 0 over fadeDuration
-      return fadeDuration > 0 ? Math.max(0, 1 - phaseNormalized / fadeDuration) : 0;
-    }
-  }, [fadeApplies, fadeValue, startPhaseNormalized, displayPhase]);
+    return lfoFadeMultiplier.value;
+  }, [fadeApplies, lfoFadeMultiplier]);
 
   const displayOutput = useDerivedValue(() => {
     'worklet';
@@ -550,6 +537,7 @@ export default function HomeScreen() {
                       showPhaseIndicator={!isBackgrounded}
                       randomSeed={lfoCycleCount}
                       cycleCount={lfoCycleCount}
+                      fadeMultiplier={displayFadeMultiplier}
                     />
 
                     {/* Previous (old) visualization - rendered during crossfade, fades out */}

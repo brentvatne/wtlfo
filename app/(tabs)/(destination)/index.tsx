@@ -24,6 +24,7 @@ export default function DestinationScreen() {
     lfoPhase,
     lfoOutput,
     lfoCycleCount,
+    lfoFadeMultiplier,
     timingInfo,
     isEditing,
   } = usePreset();
@@ -111,6 +112,7 @@ export default function DestinationScreen() {
             isEditing={isEditing}
             strokeWidth={2}
             cycleCount={lfoCycleCount}
+            fadeMultiplier={lfoFadeMultiplier}
           />
         </View>
 
@@ -120,6 +122,9 @@ export default function DestinationScreen() {
           destination={destination}
           centerValue={centerValue}
           depth={currentConfig.depth}
+          fade={currentConfig.fade}
+          mode={currentConfig.mode as TriggerMode}
+          fadeMultiplier={lfoFadeMultiplier}
           width={60}
           height={200}
         />

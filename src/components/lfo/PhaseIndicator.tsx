@@ -103,26 +103,29 @@ export function PhaseIndicator({
       value = value * depthScale;
 
       // Apply fade envelope
-      // When fadeMultiplier is provided from the engine, use it for accurate tracking
-      // Otherwise fall back to local calculation matching FadeEnvelope component
-      // Fade only applies on the first cycle (cycleCount === 0)
-      const cycleCountVal = cycleCount === undefined ? 0 : (typeof cycleCount === 'number' ? cycleCount : cycleCount.value);
-      const fadeApplies = fadeCanApply && cycleCountVal === 0;
-      if (fadeApplies) {
+      // When fadeMultiplier is provided from the engine, always use it (time-based fade can span multiple cycles)
+      // Otherwise fall back to local calculation (cycle-based, only during cycle 0)
+      if (fadeCanApply) {
         let fadeEnvelope: number;
         if (fadeMultiplier !== undefined) {
-          // Use engine's fade multiplier for accurate tracking
-          fadeEnvelope = fadeMultiplier;
+          // Use engine's fade multiplier for accurate tracking (time-based)
+          fadeEnvelope = fadeMultiplier.value;
         } else {
-          // Local calculation (fallback)
-          const absFade = Math.abs(fadeValue);
-          const fadeDuration = (64 - absFade) / 64;
-          if (fadeValue < 0) {
-            // Fade-in: envelope goes from 0 to 1 over fadeDuration
-            fadeEnvelope = fadeDuration > 0 ? Math.min(1, displayPhase / fadeDuration) : 1;
+          // Local calculation fallback (cycle-based, only during cycle 0)
+          const cycleCountVal = cycleCount === undefined ? 0 : (typeof cycleCount === 'number' ? cycleCount : cycleCount.value);
+          if (cycleCountVal === 0) {
+            const absFade = Math.abs(fadeValue);
+            const fadeDuration = (64 - absFade) / 64;
+            if (fadeValue < 0) {
+              // Fade-in: envelope goes from 0 to 1 over fadeDuration
+              fadeEnvelope = fadeDuration > 0 ? Math.min(1, displayPhase / fadeDuration) : 1;
+            } else {
+              // Fade-out: envelope goes from 1 to 0 over fadeDuration
+              fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - displayPhase / fadeDuration) : 0;
+            }
           } else {
-            // Fade-out: envelope goes from 1 to 0 over fadeDuration
-            fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - displayPhase / fadeDuration) : 0;
+            // After cycle 0, fade is complete
+            fadeEnvelope = fadeValue < 0 ? 1 : 0;
           }
         }
         value = value * fadeEnvelope;

@@ -7,7 +7,6 @@ import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, canc
 import type { SharedValue } from 'react-native-reanimated';
 import type { DestinationDefinition } from '@/src/types/destination';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo/types';
-import { sampleWaveformWorklet } from '@/src/components/lfo/worklets';
 import { DEFAULT_EDIT_FADE_IN, DEFAULT_EDIT_FADE_OUT } from '@/src/context/preset-context';
 
 // Unipolar waveforms only output 0 to 1 (not -1 to +1)
@@ -221,6 +220,17 @@ export function DestinationMeter({
     return normalized * (height - 16); // Leave padding
   }, [maxModulation, min, max, range, height]);
 
+  // Calculate the "target" (unfaded) value position - where LFO would be at full depth
+  const targetFillHeight = useDerivedValue(() => {
+    'worklet';
+    // No fade multiplier - show full depth target
+    const modulationAmount = lfoOutput.value * maxModulation;
+    const targetVal = animatedCenterValue.value + modulationAmount;
+    const clampedValue = Math.max(min, Math.min(max, targetVal));
+    const normalized = (clampedValue - min) / range;
+    return normalized * (height - 16);
+  }, [maxModulation, min, max, range, height]);
+
   // Animated upper and lower bound Y positions (these are the "full" depth bounds)
   const upperBoundY = useDerivedValue(() => {
     'worklet';
@@ -232,71 +242,11 @@ export function DestinationMeter({
     return meterTop + meterHeight - ((animatedLowerBound.value - min) / range) * meterHeight;
   }, [meterTop, meterHeight, min, range]);
 
-  // Calculate the actual max/min values by sampling the output curve (waveform × fade)
-  // This gives accurate bounds regardless of waveform type or fade timing
-  const { fadeActualMax, fadeActualMin } = useMemo(() => {
-    if (!hasFade || depth === 0) {
-      return { fadeActualMax: targetUpperBound, fadeActualMin: targetLowerBound };
-    }
-
-    const samples = 128;
-    const absFade = Math.abs(fade);
-    const fadeDuration = (64 - absFade) / 64;
-    // Clamp depth scale to [-1, 1] to handle asymmetric range
-    const localDepthScale = Math.max(-1, Math.min(1, depth / 63));
-    // Normalize startPhase (0-127) to 0-1
-    const startPhaseNormalized = startPhase / 128;
-
-    let maxOutput = -Infinity;
-    let minOutput = Infinity;
-
-    for (let i = 0; i <= samples; i++) {
-      const xNormalized = i / samples;
-
-      // Sample waveform at shifted phase (same as FadeEnvelope)
-      const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
-      const rawOutput = sampleWaveformWorklet(waveform, waveformPhase);
-
-      // Calculate fade envelope at visual position (not waveform phase)
-      let fadeEnvelope: number;
-      if (fade < 0) {
-        // Fade-in: 0 → 1 over fadeDuration
-        fadeEnvelope = fadeDuration > 0 ? Math.min(1, xNormalized / fadeDuration) : 1;
-      } else {
-        // Fade-out: 1 → 0 over fadeDuration
-        fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - xNormalized / fadeDuration) : 0;
-      }
-
-      // Calculate output: waveform × depth × fade
-      const output = rawOutput * localDepthScale * fadeEnvelope;
-
-      if (output > maxOutput) maxOutput = output;
-      if (output < minOutput) minOutput = output;
-    }
-
-    // Convert to actual parameter values
-    const actualMax = Math.min(max, centerValue + maxOutput * maxModulation);
-    const actualMin = Math.max(min, centerValue + minOutput * maxModulation);
-
-    return { fadeActualMax: actualMax, fadeActualMin: actualMin };
-  }, [hasFade, depth, fade, waveform, startPhase, centerValue, maxModulation, min, max, targetUpperBound, targetLowerBound]);
-
-  // Animated fade bounds for smooth transitions
-  const animatedFadeActualMax = useSharedValue(fadeActualMax);
-  const animatedFadeActualMin = useSharedValue(fadeActualMin);
-
-  useEffect(() => {
-    cancelAnimation(animatedFadeActualMax);
-    cancelAnimation(animatedFadeActualMin);
-    const config = { duration: 60, easing: Easing.out(Easing.ease) };
-    animatedFadeActualMax.value = withTiming(fadeActualMax, config);
-    animatedFadeActualMin.value = withTiming(fadeActualMin, config);
-  }, [fadeActualMax, fadeActualMin]);
-
   // Compute the display text entirely on UI thread (no JS callback needed)
   // This reads displayModeIndex to determine what to show
-  const minBoundValue = hasFade ? fadeActualMin : targetLowerBound;
-  const maxBoundValue = hasFade ? fadeActualMax : targetUpperBound;
+  // MIN/MAX always show full depth bounds (not fade-adjusted)
+  const minBoundValue = targetLowerBound;
+  const maxBoundValue = targetUpperBound;
 
   const displayText = useDerivedValue(() => {
     'worklet';
@@ -347,21 +297,16 @@ export function DestinationMeter({
     return (width - textWidth) / 2;
   }, [displayLabelText, width, labelFont]);
 
-  // Fade bounds Y positions - FIXED at the actual max/min the output will reach
-  const fadeMaxBoundY = useDerivedValue(() => {
-    'worklet';
-    return meterTop + meterHeight - ((animatedFadeActualMax.value - min) / range) * meterHeight;
-  }, [meterTop, meterHeight, min, range]);
-
-  const fadeMinBoundY = useDerivedValue(() => {
-    'worklet';
-    return meterTop + meterHeight - ((animatedFadeActualMin.value - min) / range) * meterHeight;
-  }, [meterTop, meterHeight, min, range]);
-
   // Animated current value Y position
   const currentValueY = useDerivedValue(() => {
     'worklet';
     return meterTop + meterHeight - meterFillHeight.value;
+  }, [meterTop, meterHeight]);
+
+  // Animated target (unfaded) value Y position
+  const targetValueY = useDerivedValue(() => {
+    'worklet';
+    return meterTop + meterHeight - targetFillHeight.value;
   }, [meterTop, meterHeight]);
 
   // Pre-compute derived values for bound lines (must be unconditional for hooks rules)
@@ -400,25 +345,15 @@ export function DestinationMeter({
     return vec(meterX + meterWidth, currentValueY.value);
   }, []);
 
-  // Fade bound line points (fixed at depth bounds)
-  const fadeMaxP1 = useDerivedValue(() => {
+  // Target (unfaded) value line points
+  const targetValueP1 = useDerivedValue(() => {
     'worklet';
-    return vec(meterX, fadeMaxBoundY.value);
+    return vec(meterX, targetValueY.value);
   }, []);
 
-  const fadeMaxP2 = useDerivedValue(() => {
+  const targetValueP2 = useDerivedValue(() => {
     'worklet';
-    return vec(meterX + meterWidth, fadeMaxBoundY.value);
-  }, []);
-
-  const fadeMinP1 = useDerivedValue(() => {
-    'worklet';
-    return vec(meterX, fadeMinBoundY.value);
-  }, []);
-
-  const fadeMinP2 = useDerivedValue(() => {
-    'worklet';
-    return vec(meterX + meterWidth, fadeMinBoundY.value);
+    return vec(meterX + meterWidth, targetValueY.value);
   }, []);
 
   // Generate horizontal grid lines (4 divisions = 5 lines including top/bottom)
@@ -470,47 +405,38 @@ export function DestinationMeter({
           />
         )}
 
-        {/* Upper bound line - white when MAX selected (only if no fade), orange otherwise */}
+        {/* Upper bound line - white when MAX selected, orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={upperBoundP1}
             p2={upperBoundP2}
-            color={displayMode === 'MAX' && !hasFade ? '#ffffff' : '#ff6600'}
-            strokeWidth={displayMode === 'MAX' && !hasFade ? 2.5 : 1.5}
+            color={displayMode === 'MAX' ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MAX' ? 2.5 : 1.5}
           />
         )}
 
-        {/* Lower bound line - white when MIN selected (only if no fade), orange otherwise */}
+        {/* Lower bound line - white when MIN selected, orange otherwise */}
         {depth !== 0 && (
           <Line
             p1={lowerBoundP1}
             p2={lowerBoundP2}
-            color={displayMode === 'MIN' && !hasFade ? '#ffffff' : '#ff6600'}
-            strokeWidth={displayMode === 'MIN' && !hasFade ? 2.5 : 1.5}
+            color={displayMode === 'MIN' ? '#ffffff' : '#ff6600'}
+            strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
           />
         )}
 
-        {/* Fade curve bounds - cyan lines showing fixed min/max of fade-adjusted curve */}
-        {/* When MIN/MAX is selected, highlight the corresponding fade line instead of the orange one */}
-        {depth !== 0 && hasFade && (
-          <>
-            {/* Fade MAX - fixed at the peak value along the fade curve */}
+        {/* Target (unfaded) value - dimmer line showing where LFO "wants" to be at full depth */}
+        {/* Only show when fade is active (not complete) */}
+        {hasFade && (
+          <Group opacity={currentValueOpacity}>
             <Line
-              p1={fadeMaxP1}
-              p2={fadeMaxP2}
-              color={displayMode === 'MAX' ? '#ffffff' : '#00cccc'}
-              strokeWidth={displayMode === 'MAX' ? 2.5 : 1.5}
-              opacity={displayMode === 'MAX' ? 1 : 0.6}
+              p1={targetValueP1}
+              p2={targetValueP2}
+              color="#ff6600"
+              strokeWidth={1}
+              opacity={0.4}
             />
-            {/* Fade MIN - fixed at the minimum value along the fade curve */}
-            <Line
-              p1={fadeMinP1}
-              p2={fadeMinP2}
-              color={displayMode === 'MIN' ? '#ffffff' : '#00cccc'}
-              strokeWidth={displayMode === 'MIN' ? 2.5 : 1.5}
-              opacity={displayMode === 'MIN' ? 1 : 0.6}
-            />
-          </>
+          </Group>
         )}
 
         {/* Animated current value - white when VALUE selected, orange otherwise (fades when editing) */}

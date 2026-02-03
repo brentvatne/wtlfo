@@ -118,11 +118,6 @@ export function WaveformDisplay({
       // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
       let phase = (xNormalized + startPhaseNormalized) % 1;
 
-      // For EXP with SPH near 0 or 127, prevent visual wrap at the end
-      // Sample near phase=1 instead of wrapped phase=0 so curve reaches full height
-      if (isExp && hideExpEndLine && i === resolution && phase < 0.01) {
-        phase = 1 - 1e-4;
-      }
 
       let value: number;
       if (isExp) {
@@ -158,7 +153,7 @@ export function WaveformDisplay({
           path.moveTo(x, y);
         }
       } else {
-        // Draw step for large value changes (square wave, random)
+        // Draw step for large value changes (square wave, random, EXP phase wrap)
         const threshold = 0.5;
 
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
@@ -232,11 +227,6 @@ export function WaveformDisplay({
       // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
       let phase = (xNormalized + startPhaseNormalized) % 1;
 
-      // For EXP with SPH near 0 or 127, prevent visual wrap at the end
-      // Sample near phase=1 instead of wrapped phase=0 so curve reaches full height
-      if (isExp && hideExpEndLine && i === resolution && phase < 0.01) {
-        phase = 1 - 1e-4;
-      }
 
       let value: number;
       if (isExp) {
@@ -271,7 +261,7 @@ export function WaveformDisplay({
           path.moveTo(x, y);
         }
       } else {
-        // Draw step for large value changes (square wave, random)
+        // Draw step for large value changes (square wave, random, EXP phase wrap)
         const threshold = 0.5;
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
           const prevY = centerY + prevValue * scaleY;
