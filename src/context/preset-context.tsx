@@ -1,299 +1,39 @@
 import React, { createContext, useState, useCallback, useEffect, useRef, useMemo } from 'react';
 import { AppState, type AppStateStatus } from 'react-native';
-import { Storage } from 'expo-sqlite/kv-store';
 import { useSharedValue, useFrameCallback, Easing, cancelAnimation, withTiming } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import { LFO, calculateTimingInfo } from 'elektron-lfo';
 import { PRESETS, type LFOPreset, type LFOPresetConfig } from '@/src/data/presets';
 import { useMidi } from '@/src/context/midi-context';
+import * as Settings from '@/src/services/settings';
 
 const ENGINE_DEBOUNCE_MS = 100;
 
-const STORAGE_KEY = 'activePreset';
-const CONFIG_STORAGE_KEY = 'currentConfig';
-const BPM_STORAGE_KEY = 'bpm';
-const SHOW_FILLS_KEY = 'showFillsWhenEditing';
-const FADE_IN_KEY = 'fadeInOnOpen';
-const VISUALIZATION_FADE_KEY = 'fadeInVisualization';
-const RESET_LFO_KEY = 'resetLFOOnChange';
-const FADE_IN_DURATION_KEY = 'fadeInDuration';
-const VISUALIZATION_FADE_DURATION_KEY = 'visualizationFadeDuration';
-const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
-const EDIT_FADE_IN_KEY = 'editFadeInDuration';
-const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
-const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
-const PRESET_SWITCH_DURATION_KEY = 'presetSwitchDuration';
-const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
-const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
-const TAB_SWITCH_FADE_OPACITY_KEY = 'tabSwitchFadeOpacity';
-const DEFAULT_BPM = 120;
-export const DEFAULT_FADE_IN_DURATION = 500; // ms
-export const DEFAULT_VISUALIZATION_FADE_DURATION = 448; // ms (28 frames @ 60fps)
-export const DEFAULT_EDIT_FADE_OUT = 0; // ms
-export const DEFAULT_EDIT_FADE_IN = 150; // ms
-export const DEFAULT_DEPTH_ANIM_DURATION = 58; // ms
-export const DEFAULT_PRESET_SWITCH_DURATION = 400; // ms - smooth crossfade when switching presets
-export const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms (1 frame @ 60fps)
-export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.7; // Starting opacity for tab switch fade
-
-// Load initial preset synchronously
-function getInitialPreset(): number {
-  try {
-    const saved = Storage.getItemSync(STORAGE_KEY);
-    if (saved !== null) {
-      const index = parseInt(saved, 10);
-      if (!isNaN(index) && index >= 0 && index < PRESETS.length) {
-        return index;
-      }
-    }
-  } catch {
-    console.warn('Failed to load saved preset');
-  }
-  return 0;
-}
+// Re-export defaults for use in settings screen reset logic
+export const DEFAULT_FADE_IN_DURATION = Settings.DEFAULTS.fadeInDuration;
+export const DEFAULT_VISUALIZATION_FADE_DURATION = Settings.DEFAULTS.visualizationFadeDuration;
+export const DEFAULT_EDIT_FADE_OUT = Settings.DEFAULTS.editFadeOutDuration;
+export const DEFAULT_EDIT_FADE_IN = Settings.DEFAULTS.editFadeInDuration;
+export const DEFAULT_DEPTH_ANIM_DURATION = Settings.DEFAULTS.depthAnimationDuration;
+export const DEFAULT_PRESET_SWITCH_DURATION = Settings.DEFAULTS.presetSwitchDuration;
+export const DEFAULT_PHASE_ANIMATION_DURATION = Settings.DEFAULTS.phaseAnimationDuration;
+export const DEFAULT_TAB_SWITCH_FADE_OPACITY = Settings.DEFAULTS.tabSwitchFadeOpacity;
 
 // Load saved config or fall back to preset defaults
 function getInitialConfig(presetIndex: number): LFOPresetConfig {
-  try {
-    const saved = Storage.getItemSync(CONFIG_STORAGE_KEY);
-    if (saved !== null) {
-      const parsed = JSON.parse(saved) as LFOPresetConfig;
-      // Validate the parsed config has all required fields
-      if (
-        typeof parsed.waveform === 'string' &&
-        typeof parsed.speed === 'number' &&
-        typeof parsed.depth === 'number' &&
-        typeof parsed.fade === 'number'
-      ) {
-        return parsed;
-      }
+  const saved = Settings.getJSON<LFOPresetConfig | null>('currentConfig', null);
+  if (saved !== null) {
+    // Validate the parsed config has all required fields
+    if (
+      typeof saved.waveform === 'string' &&
+      typeof saved.speed === 'number' &&
+      typeof saved.depth === 'number' &&
+      typeof saved.fade === 'number'
+    ) {
+      return saved;
     }
-  } catch {
-    console.warn('Failed to load saved config');
   }
   return { ...PRESETS[presetIndex].config };
-}
-
-// Load initial BPM synchronously
-function getInitialBPM(): number {
-  try {
-    const saved = Storage.getItemSync(BPM_STORAGE_KEY);
-    if (saved !== null) {
-      const bpm = parseInt(saved, 10);
-      if (!isNaN(bpm) && bpm >= 30 && bpm <= 300) {
-        return bpm;
-      }
-    }
-  } catch {
-    console.warn('Failed to load saved BPM');
-  }
-  return DEFAULT_BPM;
-}
-
-// Load initial show fills setting synchronously
-function getInitialShowFills(): boolean {
-  try {
-    const saved = Storage.getItemSync(SHOW_FILLS_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load show fills setting');
-  }
-  return true; // Default to showing fills when editing
-}
-
-// Load initial fade-in setting synchronously
-function getInitialFadeIn(): boolean {
-  try {
-    const saved = Storage.getItemSync(FADE_IN_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load fade-in setting');
-  }
-  return true; // Default to fading in on tab switch
-}
-
-// Load initial visualization fade setting synchronously
-function getInitialVisualizationFade(): boolean {
-  try {
-    const saved = Storage.getItemSync(VISUALIZATION_FADE_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load visualization fade setting');
-  }
-  return true; // Default to fading in visualization
-}
-
-// Load initial reset LFO setting synchronously
-function getInitialResetLFO(): boolean {
-  try {
-    const saved = Storage.getItemSync(RESET_LFO_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load reset LFO setting');
-  }
-  return true; // Default to resetting LFO on parameter changes
-}
-
-// Load initial fade-in duration synchronously
-function getInitialFadeInDuration(): number {
-  try {
-    const saved = Storage.getItemSync(FADE_IN_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 100 && value <= 2000) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load fade-in duration setting');
-  }
-  return DEFAULT_FADE_IN_DURATION;
-}
-
-// Load initial visualization fade duration synchronously
-function getInitialVisualizationFadeDuration(): number {
-  try {
-    const saved = Storage.getItemSync(VISUALIZATION_FADE_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 100 && value <= 2000) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load visualization fade duration setting');
-  }
-  return DEFAULT_VISUALIZATION_FADE_DURATION;
-}
-
-// Load initial edit fade-out duration synchronously
-function getInitialEditFadeOut(): number {
-  try {
-    const saved = Storage.getItemSync(EDIT_FADE_OUT_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 500) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load edit fade-out setting');
-  }
-  return DEFAULT_EDIT_FADE_OUT;
-}
-
-// Load initial edit fade-in duration synchronously
-function getInitialEditFadeIn(): number {
-  try {
-    const saved = Storage.getItemSync(EDIT_FADE_IN_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 100 && value <= 1000) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load edit fade-in setting');
-  }
-  return DEFAULT_EDIT_FADE_IN;
-}
-
-// Load initial show fade envelope setting synchronously
-function getInitialShowFadeEnvelope(): boolean {
-  try {
-    const saved = Storage.getItemSync(SHOW_FADE_ENVELOPE_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load show fade envelope setting');
-  }
-  return true; // Default to showing fade envelope
-}
-
-// Load initial depth animation duration synchronously
-function getInitialDepthAnimDuration(): number {
-  try {
-    const saved = Storage.getItemSync(DEPTH_ANIM_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 200) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load depth animation duration setting');
-  }
-  return DEFAULT_DEPTH_ANIM_DURATION;
-}
-
-// Load initial preset switch duration synchronously
-function getInitialPresetSwitchDuration(): number {
-  try {
-    const saved = Storage.getItemSync(PRESET_SWITCH_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 1000) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load preset switch duration setting');
-  }
-  return DEFAULT_PRESET_SWITCH_DURATION;
-}
-
-// Load initial smooth phase animation setting synchronously
-function getInitialSmoothPhaseAnimation(): boolean {
-  try {
-    const saved = Storage.getItemSync(SMOOTH_PHASE_ANIMATION_KEY);
-    if (saved !== null) {
-      return saved === 'true';
-    }
-  } catch {
-    console.warn('Failed to load smooth phase animation setting');
-  }
-  return true; // Default to enabled - smooth phase interpolation
-}
-
-// Load initial phase animation duration synchronously
-function getInitialPhaseAnimationDuration(): number {
-  try {
-    const saved = Storage.getItemSync(PHASE_ANIMATION_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 100) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load phase animation duration setting');
-  }
-  return DEFAULT_PHASE_ANIMATION_DURATION;
-}
-
-// Load initial tab switch fade opacity synchronously
-function getInitialTabSwitchFadeOpacity(): number {
-  try {
-    const saved = Storage.getItemSync(TAB_SWITCH_FADE_OPACITY_KEY);
-    if (saved !== null) {
-      const value = parseFloat(saved);
-      if (!isNaN(value) && value >= 0 && value <= 1) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load tab switch fade opacity setting');
-  }
-  return DEFAULT_TAB_SWITCH_FADE_OPACITY;
 }
 
 interface TimingInfo {
@@ -392,24 +132,33 @@ interface PresetContextValue {
 const PresetContext = createContext<PresetContextValue | null>(null);
 
 // Compute initial values ONCE, outside the component, to ensure consistency
-const INITIAL_PRESET_INDEX = getInitialPreset();
+// Settings are pre-cached at module load by the settings service
+function getInitialPresetIndex(): number {
+  const saved = Settings.getNumber('activePreset', 0);
+  if (saved >= 0 && saved < PRESETS.length) {
+    return saved;
+  }
+  return 0;
+}
+
+const INITIAL_PRESET_INDEX = getInitialPresetIndex();
 const INITIAL_CONFIG = getInitialConfig(INITIAL_PRESET_INDEX);
-const INITIAL_BPM = getInitialBPM();
+const INITIAL_BPM = Settings.getNumber('bpm', Settings.DEFAULTS.bpm);
 const INITIAL_START_PHASE = INITIAL_CONFIG.startPhase / 128;
-const INITIAL_SHOW_FILLS = getInitialShowFills();
-const INITIAL_FADE_IN = getInitialFadeIn();
-const INITIAL_VISUALIZATION_FADE = getInitialVisualizationFade();
-const INITIAL_RESET_LFO = getInitialResetLFO();
-const INITIAL_FADE_IN_DURATION = getInitialFadeInDuration();
-const INITIAL_VISUALIZATION_FADE_DURATION = getInitialVisualizationFadeDuration();
-const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
-const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
-const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
-const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
-const INITIAL_PRESET_SWITCH_DURATION = getInitialPresetSwitchDuration();
-const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
-const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
-const INITIAL_TAB_SWITCH_FADE_OPACITY = getInitialTabSwitchFadeOpacity();
+const INITIAL_SHOW_FILLS = Settings.getBoolean('showFillsWhenEditing', Settings.DEFAULTS.showFillsWhenEditing);
+const INITIAL_FADE_IN = Settings.getBoolean('fadeInOnOpen', Settings.DEFAULTS.fadeInOnOpen);
+const INITIAL_VISUALIZATION_FADE = Settings.getBoolean('fadeInVisualization', Settings.DEFAULTS.fadeInVisualization);
+const INITIAL_RESET_LFO = Settings.getBoolean('resetLFOOnChange', Settings.DEFAULTS.resetLFOOnChange);
+const INITIAL_FADE_IN_DURATION = Settings.getNumber('fadeInDuration', Settings.DEFAULTS.fadeInDuration);
+const INITIAL_VISUALIZATION_FADE_DURATION = Settings.getNumber('visualizationFadeDuration', Settings.DEFAULTS.visualizationFadeDuration);
+const INITIAL_EDIT_FADE_OUT = Settings.getNumber('editFadeOutDuration', Settings.DEFAULTS.editFadeOutDuration);
+const INITIAL_EDIT_FADE_IN = Settings.getNumber('editFadeInDuration', Settings.DEFAULTS.editFadeInDuration);
+const INITIAL_SHOW_FADE_ENVELOPE = Settings.getBoolean('showFadeEnvelope', Settings.DEFAULTS.showFadeEnvelope);
+const INITIAL_DEPTH_ANIM_DURATION = Settings.getNumber('depthAnimationDuration', Settings.DEFAULTS.depthAnimationDuration);
+const INITIAL_PRESET_SWITCH_DURATION = Settings.getNumber('presetSwitchDuration', Settings.DEFAULTS.presetSwitchDuration);
+const INITIAL_SMOOTH_PHASE_ANIMATION = Settings.getBoolean('smoothPhaseAnimation', Settings.DEFAULTS.smoothPhaseAnimation);
+const INITIAL_PHASE_ANIMATION_DURATION = Settings.getNumber('phaseAnimationDuration', Settings.DEFAULTS.phaseAnimationDuration);
+const INITIAL_TAB_SWITCH_FADE_OPACITY = Settings.getFloat('tabSwitchFadeOpacity', Settings.DEFAULTS.tabSwitchFadeOpacity);
 
 export function PresetProvider({ children }: { children: React.ReactNode }) {
   // MIDI clock sync - only use external BPM when connected and enabled
@@ -525,10 +274,8 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   // Track whether we're in a preset transition (for idempotent finish)
   const isTransitioningRef = useRef(false);
 
-  // Persist config to storage during idle time
-  // Uses requestIdleCallback to avoid blocking UI during animations/interactions
+  // Persist config to storage (debounced, then deferred to idle by settings service)
   const persistTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
-  const persistIdleRef = useRef<number | null>(null);
   const isFirstPersist = useRef(true);
   useEffect(() => {
     // Skip on first render - config is already loaded from storage
@@ -541,41 +288,25 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     if (persistTimeoutRef.current) {
       clearTimeout(persistTimeoutRef.current);
     }
-    if (persistIdleRef.current !== null) {
-      cancelIdleCallback(persistIdleRef.current);
-    }
 
-    // Debounce persistence (500ms) then schedule for idle time
+    // Debounce persistence (500ms) - settings service handles idle callback
     persistTimeoutRef.current = setTimeout(() => {
-      persistIdleRef.current = requestIdleCallback(() => {
-        try {
-          Storage.setItemSync(CONFIG_STORAGE_KEY, JSON.stringify(currentConfig));
-        } catch {
-          console.warn('Failed to persist config');
-        }
-      });
+      Settings.setJSON('currentConfig', currentConfig);
     }, 500);
 
     return () => {
       if (persistTimeoutRef.current) {
         clearTimeout(persistTimeoutRef.current);
       }
-      if (persistIdleRef.current !== null) {
-        cancelIdleCallback(persistIdleRef.current);
-      }
     };
   }, [currentConfig]);
 
   const setActivePreset = useCallback((index: number) => {
     setActivePresetState(index);
-    // Persist to storage synchronously
-    try {
-      Storage.setItemSync(STORAGE_KEY, String(index));
-      // Clear saved config so preset defaults are used on next load
-      Storage.removeItem(CONFIG_STORAGE_KEY);
-    } catch {
-      console.warn('Failed to save preset');
-    }
+    // Persist to storage (deferred to idle time by settings service)
+    Settings.setNumber('activePreset', index);
+    // Clear saved config so preset defaults are used on next load
+    Settings.setJSON('currentConfig', null);
   }, []);
 
   // Change preset with Skia-native crossfade transition
@@ -601,13 +332,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
     // Actually change the preset immediately
     setActivePresetState(index);
-    // Persist to storage
-    try {
-      Storage.setItemSync(STORAGE_KEY, String(index));
-      Storage.removeItem(CONFIG_STORAGE_KEY);
-    } catch {
-      console.warn('Failed to save preset');
-    }
+    // Persist to storage (deferred to idle time by settings service)
+    Settings.setNumber('activePreset', index);
+    Settings.setJSON('currentConfig', null);
   }, [currentConfig, crossfadeOpacity, presetSwitchDuration]);
 
   // Called when crossfade animation completes - clears the previous config
@@ -622,137 +349,77 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const setBPM = useCallback((newBPM: number) => {
     const clampedBPM = Math.max(30, Math.min(300, Math.round(newBPM)));
     setBPMState(clampedBPM);
-    try {
-      Storage.setItemSync(BPM_STORAGE_KEY, String(clampedBPM));
-    } catch {
-      console.warn('Failed to save BPM');
-    }
+    Settings.setNumber('bpm', clampedBPM);
   }, []);
 
   const setShowFillsWhenEditing = useCallback((show: boolean) => {
     setShowFillsWhenEditingState(show);
-    try {
-      Storage.setItemSync(SHOW_FILLS_KEY, String(show));
-    } catch {
-      console.warn('Failed to save show fills setting');
-    }
+    Settings.setBoolean('showFillsWhenEditing', show);
   }, []);
 
   const setFadeInOnOpen = useCallback((fade: boolean) => {
     setFadeInOnOpenState(fade);
-    try {
-      Storage.setItemSync(FADE_IN_KEY, String(fade));
-    } catch {
-      console.warn('Failed to save fade-in setting');
-    }
+    Settings.setBoolean('fadeInOnOpen', fade);
   }, []);
 
   const setFadeInVisualization = useCallback((fade: boolean) => {
     setFadeInVisualizationState(fade);
-    try {
-      Storage.setItemSync(VISUALIZATION_FADE_KEY, String(fade));
-    } catch {
-      console.warn('Failed to save visualization fade setting');
-    }
+    Settings.setBoolean('fadeInVisualization', fade);
   }, []);
 
   const setResetLFOOnChange = useCallback((reset: boolean) => {
     setResetLFOOnChangeState(reset);
-    try {
-      Storage.setItemSync(RESET_LFO_KEY, String(reset));
-    } catch {
-      console.warn('Failed to save reset LFO setting');
-    }
+    Settings.setBoolean('resetLFOOnChange', reset);
   }, []);
 
   const setFadeInDuration = useCallback((duration: number) => {
     setFadeInDurationState(duration);
-    try {
-      Storage.setItemSync(FADE_IN_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save fade-in duration setting');
-    }
+    Settings.setNumber('fadeInDuration', duration);
   }, []);
 
   const setVisualizationFadeDuration = useCallback((duration: number) => {
     setVisualizationFadeDurationState(duration);
-    try {
-      Storage.setItemSync(VISUALIZATION_FADE_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save visualization fade duration setting');
-    }
+    Settings.setNumber('visualizationFadeDuration', duration);
   }, []);
 
   const setEditFadeOutDuration = useCallback((duration: number) => {
     setEditFadeOutDurationState(duration);
-    try {
-      Storage.setItemSync(EDIT_FADE_OUT_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save edit fade-out setting');
-    }
+    Settings.setNumber('editFadeOutDuration', duration);
   }, []);
 
   const setEditFadeInDuration = useCallback((duration: number) => {
     setEditFadeInDurationState(duration);
-    try {
-      Storage.setItemSync(EDIT_FADE_IN_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save edit fade-in setting');
-    }
+    Settings.setNumber('editFadeInDuration', duration);
   }, []);
 
   const setShowFadeEnvelope = useCallback((show: boolean) => {
     setShowFadeEnvelopeState(show);
-    try {
-      Storage.setItemSync(SHOW_FADE_ENVELOPE_KEY, String(show));
-    } catch {
-      console.warn('Failed to save show fade envelope setting');
-    }
+    Settings.setBoolean('showFadeEnvelope', show);
   }, []);
 
   const setDepthAnimationDuration = useCallback((duration: number) => {
     setDepthAnimationDurationState(duration);
-    try {
-      Storage.setItemSync(DEPTH_ANIM_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save depth animation duration setting');
-    }
+    Settings.setNumber('depthAnimationDuration', duration);
   }, []);
 
   const setPresetSwitchDuration = useCallback((duration: number) => {
     setPresetSwitchDurationState(duration);
-    try {
-      Storage.setItemSync(PRESET_SWITCH_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save preset switch duration setting');
-    }
+    Settings.setNumber('presetSwitchDuration', duration);
   }, []);
 
   const setSmoothPhaseAnimation = useCallback((enabled: boolean) => {
     setSmoothPhaseAnimationState(enabled);
-    try {
-      Storage.setItemSync(SMOOTH_PHASE_ANIMATION_KEY, String(enabled));
-    } catch {
-      console.warn('Failed to save smooth phase animation setting');
-    }
+    Settings.setBoolean('smoothPhaseAnimation', enabled);
   }, []);
 
   const setPhaseAnimationDuration = useCallback((duration: number) => {
     setPhaseAnimationDurationState(duration);
-    try {
-      Storage.setItemSync(PHASE_ANIMATION_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save phase animation duration setting');
-    }
+    Settings.setNumber('phaseAnimationDuration', duration);
   }, []);
 
   const setTabSwitchFadeOpacity = useCallback((opacity: number) => {
     setTabSwitchFadeOpacityState(opacity);
-    try {
-      Storage.setItemSync(TAB_SWITCH_FADE_OPACITY_KEY, String(opacity));
-    } catch {
-      console.warn('Failed to save tab switch fade opacity setting');
-    }
+    Settings.setNumber('tabSwitchFadeOpacity', opacity);
   }, []);
 
   // Sync currentConfig when activePreset changes
