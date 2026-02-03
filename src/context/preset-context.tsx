@@ -22,7 +22,6 @@ const EDIT_FADE_OUT_KEY = 'editFadeOutDuration';
 const EDIT_FADE_IN_KEY = 'editFadeInDuration';
 const SHOW_FADE_ENVELOPE_KEY = 'showFadeEnvelope';
 const DEPTH_ANIM_DURATION_KEY = 'depthAnimationDuration';
-const SPLASH_FADE_DURATION_KEY = 'splashFadeDuration';
 const PRESET_SWITCH_DURATION_KEY = 'presetSwitchDuration';
 const SMOOTH_PHASE_ANIMATION_KEY = 'smoothPhaseAnimation';
 const PHASE_ANIMATION_DURATION_KEY = 'phaseAnimationDuration';
@@ -33,7 +32,6 @@ export const DEFAULT_VISUALIZATION_FADE_DURATION = 448; // ms (28 frames @ 60fps
 export const DEFAULT_EDIT_FADE_OUT = 0; // ms
 export const DEFAULT_EDIT_FADE_IN = 150; // ms
 export const DEFAULT_DEPTH_ANIM_DURATION = 58; // ms
-export const DEFAULT_SPLASH_FADE_DURATION = 144; // ms (9 frames @ 60fps)
 export const DEFAULT_PRESET_SWITCH_DURATION = 400; // ms - smooth crossfade when switching presets
 export const DEFAULT_PHASE_ANIMATION_DURATION = 16; // ms (1 frame @ 60fps)
 export const DEFAULT_TAB_SWITCH_FADE_OPACITY = 0.7; // Starting opacity for tab switch fade
@@ -237,22 +235,6 @@ function getInitialDepthAnimDuration(): number {
   return DEFAULT_DEPTH_ANIM_DURATION;
 }
 
-// Load initial splash fade duration synchronously
-function getInitialSplashFadeDuration(): number {
-  try {
-    const saved = Storage.getItemSync(SPLASH_FADE_DURATION_KEY);
-    if (saved !== null) {
-      const value = parseInt(saved, 10);
-      if (!isNaN(value) && value >= 0 && value <= 1000) {
-        return value;
-      }
-    }
-  } catch {
-    console.warn('Failed to load splash fade duration setting');
-  }
-  return DEFAULT_SPLASH_FADE_DURATION;
-}
-
 // Load initial preset switch duration synchronously
 function getInitialPresetSwitchDuration(): number {
   try {
@@ -386,8 +368,6 @@ interface PresetContextValue {
   setShowFadeEnvelope: (show: boolean) => void;
   depthAnimationDuration: number;
   setDepthAnimationDuration: (duration: number) => void;
-  splashFadeDuration: number;
-  setSplashFadeDuration: (duration: number) => void;
   presetSwitchDuration: number;
   setPresetSwitchDuration: (duration: number) => void;
   smoothPhaseAnimation: boolean;
@@ -426,7 +406,6 @@ const INITIAL_EDIT_FADE_OUT = getInitialEditFadeOut();
 const INITIAL_EDIT_FADE_IN = getInitialEditFadeIn();
 const INITIAL_SHOW_FADE_ENVELOPE = getInitialShowFadeEnvelope();
 const INITIAL_DEPTH_ANIM_DURATION = getInitialDepthAnimDuration();
-const INITIAL_SPLASH_FADE_DURATION = getInitialSplashFadeDuration();
 const INITIAL_PRESET_SWITCH_DURATION = getInitialPresetSwitchDuration();
 const INITIAL_SMOOTH_PHASE_ANIMATION = getInitialSmoothPhaseAnimation();
 const INITIAL_PHASE_ANIMATION_DURATION = getInitialPhaseAnimationDuration();
@@ -455,7 +434,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const [editFadeInDuration, setEditFadeInDurationState] = useState(INITIAL_EDIT_FADE_IN);
   const [showFadeEnvelope, setShowFadeEnvelopeState] = useState(INITIAL_SHOW_FADE_ENVELOPE);
   const [depthAnimationDuration, setDepthAnimationDurationState] = useState(INITIAL_DEPTH_ANIM_DURATION);
-  const [splashFadeDuration, setSplashFadeDurationState] = useState(INITIAL_SPLASH_FADE_DURATION);
   const [presetSwitchDuration, setPresetSwitchDurationState] = useState(INITIAL_PRESET_SWITCH_DURATION);
   const [smoothPhaseAnimation, setSmoothPhaseAnimationState] = useState(INITIAL_SMOOTH_PHASE_ANIMATION);
   const [phaseAnimationDuration, setPhaseAnimationDurationState] = useState(INITIAL_PHASE_ANIMATION_DURATION);
@@ -738,15 +716,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       Storage.setItemSync(DEPTH_ANIM_DURATION_KEY, String(duration));
     } catch {
       console.warn('Failed to save depth animation duration setting');
-    }
-  }, []);
-
-  const setSplashFadeDuration = useCallback((duration: number) => {
-    setSplashFadeDurationState(duration);
-    try {
-      Storage.setItemSync(SPLASH_FADE_DURATION_KEY, String(duration));
-    } catch {
-      console.warn('Failed to save splash fade duration setting');
     }
   }, []);
 
@@ -1233,8 +1202,6 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     setShowFadeEnvelope,
     depthAnimationDuration,
     setDepthAnimationDuration,
-    splashFadeDuration,
-    setSplashFadeDuration,
     presetSwitchDuration,
     setPresetSwitchDuration,
     smoothPhaseAnimation,

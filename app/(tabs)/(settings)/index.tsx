@@ -23,7 +23,6 @@ import {
   DEFAULT_EDIT_FADE_OUT,
   DEFAULT_EDIT_FADE_IN,
   DEFAULT_DEPTH_ANIM_DURATION,
-  DEFAULT_SPLASH_FADE_DURATION,
   DEFAULT_PRESET_SWITCH_DURATION,
   DEFAULT_PHASE_ANIMATION_DURATION,
   DEFAULT_TAB_SWITCH_FADE_OPACITY,
@@ -125,7 +124,6 @@ export default function SettingsScreen() {
     editFadeInDuration, setEditFadeInDuration,
     showFadeEnvelope, setShowFadeEnvelope,
     depthAnimationDuration, setDepthAnimationDuration,
-    splashFadeDuration, setSplashFadeDuration,
     presetSwitchDuration, setPresetSwitchDuration,
     smoothPhaseAnimation, setSmoothPhaseAnimation,
     phaseAnimationDuration, setPhaseAnimationDuration,
@@ -452,14 +450,6 @@ export default function SettingsScreen() {
             formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
           />
         )}
-        <ParameterSlider
-          label="Splash screen fade"
-          min={0}
-          max={1000}
-          value={splashFadeDuration}
-          onChange={setSplashFadeDuration}
-          formatValue={(v) => Math.round(v) === 0 ? 'Instant' : `${Math.round(v)}ms`}
-        />
         {(() => {
           const hasNonDefaultTiming =
             Math.round(fadeInDuration) !== DEFAULT_FADE_IN_DURATION ||
@@ -469,8 +459,7 @@ export default function SettingsScreen() {
             Math.round(editFadeInDuration) !== DEFAULT_EDIT_FADE_IN ||
             Math.round(depthAnimationDuration) !== DEFAULT_DEPTH_ANIM_DURATION ||
             Math.round(phaseAnimationDuration) !== DEFAULT_PHASE_ANIMATION_DURATION ||
-            Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100) ||
-            Math.round(splashFadeDuration) !== DEFAULT_SPLASH_FADE_DURATION;
+            Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100);
           return (
             <Pressable
               onPress={() => {
@@ -482,7 +471,6 @@ export default function SettingsScreen() {
                 setDepthAnimationDuration(DEFAULT_DEPTH_ANIM_DURATION);
                 setPhaseAnimationDuration(DEFAULT_PHASE_ANIMATION_DURATION);
                 setTabSwitchFadeOpacity(DEFAULT_TAB_SWITCH_FADE_OPACITY);
-                setSplashFadeDuration(DEFAULT_SPLASH_FADE_DURATION);
               }}
               style={styles.resetTimingButton}
             >

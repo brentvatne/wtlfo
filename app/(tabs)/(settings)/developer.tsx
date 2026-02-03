@@ -1,19 +1,17 @@
 import React, { useState } from 'react';
-import { View, Text, Pressable, StyleSheet, Switch } from 'react-native';
+import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import { useMidi } from '@/src/context/midi-context';
 import { DigitaktConnection } from '@/src/components/settings/DigitaktConnection';
 import { useLfoVerification, TestSuiteKey } from '@/src/hooks/useLfoVerification';
-import { useFrameRate } from '@/src/context/frame-rate-context';
 
 type TabType = 'verification' | 'performance';
 
 export default function DeveloperScreen() {
   const { connected } = useMidi();
   const { testSuites } = useLfoVerification();
-  const { showOverlay, setShowOverlay } = useFrameRate();
   const [selectedSuite, setSelectedSuite] = useState<TestSuiteKey | 'all'>('all');
   const [activeTab, setActiveTab] = useState<TabType>('verification');
 
@@ -47,20 +45,6 @@ export default function DeveloperScreen() {
         {/* MIDI Connection */}
         <View style={styles.section}>
           <DigitaktConnection />
-        </View>
-
-        {/* Frame Rate Overlay Toggle */}
-        <View style={styles.settingRow}>
-          <View style={styles.settingLabel}>
-            <Text style={styles.settingTitle}>Frame Rate Overlay</Text>
-            <Text style={styles.settingDescription}>Show JS/UI thread fps</Text>
-          </View>
-          <Switch
-            value={showOverlay}
-            onValueChange={setShowOverlay}
-            trackColor={{ false: '#3a3a3a', true: '#ff6600' }}
-            thumbColor="#ffffff"
-          />
         </View>
 
         {/* Tab Selector */}
@@ -159,28 +143,6 @@ const styles = StyleSheet.create({
   },
   section: {
     marginBottom: 16,
-  },
-  settingRow: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    backgroundColor: '#1a1a1a',
-    borderRadius: 12,
-    padding: 16,
-    marginBottom: 16,
-  },
-  settingLabel: {
-    flex: 1,
-  },
-  settingTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '500',
-  },
-  settingDescription: {
-    color: '#888899',
-    fontSize: 12,
-    marginTop: 2,
   },
   tabContainer: {
     flexDirection: 'row',

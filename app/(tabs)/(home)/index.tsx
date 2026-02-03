@@ -17,6 +17,8 @@ import {
   isUnipolarWorklet,
   TimingInfo,
   VisualizationPlaceholder,
+  warmPathCache,
+  WAVEFORM_ICON_SIZES,
 } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
@@ -62,7 +64,6 @@ export default function HomeScreen() {
     isLFORunning,
     isPaused,
     setIsPaused,
-    splashFadeDuration,
     isChangingPreset,
     previousConfig,
     crossfadeOpacity,
@@ -100,21 +101,26 @@ export default function HomeScreen() {
       })()
     : null;
 
-  // Track when splash fade completes to defer expensive Skia rendering
+  // Track when visualization fade completes to defer expensive Skia rendering
   const [visualizationsReady, setVisualizationsReady] = useState(!fadeInVisualization);
   useEffect(() => {
     if (!fadeInVisualization) {
       setVisualizationsReady(true);
       return;
     }
-    const timer = setTimeout(() => setVisualizationsReady(true), splashFadeDuration);
+    const timer = setTimeout(() => setVisualizationsReady(true), visualizationFadeDuration);
     return () => clearTimeout(timer);
-  }, [fadeInVisualization, splashFadeDuration]);
+  }, [fadeInVisualization, visualizationFadeDuration]);
 
-  // Mark app as interactive after splash fade completes (production only)
+  // Mark app as interactive after visualization fade completes (production only)
+  // Then pre-warm Skia path cache for modal icons in idle time
   useEffect(() => {
     if (visualizationsReady && !__DEV__) {
       AppMetrics.markInteractive();
+      // Defer path cache warming until browser is idle
+      requestIdleCallback(() => {
+        warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);
+      });
     }
   }, [visualizationsReady]);
 
