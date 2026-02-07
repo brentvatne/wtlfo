@@ -6,7 +6,7 @@ import { PresetProvider } from '@/src/context/preset-context';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
 import AppMetrics from 'expo-eas-observe';
-import { Stack } from 'expo-router';
+import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
 import { GestureHandlerRootView } from 'react-native-gesture-handler';
@@ -15,12 +15,18 @@ import { configureReanimatedLogger, ReanimatedLogLevel } from 'react-native-rean
 // Set native root view background color to prevent white flash during navigation
 SystemUI.setBackgroundColorAsync('#000000');
 
+const navigationIntegration = Sentry.reactNavigationIntegration({
+  enableTimeToInitialDisplay: true,
+});
+
 Sentry.init({
   dsn: 'https://1397d1c25ba952f620723abd186c27ac@o85374.ingest.us.sentry.io/4510763027464192',
+  enabled: !__DEV__,
   sendDefaultPii: true,
-  enableLogs: true,
+  enableLogs: !__DEV__,
   tracesSampleRate: 1.0,
   enableAppStartTracking: true,
+  integrations: [navigationIntegration],
 });
 
 // TODO: Fix underlying Reanimated strict mode violations and re-enable warnings
@@ -31,6 +37,14 @@ configureReanimatedLogger({
 });
 
 export default Sentry.wrap(function RootLayout() {
+  const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    if (navigationRef) {
+      navigationIntegration.registerNavigationContainer(navigationRef);
+    }
+  }, [navigationRef]);
+
   useEffect(() => {
     if (!__DEV__) {
       AppMetrics.markFirstRender();
