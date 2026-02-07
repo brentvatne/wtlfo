@@ -38,8 +38,22 @@ export class ErrorBoundary extends Component<Props, State> {
 
   handleRestart = async (): Promise<void> => {
     try {
-      // Try to reload the app using expo-updates
       if (Updates.isEnabled) {
+        // Check for and download any available update before reloading,
+        // so we don't reload the same crashy bundle in a loop
+        try {
+          Sentry.addBreadcrumb({ category: 'update', message: 'ErrorBoundary: checking for update' });
+          const check = await Updates.checkForUpdateAsync();
+          Sentry.addBreadcrumb({ category: 'update', message: `ErrorBoundary: check result isAvailable=${check.isAvailable}` });
+          if (check.isAvailable) {
+            Sentry.addBreadcrumb({ category: 'update', message: 'ErrorBoundary: fetching update' });
+            const fetchResult = await Updates.fetchUpdateAsync();
+            Sentry.addBreadcrumb({ category: 'update', message: `ErrorBoundary: fetch result isNew=${fetchResult.isNew}` });
+          }
+        } catch {
+          // Network error or check failure — still reload with whatever we have
+        }
+        Sentry.addBreadcrumb({ category: 'update', message: 'ErrorBoundary: reloading' });
         await Updates.reloadAsync();
       } else {
         // In development, just reset the error state to attempt recovery

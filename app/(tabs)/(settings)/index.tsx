@@ -13,6 +13,7 @@ import Animated, {
   FadeOut,
 } from 'react-native-reanimated';
 import * as Updates from 'expo-updates';
+import * as Sentry from '@sentry/react-native';
 import { useUpdates } from 'expo-updates';
 import * as Application from 'expo-application';
 import { SymbolView } from 'expo-symbols';
@@ -186,6 +187,10 @@ export default function SettingsScreen() {
     return currentlyRunning?.updateId?.slice(0, 8) ?? 'embedded';
   };
 
+  const handleTestCrash = () => {
+    throw new Error('[TEST] Deliberate crash to test ErrorBoundary update flow');
+  };
+
   const handleCheckUpdate = async () => {
     if (!Updates.isEnabled) {
       Alert.alert('Updates Disabled', 'OTA updates are not enabled in this build.');
@@ -195,8 +200,8 @@ export default function SettingsScreen() {
     try {
       const result = await Updates.checkForUpdateAsync();
       if (result.isAvailable) {
-        // Automatically download and prompt for restart
-        await Updates.fetchUpdateAsync();
+        const fetchResult = await Updates.fetchUpdateAsync();
+        Sentry.addBreadcrumb({ category: 'update', message: `Settings: fetch result isNew=${fetchResult.isNew}` });
       } else {
         Alert.alert('Up to Date', "You're running the latest version.");
       }
@@ -490,6 +495,7 @@ export default function SettingsScreen() {
         <Pressable
           style={styles.versionContainer}
           onPress={handleCheckUpdate}
+          onLongPress={__DEV__ ? handleTestCrash : undefined}
           disabled={isChecking || isDownloading}
           hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
         >
