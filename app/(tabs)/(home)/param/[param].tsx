@@ -1,35 +1,14 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useLocalSearchParams, Stack, useRouter } from 'expo-router';
+import { useLocalSearchParams, Stack } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
 import { WaveformIcon, type WaveformType } from '@/src/components/lfo';
 import { DestinationPickerInline } from '@/src/components/destination';
 import { colors } from '@/src/theme';
-
-type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
-
-// Parameter order matching the grid layout (row 1 then row 2)
-const PARAM_ORDER: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 'waveform', 'startPhase', 'mode', 'depth'];
-
-// Short labels for navigation buttons (startPhase is dynamic based on waveform)
-const PARAM_LABELS: Record<ParamKey, string> = {
-  speed: 'SPD',
-  multiplier: 'MULT',
-  fade: 'FADE',
-  destination: 'DEST',
-  waveform: 'WAVE',
-  startPhase: 'SPH', // Dynamically changed to 'SLEW' for RND
-  mode: 'MODE',
-  depth: 'DEP',
-};
-
-// Get dynamic label for startPhase based on waveform
-function getStartPhaseLabel(waveform: string): string {
-  return waveform === 'RND' ? 'SLEW' : 'SPH';
-}
+import type { ParamKey } from '@/src/components/params/constants';
 
 const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
@@ -156,7 +135,6 @@ function formatMultiplier(value: number): string {
 export default function EditParamScreen() {
   const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
   const { currentConfig, updateParameter, setIsEditing, editFadeOutDuration } = usePreset();
-  const router = useRouter();
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);
 
   // Callbacks for slider interaction tracking
@@ -199,20 +177,6 @@ export default function EditParamScreen() {
       setActiveParam(urlParam as ParamKey);
     }
   }, [urlParam]);
-
-  // Navigation between parameters
-  const currentIndex = PARAM_ORDER.indexOf(activeParam);
-  const prevParam = PARAM_ORDER[(currentIndex - 1 + PARAM_ORDER.length) % PARAM_ORDER.length];
-  const nextParam = PARAM_ORDER[(currentIndex + 1) % PARAM_ORDER.length];
-
-  const goToPrev = () => {
-    setActiveParam(prevParam);
-    router.setParams({ param: prevParam }); // No navigation = no animation
-  };
-  const goToNext = () => {
-    setActiveParam(nextParam);
-    router.setParams({ param: nextParam }); // No navigation = no animation
-  };
 
   if (!activeParam || !(activeParam in PARAM_INFO)) {
     return (
@@ -360,16 +324,6 @@ export default function EditParamScreen() {
       bounces={false}
     >
       <Stack.Screen options={{ title: info.title }} />
-      <Stack.Toolbar placement="left">
-        <Stack.Toolbar.Button onPress={goToPrev} style={{ fontSize: 15 }}>
-          ‹ {prevParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[prevParam]}
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
-      <Stack.Toolbar placement="right">
-        <Stack.Toolbar.Button onPress={goToNext} style={{ fontSize: 15 }}>
-          {nextParam === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[nextParam]} ›
-        </Stack.Toolbar.Button>
-      </Stack.Toolbar>
       <Text style={styles.description}>{info.description}</Text>
 
       <View style={styles.controlSection}>
