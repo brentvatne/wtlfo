@@ -3,7 +3,7 @@ import { AudioProvider } from '@/src/context/audio-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
 import { PresetProvider } from '@/src/context/preset-context';
-import { DarkTheme, ThemeProvider } from '@react-navigation/native';
+import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as Sentry from '@sentry/react-native';
 import { AppMetricsRoot } from 'expo-observe';
 import { Stack, useNavigationContainerRef } from 'expo-router';

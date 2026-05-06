@@ -42,13 +42,6 @@
           "backgroundColor": "#000000"
         }
       ],
-      [
-        "expo-build-properties",
-        {
-          "buildReactNativeFromSource": true,
-          "useHermesV1": true
-        }
-      ],
       "expo-sqlite",
       "expo-font",
       "expo-image",

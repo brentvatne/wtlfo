@@ -5,7 +5,7 @@ Pod::Spec.new do |s|
   s.description    = 'A native module for MIDI device connection and transport/clock sync'
   s.author         = ''
   s.homepage       = 'https://github.com/expo/expo'
-  s.platforms      = { :ios => '15.1' }
+  s.platforms      = { :ios => '16.4' }
   s.source         = { git: '' }
   s.static_framework = true
 

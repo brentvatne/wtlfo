@@ -15,7 +15,7 @@ import { useModulation } from '@/src/context/modulation-context';
 import { usePreset } from '@/src/context/preset-context';
 import { getDestination } from '@/src/data/destinations';
 import { colors } from '@/src/theme';
-import { useNavigation } from '@react-navigation/native';
+import { useNavigation } from "expo-router/react-navigation";
 import { calculateTimingInfo } from 'elektron-lfo';
 import * as Haptics from 'expo-haptics';
 import { AppMetrics } from 'expo-observe';
