@@ -5,7 +5,7 @@ import { ModulationProvider } from '@/src/context/modulation-context';
 import { PresetProvider } from '@/src/context/preset-context';
 import { DarkTheme, ThemeProvider } from '@react-navigation/native';
 import * as Sentry from '@sentry/react-native';
-import AppMetrics from 'expo-eas-observe';
+import { AppMetricsRoot } from 'expo-observe';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
@@ -36,7 +36,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-export default Sentry.wrap(function RootLayout() {
+export default AppMetricsRoot.wrap(Sentry.wrap(function RootLayout() {
   const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
@@ -44,12 +44,6 @@ export default Sentry.wrap(function RootLayout() {
       navigationIntegration.registerNavigationContainer(navigationRef);
     }
   }, [navigationRef]);
-
-  useEffect(() => {
-    if (!__DEV__) {
-      AppMetrics.markFirstRender();
-    }
-  }, []);
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
@@ -82,4 +76,4 @@ export default Sentry.wrap(function RootLayout() {
       </ErrorBoundary>
     </GestureHandlerRootView>
   );
-});
+}));

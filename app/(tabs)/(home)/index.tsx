@@ -1,32 +1,32 @@
-import React, { useRef, useEffect, useState, useCallback } from 'react';
-import { View, Text, StyleSheet, AppState } from 'react-native';
-import { useSafeAreaFrame } from 'react-native-safe-area-context';
-import * as Haptics from 'expo-haptics';
-import AppMetrics from 'expo-eas-observe';
-import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
-import { usePathname } from 'expo-router';
-import { useNavigation } from '@react-navigation/native';
-import Animated, { useDerivedValue, useSharedValue, useAnimatedReaction, useAnimatedStyle, withTiming, withSequence, withDelay, Easing } from 'react-native-reanimated';
-import { scheduleOnRN } from 'react-native-worklets';
-import { SymbolView } from 'expo-symbols';
-import { calculateTimingInfo } from 'elektron-lfo';
+import { TestTone } from '@/src/components/audio';
+import { CenterValueSlider, DestinationMeter } from '@/src/components/destination';
+import type { TriggerMode, WaveformType } from '@/src/components/lfo';
 import {
-  LFOVisualizer,
   ELEKTRON_THEME,
-  sampleWaveformWorklet,
   isUnipolarWorklet,
+  LFOVisualizer,
+  sampleWaveformWorklet,
   TimingInfo,
   warmPathCache,
   WAVEFORM_ICON_SIZES,
 } from '@/src/components/lfo';
-import type { WaveformType, TriggerMode } from '@/src/components/lfo';
 import { ParamGrid } from '@/src/components/params';
-import { DestinationMeter, CenterValueSlider } from '@/src/components/destination';
-import { TestTone } from '@/src/components/audio';
-import { usePreset } from '@/src/context/preset-context';
 import { useModulation } from '@/src/context/modulation-context';
+import { usePreset } from '@/src/context/preset-context';
 import { getDestination } from '@/src/data/destinations';
 import { colors } from '@/src/theme';
+import { useNavigation } from '@react-navigation/native';
+import { calculateTimingInfo } from 'elektron-lfo';
+import * as Haptics from 'expo-haptics';
+import { AppMetrics } from 'expo-observe';
+import { usePathname } from 'expo-router';
+import { SymbolView } from 'expo-symbols';
+import React, { useCallback, useEffect, useRef, useState } from 'react';
+import { AppState, StyleSheet, Text, View } from 'react-native';
+import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
+import Animated, { Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
+import { useSafeAreaFrame } from 'react-native-safe-area-context';
+import { scheduleOnRN } from 'react-native-worklets';
 
 // Visualizer height and timing info height
 const VISUALIZER_HEIGHT = 240;

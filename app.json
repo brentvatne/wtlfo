@@ -65,7 +65,8 @@
       [
         "react-native-audio-api",
         {
-          "iosBackgroundMode": false
+          "iosBackgroundMode": false,
+          "disableFFmpeg": true
         }
       ],
 
