@@ -48,6 +48,7 @@ export function LFOVisualizer({
   randomSeed,
   showFadeEnvelope = true,
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
+  opacity,
 }: LFOVisualizerProps) {
   // Always hide values while editing
   const shouldHideValue = isEditing;
@@ -146,7 +147,7 @@ export function LFOVisualizer({
 
       {/* Main waveform canvas */}
       <Canvas style={{ width, height: canvasHeight }} pointerEvents="none">
-        <Group>
+        <Group opacity={opacity ?? 1}>
           {/* Grid lines (optional background) */}
           <GridLines
             width={width}

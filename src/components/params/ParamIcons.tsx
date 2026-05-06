@@ -11,7 +11,7 @@ export function SpeedIcon() {
   const cy = SIZE / 2 + 1;
   const r = SIZE * 0.38;
 
-  const path = Skia.Path.Make();
+  const builder = Skia.PathBuilder.Make();
   // Draw 3/4 arc (from bottom-left to bottom-right, going through top)
   const startAngle = Math.PI * 0.75;
   const endAngle = Math.PI * 2.25;
@@ -21,9 +21,10 @@ export function SpeedIcon() {
     const angle = startAngle + (endAngle - startAngle) * (i / steps);
     const x = cx + Math.cos(angle) * r;
     const y = cy + Math.sin(angle) * r;
-    if (i === 0) path.moveTo(x, y);
-    else path.lineTo(x, y);
+    if (i === 0) builder.moveTo(x, y);
+    else builder.lineTo(x, y);
   }
+  const path = builder.detach();
 
   // Needle pointing to ~2 o'clock position
   const needleAngle = Math.PI * 1.25;

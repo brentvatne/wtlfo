@@ -86,7 +86,7 @@ export function FadedWaveformCurve({
     'worklet';
     const fadeMult = fadeMultiplier.value;
 
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
 
     for (let i = 0; i <= resolution; i++) {
       const xNormalized = i / resolution;
@@ -105,7 +105,7 @@ export function FadedWaveformCurve({
       }
     }
 
-    return p;
+    return p.detach();
   }, [fadeMultiplier, baseSamples, resolution, padding, drawWidth, centerY, scaleY]);
 
   // Animate opacity - fade out as we approach completion

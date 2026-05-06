@@ -42,7 +42,7 @@ export function FadeEnvelopeShape({
 
   // Create the path for the fade envelope shape
   const path = useMemo(() => {
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     const drawWidth = width - padding * 2;
     const drawHeight = height - padding * 2;
     const centerY = height / 2;
@@ -77,7 +77,7 @@ export function FadeEnvelopeShape({
       }
     }
 
-    return p;
+    return p.detach();
   }, [width, height, fade, absDepthScale]);
 
   return (

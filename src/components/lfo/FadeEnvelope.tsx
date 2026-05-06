@@ -55,7 +55,7 @@ export function FadeEnvelope({
 
   // Create the path for the trajectory with fade applied
   const path = useMemo(() => {
-    const p = Skia.Path.Make();
+    const p = Skia.PathBuilder.Make();
     const drawWidth = width - padding * 2;
     // Use effective padding for vertical bounds to prevent clipping
     const drawHeight = height - effectivePadding * 2;
@@ -124,7 +124,7 @@ export function FadeEnvelope({
       }
     }
 
-    return p;
+    return p.detach();
   }, [waveform, width, height, resolution, depthScale, hasNegativeSpeed, isUnipolar, isExp, fade, startPhaseNormalized, effectivePadding]);
 
   return (

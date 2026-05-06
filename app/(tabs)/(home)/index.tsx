@@ -36,6 +36,11 @@ const METER_HEIGHT = VISUALIZER_HEIGHT - TIMING_HEIGHT; // Match canvas height
 // Meter width - fixed
 const METER_WIDTH = 52;
 
+// Theme used for the crossfade overlay. The wrapper View has a transparent
+// background so the current visualization shows through as the overlay's
+// Skia content fades out (Skia 2.x does not inherit RN parent opacity).
+const ELEKTRON_THEME_TRANSPARENT = { ...ELEKTRON_THEME, background: 'transparent' };
+
 export default function HomeScreen() {
   const {
     currentConfig,
@@ -173,10 +178,10 @@ export default function HomeScreen() {
   const appStateRef = useRef(AppState.currentState);
 
 
-  // Animated style for crossfade - the previous (old) visualization fades out
-  const previousVisualizerStyle = useAnimatedStyle(() => ({
-    opacity: crossfadeOpacity.value,
-  }));
+  // Note: opacity for the crossfade is applied inside Skia (via the LFOVisualizer's
+  // Group opacity prop). Skia 2.x does not reliably inherit opacity from a parent
+  // RN view, so animating opacity on an Animated.View wrapper would leave both
+  // visualizations rendered at full alpha during the transition.
 
   // Watch crossfade animation to clean up when complete
   // finishPresetTransition is idempotent, safe to call multiple times
@@ -491,7 +496,7 @@ export default function HomeScreen() {
 
                     {/* Previous (old) visualization - rendered during crossfade, fades out */}
                     {previousConfig && previousTimingInfo && (
-                      <Animated.View style={[styles.crossfadeOverlay, previousVisualizerStyle]}>
+                      <View style={styles.crossfadeOverlay} pointerEvents="none">
                         <LFOVisualizer
                           phase={displayPhase}
                           output={lfoOutput}
@@ -508,7 +513,7 @@ export default function HomeScreen() {
                           steps={previousTimingInfo.steps}
                           width={visualizerWidth}
                           height={METER_HEIGHT}
-                          theme={ELEKTRON_THEME}
+                          theme={ELEKTRON_THEME_TRANSPARENT}
                           showParameters={false}
                           showTiming={false}
                           showOutput={false}
@@ -521,8 +526,9 @@ export default function HomeScreen() {
                           depthAnimationDuration={0}
                           showPhaseIndicator={false}
                           randomSeed={lfoCycleCount}
+                          opacity={crossfadeOpacity}
                         />
-                      </Animated.View>
+                      </View>
                     )}
                 </View>
               </View>
@@ -633,7 +639,11 @@ const styles = StyleSheet.create({
     opacity: 0.5,
   },
   feedbackOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
     justifyContent: 'center',
     alignItems: 'center',
     backgroundColor: 'rgba(0, 0, 0, 0.3)',
@@ -642,7 +652,11 @@ const styles = StyleSheet.create({
     position: 'absolute',
   },
   crossfadeOverlay: {
-    ...StyleSheet.absoluteFillObject,
+    position: 'absolute',
+    top: 0,
+    left: 0,
+    right: 0,
+    bottom: 0,
   },
   gridContainer: {
     // Full width

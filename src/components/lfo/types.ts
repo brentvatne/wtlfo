@@ -112,6 +112,9 @@ export interface LFOVisualizerProps {
 
   /** Duration in ms for depth scale animation (0 = instant) */
   depthAnimationDuration?: number;
+
+  /** Opacity for the entire visualization (applied inside Skia for proper compositing). 0-1. */
+  opacity?: number | SharedValue<number>;
 }
 
 export interface LFOTheme {

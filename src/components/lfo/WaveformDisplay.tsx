@@ -70,7 +70,7 @@ export function WaveformDisplay({
   // Generate stroke path on UI thread with animated depth
   const strokePath = useDerivedValue(() => {
     'worklet';
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const currentDepthScale = depthScale.value;
     // Read randomSeed - handle both number and SharedValue
     const seedValue = typeof randomSeed === 'number' ? randomSeed : randomSeed.value;
@@ -175,13 +175,13 @@ export function WaveformDisplay({
       path.lineTo(endX, centerY);
     }
 
-    return path;
+    return path.detach();
   }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Generate fill path on UI thread with animated depth
   const fillPath = useDerivedValue(() => {
     'worklet';
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const currentDepthScale = depthScale.value;
     // Read randomSeed - handle both number and SharedValue
     const seedValue = typeof randomSeed === 'number' ? randomSeed : randomSeed.value;
@@ -280,7 +280,7 @@ export function WaveformDisplay({
     path.lineTo(startX, centerY);
     path.close();
 
-    return path;
+    return path.detach();
   }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
   // Animated fill opacity - fades in when editing ends

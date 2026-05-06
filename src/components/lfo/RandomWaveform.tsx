@@ -98,12 +98,12 @@ export function RandomWaveform({
   // Generate stroke path on UI thread with animated depth
   const strokePath = useDerivedValue(() => {
     'worklet';
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const currentSamples = samplesData.value;
     const currentDepthScale = depthScale.value;
 
     if (currentSamples.length === 0) {
-      return path;
+      return path.detach();
     }
 
     const startX = padding;
@@ -141,18 +141,18 @@ export function RandomWaveform({
     const lastY = centerY + lastSample.value * speedInvert * currentDepthScale * scaleY;
     path.lineTo(endX, lastY);
 
-    return path;
+    return path.detach();
   }, [depthScale, samplesData, speedInvert, startPhaseNormalized, padding, drawWidth, centerY, scaleY]);
 
   // Generate fill path on UI thread with animated depth
   const fillPath = useDerivedValue(() => {
     'worklet';
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
     const currentSamples = samplesData.value;
     const currentDepthScale = depthScale.value;
 
     if (currentSamples.length === 0) {
-      return path;
+      return path.detach();
     }
 
     const startX = padding;
@@ -193,7 +193,7 @@ export function RandomWaveform({
     path.lineTo(startX, centerY);
     path.close();
 
-    return path;
+    return path.detach();
   }, [depthScale, samplesData, speedInvert, startPhaseNormalized, padding, drawWidth, centerY, scaleY]);
 
   if (samples.length === 0) {

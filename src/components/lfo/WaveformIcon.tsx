@@ -42,17 +42,17 @@ export const WAVEFORM_ICON_SIZES = {
 } as const;
 
 // Path cache for performance (waveforms are deterministic)
-const pathCache = new Map<string, ReturnType<typeof Skia.Path.Make>>();
+const pathCache = new Map<string, ReturnType<ReturnType<typeof Skia.PathBuilder.Make>['detach']>>();
 
 function getCachedPath(
   waveform: WaveformType,
   size: number,
   strokeWidth: number
-): ReturnType<typeof Skia.Path.Make> {
+) {
   const key = `${waveform}-${size}-${strokeWidth}`;
 
   if (!pathCache.has(key)) {
-    const path = Skia.Path.Make();
+    const path = Skia.PathBuilder.Make();
 
     // Dynamic resolution based on size (more points for larger icons)
     const resolution = Math.max(16, Math.min(64, Math.round(size * 1.5)));
@@ -89,7 +89,7 @@ function getCachedPath(
       prevValue = value;
     }
 
-    pathCache.set(key, path);
+    pathCache.set(key, path.detach());
   }
 
   return pathCache.get(key)!;

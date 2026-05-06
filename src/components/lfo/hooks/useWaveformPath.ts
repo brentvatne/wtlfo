@@ -38,7 +38,7 @@ export function useWaveformPath(
   closePath: boolean = false
 ): SkPath {
   return useMemo(() => {
-    const path = Skia.Path.Make();
+    const builder = Skia.PathBuilder.Make();
 
     // Calculate drawable area
     const drawWidth = width - padding * 2;
@@ -84,32 +84,28 @@ export function useWaveformPath(
       const y = centerY + value * scaleY;
 
       if (i === 0) {
-        path.moveTo(x, y);
+        builder.moveTo(x, y);
       } else {
-        // For discontinuous waveforms (SQR, RND), draw vertical transitions
-        // if the value changed significantly between samples
-        const threshold = 0.5; // Large value change indicates a step
+        const threshold = 0.5;
         if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
-          // Draw vertical line at the current x position from previous y to new y
           const prevY = centerY + prevValue * scaleY;
-          path.lineTo(x, prevY); // Horizontal to current x at old value
-          path.lineTo(x, y); // Vertical jump to new value
+          builder.lineTo(x, prevY);
+          builder.lineTo(x, y);
         } else {
-          path.lineTo(x, y);
+          builder.lineTo(x, y);
         }
       }
 
       prevValue = value;
     }
 
-    // Close path to baseline for fill rendering
     if (closePath) {
-      path.lineTo(endX, centerY);
-      path.lineTo(startX, centerY);
-      path.close();
+      builder.lineTo(endX, centerY);
+      builder.lineTo(startX, centerY);
+      builder.close();
     }
 
-    return path;
+    return builder.detach();
   }, [waveform, width, height, resolution, padding, depth, speed, startPhase, closePath]);
 }
 
