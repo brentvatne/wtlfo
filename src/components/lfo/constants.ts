@@ -47,3 +47,12 @@ export const ELEKTRON_THEME: LFOTheme = {
 export const DEFAULT_WIDTH = 300;
 export const DEFAULT_HEIGHT = 150;
 export const PADDING = 8;
+
+// SPH (start phase) normalization for the DISPLAY curves.
+// The waveform curve and fade trajectory divide SPH by 127 so that SPH=127
+// wraps around to look like SPH=0 on screen (matches the Digitakt display).
+// The engine and PhaseIndicator divide by 128 (elektron-lfo convention), so
+// the dot can lead the curve by up to 1/128 of a cycle at high SPH values.
+// Do not change either divisor without checking dot-vs-curve alignment on
+// hardware at SPH 0/34/64/100/127 (see CLAUDE.md consistency contract).
+export const SPH_DISPLAY_DIVISOR = 127;

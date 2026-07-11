@@ -3,7 +3,8 @@ import { Path, Skia } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, useDerivedValue, Easing } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { WaveformDisplayProps } from './types';
-import { sampleWaveformWorklet, sampleWaveformWithSlew, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
+import { sampleDisplayValue, sampleWaveformWorklet, isUnipolarWorklet, sampleExpDecay } from './worklets';
+import { SPH_DISPLAY_DIVISOR } from './constants';
 import { DEFAULT_DEPTH_ANIM_DURATION, DEFAULT_EDIT_FADE_IN } from '@/src/context/preset-context';
 
 const BASE_FILL_OPACITY = 0.2;
@@ -61,11 +62,8 @@ export function WaveformDisplay({
   const isRandom = waveform === 'RND';
   const isExp = waveform === 'EXP';
   const slewValue = isRandom ? (startPhase || 0) : 0;
-  // For EXP, divide by 127 so SPH=127 wraps to same as SPH=0
-  // For other waveforms, divide by 128 as normal
-  // Use SPH/127 so SPH=127 wraps to look like SPH=0 (matches Digitakt visualization)
   // RND uses startPhase as SLEW, not phase offset
-  const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / 127;
+  const startPhaseNormalized = isRandom ? 0 : (startPhase || 0) / SPH_DISPLAY_DIVISOR;
 
   // Generate stroke path on UI thread with animated depth
   const strokePath = useDerivedValue(() => {
@@ -119,28 +117,7 @@ export function WaveformDisplay({
       let phase = (xNormalized + startPhaseNormalized) % 1;
 
 
-      let value: number;
-      if (isExp) {
-        // EXP needs different formulas to maintain concave shape in both directions
-        value = hasNegativeSpeed ? sampleExpRise(phase) : sampleExpDecay(phase);
-      } else if (isRandom) {
-        value = sampleWaveformWithSlew(waveform, phase, slewValue, seedValue);
-      } else {
-        value = sampleWaveformWorklet(waveform, phase, seedValue);
-      }
-
-      // Apply speed transformation (except EXP which already handled it)
-      if (hasNegativeSpeed && !isExp) {
-        if (isUnipolar) {
-          // RMP: flip values (1-x works for linear)
-          value = 1 - value;
-        } else {
-          // Bipolar: invert polarity
-          value = -value;
-        }
-      }
-
-      value = value * currentDepthScale;
+      const value = sampleDisplayValue(waveform, phase, hasNegativeSpeed, slewValue, seedValue) * currentDepthScale;
 
       const x = padding + xNormalized * drawWidth;
       const y = centerY + value * scaleY;
@@ -178,110 +155,23 @@ export function WaveformDisplay({
     return path.detach();
   }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
 
-  // Generate fill path on UI thread with animated depth
+  // Derive the fill path from the stroke path instead of re-running the full
+  // sampling loop: the fill is exactly the stroke geometry closed down to the
+  // baseline (the EXP-rise end line the stroke sometimes adds ends at the
+  // same point the first closing lineTo goes to, so the region is identical).
+  // Skipped entirely when there is no fillColor to render.
   const fillPath = useDerivedValue(() => {
     'worklet';
-    const path = Skia.PathBuilder.Make();
-    const currentDepthScale = depthScale.value;
-    // Read randomSeed - handle both number and SharedValue
-    const seedValue = typeof randomSeed === 'number' ? randomSeed : randomSeed.value;
+    if (!fillColor) return Skia.Path.Make();
     const startX = padding;
     const endX = padding + drawWidth;
-
-    let prevValue: number | null = null;
-
-    // For EXP, determine if decay or rise
-    const isExpDecay = isExp && !hasNegativeSpeed;
-    const isSaw = waveform === 'SAW';
-    const isSqr = waveform === 'SQR';
-
-    // Several waveforms need a vertical line at the start to show the cycle reset
-    let drewStartVerticalLine = false;
-    const firstPhase = startPhaseNormalized;
-
-    if (isExpDecay) {
-      // EXP decay: vertical line from center to first value
-      const firstValue = sampleExpDecay(firstPhase) * currentDepthScale;
-      const firstY = centerY + firstValue * scaleY;
-      path.moveTo(padding, centerY);
-      path.lineTo(padding, firstY);
-      drewStartVerticalLine = true;
-    } else if ((isSaw || isSqr) && !hasNegativeSpeed) {
-      // SAW/SQR with positive speed: vertical line from -1 to first value (+1 at phase 0)
-      const firstValue = sampleWaveformWorklet(waveform, firstPhase, seedValue) * currentDepthScale;
-      const endOfCycleValue = -1 * currentDepthScale;
-      const firstY = centerY + firstValue * scaleY;
-      const endY = centerY + endOfCycleValue * scaleY;
-      path.moveTo(padding, endY);
-      path.lineTo(padding, firstY);
-      drewStartVerticalLine = true;
-    }
-
-    // Threshold for hiding EXP end step (SPH < 5 or SPH > 122)
-    const expSphThreshold = 5 / 127;
-    const hideExpEndLine = startPhaseNormalized < expSphThreshold || startPhaseNormalized > (1 - expSphThreshold);
-
-    for (let i = 0; i <= resolution; i++) {
-      const xNormalized = i / resolution;
-      // All waveforms use phase wrapping with startPhase offset
-      // All waveforms use SPH/127 so SPH=127 wraps to SPH=0
-      let phase = (xNormalized + startPhaseNormalized) % 1;
-
-
-      let value: number;
-      if (isExp) {
-        // EXP needs different formulas to maintain concave shape in both directions
-        value = hasNegativeSpeed ? sampleExpRise(phase) : sampleExpDecay(phase);
-      } else if (isRandom) {
-        value = sampleWaveformWithSlew(waveform, phase, slewValue, seedValue);
-      } else {
-        value = sampleWaveformWorklet(waveform, phase, seedValue);
-      }
-
-      // Apply speed transformation (except EXP which already handled it)
-      if (hasNegativeSpeed && !isExp) {
-        if (isUnipolar) {
-          // RMP: flip values (1-x works for linear)
-          value = 1 - value;
-        } else {
-          // Bipolar: invert polarity
-          value = -value;
-        }
-      }
-
-      value = value * currentDepthScale;
-
-      const x = padding + xNormalized * drawWidth;
-      const y = centerY + value * scaleY;
-
-      if (i === 0) {
-        if (drewStartVerticalLine) {
-          path.lineTo(x, y);
-        } else {
-          path.moveTo(x, y);
-        }
-      } else {
-        // Draw step for large value changes (square wave, random, EXP phase wrap)
-        const threshold = 0.5;
-        if (prevValue !== null && Math.abs(value - prevValue) > threshold) {
-          const prevY = centerY + prevValue * scaleY;
-          path.lineTo(x, prevY);
-          path.lineTo(x, y);
-        } else {
-          path.lineTo(x, y);
-        }
-      }
-
-      prevValue = value;
-    }
-
+    const path = strokePath.value.copy();
     // Close path to baseline for fill
     path.lineTo(endX, centerY);
     path.lineTo(startX, centerY);
     path.close();
-
-    return path.detach();
-  }, [depthScale, waveform, resolution, hasNegativeSpeed, isUnipolar, isExp, startPhaseNormalized, isRandom, slewValue, randomSeed, padding, drawWidth, centerY, scaleY]);
+    return path;
+  }, [strokePath, fillColor, padding, drawWidth, centerY]);
 
   // Animated fill opacity - fades in when editing ends
   const fillOpacity = useSharedValue(isEditing ? 0 : BASE_FILL_OPACITY);

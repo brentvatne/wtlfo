@@ -3,7 +3,7 @@ import { Line, Circle, Group, vec } from '@shopify/react-native-skia';
 import { useDerivedValue, useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { PhaseIndicatorProps } from './types';
-import { sampleWaveformWorklet, sampleWaveformWithSlew, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
+import { sampleDisplayValue } from './worklets';
 
 export function PhaseIndicator({
   phase,
@@ -21,7 +21,6 @@ export function PhaseIndicator({
   fade,
   mode,
   fadeMultiplier,
-  cycleCount,
   randomSeed,
 }: PhaseIndicatorProps) {
   // Default opacity to 1 if not provided
@@ -34,7 +33,6 @@ export function PhaseIndicator({
   // For RND waveform, startPhase acts as SLEW (0=sharp S&H, 127=max smoothing)
   // For other waveforms, it's a phase offset (0-127 → 0.0-~1.0)
   const isRandom = waveform === 'RND';
-  const isExp = waveform === 'EXP';
   const slewValue = isRandom ? (startPhase || 0) : 0;
   // Standard SPH/128 for all waveforms (matches engine behavior)
   // Note: visualization uses SPH/127 for EXP display quirk, but indicator tracks engine
@@ -42,11 +40,8 @@ export function PhaseIndicator({
   // Clamp to [-1, 1] to handle asymmetric range (-64 to +63)
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
   const hasNegativeSpeed = speed !== undefined && speed < 0;
-  const isUnipolar = waveform ? isUnipolarWorklet(waveform) : false;
-  // Base fade check (without cycle count, which is checked in worklet)
-  // Fade only affects the first cycle - the cycleCount check happens in the worklet
+  // Fade applies whenever a non-zero FADE is set outside FRE mode
   const fadeCanApply = fade !== undefined && fade !== 0 && mode !== 'FRE';
-  const fadeValue = fade ?? 0;
 
   // Always use bipolar coordinate system (-1 to 1, centered) for consistency
   const centerY = height / 2;
@@ -62,8 +57,7 @@ export function PhaseIndicator({
   }, [phase, padding, drawWidth, startPhaseNormalized]);
 
   // Animated Y position - calculated to match visualization exactly
-  // When fade is active, we calculate the expected value at current phase
-  // using the same formula as FadeEnvelope
+  // When fade is active, we scale by the engine's fade multiplier
   const yPosition = useDerivedValue(() => {
     'worklet';
     const phaseVal = typeof phase === 'number' ? phase : phase.value;
@@ -72,63 +66,16 @@ export function PhaseIndicator({
 
     // If we have waveform info, calculate position to match visualization
     if (waveform) {
-      // Get the display phase (offset from start phase)
-      const displayPhase = ((phaseVal - startPhaseNormalized) % 1 + 1) % 1;
-
       // Sample the waveform at the engine phase
       const waveformPhase = phaseVal;
 
-      let value: number;
-      if (isExp) {
-        // EXP needs different formulas to maintain concave shape in both directions
-        value = hasNegativeSpeed ? sampleExpRise(waveformPhase) : sampleExpDecay(waveformPhase);
-      } else if (isRandom) {
-        value = sampleWaveformWithSlew(waveform, waveformPhase, slewValue, seedValue);
-      } else {
-        value = sampleWaveformWorklet(waveform, waveformPhase, seedValue);
-      }
+      // Sample via the shared display pipeline, then apply depth scaling
+      let value = sampleDisplayValue(waveform, waveformPhase, hasNegativeSpeed, slewValue, seedValue) * depthScale;
 
-      // Apply speed transformation (except EXP which already handled it)
-      if (hasNegativeSpeed && !isExp) {
-        if (isUnipolar) {
-          // RMP: flip values (1-x works for linear)
-          value = 1 - value;
-        } else {
-          // Bipolar: invert polarity
-          value = -value;
-        }
-      }
-
-      // Apply depth scaling
-      value = value * depthScale;
-
-      // Apply fade envelope
-      // When fadeMultiplier is provided from the engine, always use it (time-based fade can span multiple cycles)
-      // Otherwise fall back to local calculation (cycle-based, only during cycle 0)
-      if (fadeCanApply) {
-        let fadeEnvelope: number;
-        if (fadeMultiplier !== undefined) {
-          // Use engine's fade multiplier for accurate tracking (time-based)
-          fadeEnvelope = fadeMultiplier.value;
-        } else {
-          // Local calculation fallback (cycle-based, only during cycle 0)
-          const cycleCountVal = cycleCount === undefined ? 0 : (typeof cycleCount === 'number' ? cycleCount : cycleCount.value);
-          if (cycleCountVal === 0) {
-            const absFade = Math.abs(fadeValue);
-            const fadeDuration = (64 - absFade) / 64;
-            if (fadeValue < 0) {
-              // Fade-in: envelope goes from 0 to 1 over fadeDuration
-              fadeEnvelope = fadeDuration > 0 ? Math.min(1, displayPhase / fadeDuration) : 1;
-            } else {
-              // Fade-out: envelope goes from 1 to 0 over fadeDuration
-              fadeEnvelope = fadeDuration > 0 ? Math.max(0, 1 - displayPhase / fadeDuration) : 0;
-            }
-          } else {
-            // After cycle 0, fade is complete
-            fadeEnvelope = fadeValue < 0 ? 1 : 0;
-          }
-        }
-        value = value * fadeEnvelope;
+      // Apply fade envelope using the engine's fade multiplier (time-based,
+      // can span multiple cycles). If the prop is absent, no fade (multiplier 1).
+      if (fadeCanApply && fadeMultiplier !== undefined) {
+        value = value * fadeMultiplier.value;
       }
 
       return centerY + value * scaleY;
@@ -136,7 +83,7 @@ export function PhaseIndicator({
 
     // Fallback to using output value directly
     return centerY + output.value * scaleY;
-  }, [phase, output, centerY, scaleY, waveform, depthScale, hasNegativeSpeed, isUnipolar, isExp, fadeCanApply, fadeValue, fadeMultiplier, startPhaseNormalized, randomSeed, isRandom, slewValue, cycleCount]);
+  }, [phase, output, centerY, scaleY, waveform, depthScale, hasNegativeSpeed, fadeCanApply, fadeMultiplier, randomSeed, isRandom, slewValue]);
 
   // Create point vectors for the line
   const p1 = useDerivedValue(() => {

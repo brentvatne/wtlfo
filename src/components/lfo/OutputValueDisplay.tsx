@@ -15,13 +15,17 @@ export function OutputValueDisplay({ output, theme, isEditing }: OutputValueDisp
     });
   }, []);
 
-  // React to output changes and update the display
+  // React to output changes and update the display. Rounding happens in the
+  // prepare function and the callback compares against the previous prepared
+  // value, so the UI→JS hop (and React re-render) only fires when the two
+  // displayed decimals actually change — and not at all while editing shows '-'.
   useAnimatedReaction(
-    () => output.value,
-    (currentValue) => {
+    () => Math.round(output.value * 100) / 100,
+    (currentValue, previous) => {
+      if (isEditing || currentValue === previous) return;
       scheduleOnRN(updateDisplay, currentValue);
     },
-    [output]
+    [output, isEditing]
   );
 
   return (

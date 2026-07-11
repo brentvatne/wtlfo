@@ -101,9 +101,6 @@ export interface LFOVisualizerProps {
   /** Number of complete cycles (fade only applies during cycle 0) */
   cycleCount?: number | SharedValue<number>;
 
-  /** Random sample history for RND waveform visualization */
-  randomSamples?: Array<{ phase: number; value: number }>;
-
   /** Seed for RND waveform - changes each cycle to produce different patterns */
   randomSeed?: number | SharedValue<number>;
 

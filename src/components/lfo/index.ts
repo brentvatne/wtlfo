@@ -4,8 +4,6 @@ export { LFOVisualizer } from './LFOVisualizer';
 // Sub-components (for advanced usage)
 export { WaveformDisplay } from './WaveformDisplay';
 export { PhaseIndicator } from './PhaseIndicator';
-export { FadeEnvelope } from './FadeEnvelope';
-export { RandomWaveform } from './RandomWaveform';
 export { GridLines } from './GridLines';
 export { ParameterBadges } from './ParameterBadges';
 export { TimingInfo } from './TimingInfo';
@@ -16,17 +14,13 @@ export { VisualizationPlaceholder } from './VisualizationPlaceholder';
 export { WaveformIcon, warmPathCache, WAVEFORM_ICON_SIZES } from './WaveformIcon';
 export type { WaveformIconProps } from './WaveformIcon';
 
-// Hooks
-export { useWaveformPath, isUnipolar, sampleWaveform } from './hooks/useWaveformPath';
-export { useSlowMotionPhase } from './hooks/useSlowMotionPhase';
-
 // Slow motion visualization
-export { SlowMotionBadge } from './SlowMotionBadge';
 export { getSlowdownInfo, getSlowdownFactor, DEFAULT_SLOWDOWN_CONFIG } from './utils/getSlowdownInfo';
 export type { SlowdownInfo, SlowdownConfig } from './utils/getSlowdownInfo';
 
 // Worklets (for use inside Reanimated worklets)
 export {
+  sampleDisplayValue,
   sampleWaveformWorklet,
   sampleWaveformWithSlew,
   sampleRandomWithSlew,

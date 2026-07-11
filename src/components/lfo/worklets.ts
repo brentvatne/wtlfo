@@ -187,3 +187,42 @@ export function sampleWaveformWithSlew(
   }
   return sampleWaveformWorklet(waveform, phase, randomSeed);
 }
+
+/**
+ * THE shared display-side sample pipeline: sample a waveform at a phase and
+ * apply the negative-speed shape transformation.
+ *
+ * Every display consumer (WaveformDisplay stroke path, FadedWaveformCurve,
+ * PhaseIndicator dot, the home screen's displayOutput for the destination
+ * meter) must go through this function so the three-systems consistency
+ * contract (see CLAUDE.md) has exactly one display-side implementation of
+ * the sample→negative-speed-flip rules:
+ * - EXP: concave decay for positive speed, concave rise for negative
+ * - other unipolar (RMP): negative speed flips the shape (1 - x)
+ * - bipolar: negative speed inverts polarity (* -1)
+ *
+ * Depth scaling and fade are NOT applied here — callers apply those.
+ */
+export function sampleDisplayValue(
+  waveform: WaveformType,
+  phase: number,
+  hasNegativeSpeed: boolean,
+  slewValue: number = 0,
+  randomSeed: number = 0
+): number {
+  'worklet';
+  if (waveform === 'EXP') {
+    // EXP needs different formulas to maintain concave shape in both directions
+    return hasNegativeSpeed ? sampleExpRise(phase) : sampleExpDecay(phase);
+  }
+
+  const value = waveform === 'RND'
+    ? sampleRandomWithSlew(phase, slewValue, randomSeed)
+    : sampleWaveformWorklet(waveform, phase, randomSeed);
+
+  if (hasNegativeSpeed) {
+    // Unipolar (RMP): flip the shape; bipolar: invert polarity
+    return isUnipolarWorklet(waveform) ? 1 - value : -value;
+  }
+  return value;
+}

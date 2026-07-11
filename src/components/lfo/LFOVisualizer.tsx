@@ -3,9 +3,9 @@ import { View, StyleSheet } from 'react-native';
 import { Canvas, Group } from '@shopify/react-native-skia';
 import { useSharedValue, withTiming, withSequence, Easing, useReducedMotion } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
+import { calculateFadeCycles } from 'elektron-lfo';
 
 import { WaveformDisplay } from './WaveformDisplay';
-import { RandomWaveform } from './RandomWaveform';
 import { PhaseIndicator } from './PhaseIndicator';
 import { FadedWaveformCurve } from './FadedWaveformCurve';
 import { OutputValueDisplay } from './OutputValueDisplay';
@@ -44,7 +44,6 @@ export function LFOVisualizer({
   editFadeInDuration = DEFAULT_EDIT_FADE_IN,
   fadeMultiplier,
   cycleCount,
-  randomSamples,
   randomSeed,
   showFadeEnvelope = true,
   depthAnimationDuration = DEFAULT_DEPTH_ANIM_DURATION,
@@ -155,43 +154,26 @@ export function LFOVisualizer({
             color={resolvedTheme.gridLines}
           />
 
-          {/* Waveform display - use RandomWaveform for RND if samples provided */}
-          {waveform === 'RND' && randomSamples && randomSamples.length > 0 ? (
-            <RandomWaveform
-              samples={randomSamples}
-              width={width}
-              height={canvasHeight}
-              strokeColor={resolvedTheme.waveformStroke}
-              strokeWidth={strokeWidth}
-              fillColor={resolvedTheme.waveformFill}
-              depth={depth}
-              speed={speed}
-              startPhase={startPhase}
-              isEditing={shouldHideFill}
-              editFadeInDuration={editFadeInDuration}
-              depthAnimationDuration={depthAnimationDuration}
-            />
-          ) : (
-            <WaveformDisplay
-              waveform={waveform}
-              width={width}
-              height={canvasHeight}
-              strokeColor={resolvedTheme.waveformStroke}
-              strokeWidth={strokeWidth}
-              fillColor={resolvedTheme.waveformFill}
-              resolution={128}
-              depth={depth}
-              speed={speed}
-              startPhase={startPhase}
-              randomSeed={randomSeed}
-              isEditing={shouldHideFill}
-              editFadeInDuration={editFadeInDuration}
-              depthAnimationDuration={depthAnimationDuration}
-            />
-          )}
+          {/* Waveform display (RND is drawn by WaveformDisplay via randomSeed) */}
+          <WaveformDisplay
+            waveform={waveform}
+            width={width}
+            height={canvasHeight}
+            strokeColor={resolvedTheme.waveformStroke}
+            strokeWidth={strokeWidth}
+            fillColor={resolvedTheme.waveformFill}
+            resolution={128}
+            depth={depth}
+            speed={speed}
+            startPhase={startPhase}
+            randomSeed={randomSeed}
+            isEditing={shouldHideFill}
+            editFadeInDuration={editFadeInDuration}
+            depthAnimationDuration={depthAnimationDuration}
+          />
 
           {/* Fade trajectory curve - shows where output will go during current fade cycle */}
-          {fade !== undefined && fade !== 0 && mode !== 'FRE' && fadeMultiplier && !reducedMotion && (
+          {showFadeEnvelope && fade !== undefined && fade !== 0 && mode !== 'FRE' && fadeMultiplier && !reducedMotion && (
             <FadedWaveformCurve
               waveform={waveform}
               width={width}
@@ -249,7 +231,7 @@ export function LFOVisualizer({
           steps={steps}
           theme={resolvedTheme}
           fadeDurationMs={fade !== undefined && fade !== 0 && mode !== 'FRE'
-            ? 40 * Math.pow(1.085, Math.abs(fade))
+            ? calculateFadeCycles(fade) * (cycleTimeMs ?? 0)
             : 0}
         />
       )}

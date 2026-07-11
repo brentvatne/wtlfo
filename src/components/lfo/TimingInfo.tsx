@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useCallback, useRef, useMemo } from 'react';
+import React, { useState, useEffect, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Platform } from 'react-native';
 import { Canvas, Text as SkiaText, matchFont } from '@shopify/react-native-skia';
 import {
@@ -57,9 +57,12 @@ export function TimingInfo({
   const elapsedTimeMsShared = useSharedValue(0);
   const currentStepShared = useSharedValue(1);
 
-  // Throttle updates to ~15fps to prioritize visualization performance
-  const lastElapsedUpdateRef = useRef(0);
-  const lastStepUpdateRef = useRef(0);
+  // Throttle updates to ~15fps to prioritize visualization performance.
+  // These must be SharedValues, not refs: a plain ref object captured into a
+  // worklet is cloned to the UI runtime, so mutating .current there only
+  // updates the clone (and resets whenever deps recreate the worklet).
+  const lastElapsedUpdate = useSharedValue(0);
+  const lastStepUpdate = useSharedValue(0);
   const THROTTLE_MS = 66; // ~15fps
 
   // Update elapsed time from phase using useAnimatedReaction (UI thread safe)
@@ -71,8 +74,8 @@ export function TimingInfo({
 
       // Throttle updates to ~15fps
       const now = Date.now();
-      if (now - lastElapsedUpdateRef.current < THROTTLE_MS) return;
-      lastElapsedUpdateRef.current = now;
+      if (now - lastElapsedUpdate.value < THROTTLE_MS) return;
+      lastElapsedUpdate.value = now;
 
       // Convert startPhase (0-127) to normalized (0-1)
       const startPhaseNormalized = startPhase / 128;
@@ -93,8 +96,8 @@ export function TimingInfo({
 
       // Throttle updates to ~15fps
       const now = Date.now();
-      if (now - lastStepUpdateRef.current < THROTTLE_MS) return;
-      lastStepUpdateRef.current = now;
+      if (now - lastStepUpdate.value < THROTTLE_MS) return;
+      lastStepUpdate.value = now;
 
       const totalSteps = Math.ceil(steps);
       // Convert startPhase (0-127) to normalized (0-1)

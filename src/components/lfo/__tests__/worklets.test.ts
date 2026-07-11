@@ -1,4 +1,4 @@
-import { sampleWaveformWorklet, isUnipolarWorklet } from '../worklets';
+import { sampleWaveformWorklet, isUnipolarWorklet, sampleDisplayValue, sampleExpDecay, sampleExpRise, sampleRandomWithSlew } from '../worklets';
 import type { WaveformType } from '../types';
 
 describe('worklets', () => {
@@ -443,6 +443,85 @@ describe('worklets', () => {
         expect(hasNegative).toBe(true);
         expect(hasPositive).toBe(true);
       });
+    });
+  });
+});
+
+// Contract test for the shared display pipeline (see CLAUDE.md consistency
+// contract). Every display consumer samples through sampleDisplayValue, so
+// these tests encode the negative-speed rules once for all of them.
+describe('sampleDisplayValue (shared display pipeline)', () => {
+  const PHASES = [0, 0.1, 0.25, 0.34 / 1, 0.5, 0.64, 0.75, 0.9];
+  const BIPOLAR: WaveformType[] = ['TRI', 'SIN', 'SQR', 'SAW', 'RND'];
+
+  describe('positive speed matches the base samplers', () => {
+    it.each(BIPOLAR)('%s equals sampleWaveformWorklet', (waveform) => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue(waveform, phase, false)).toBe(
+          waveform === 'RND'
+            ? sampleRandomWithSlew(phase, 0, 0)
+            : sampleWaveformWorklet(waveform, phase)
+        );
+      }
+    });
+
+    it('EXP uses the concave decay formula', () => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue('EXP', phase, false)).toBe(sampleExpDecay(phase));
+      }
+    });
+
+    it('RMP equals sampleWaveformWorklet', () => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue('RMP', phase, false)).toBe(sampleWaveformWorklet('RMP', phase));
+      }
+    });
+  });
+
+  describe('negative speed transformations', () => {
+    it.each(BIPOLAR)('%s (bipolar) inverts polarity (* -1)', (waveform) => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue(waveform, phase, true)).toBe(
+          -sampleDisplayValue(waveform, phase, false)
+        );
+      }
+    });
+
+    it('RMP (unipolar) flips the shape (1 - x) and stays in [0, 1]', () => {
+      for (const phase of PHASES) {
+        const flipped = sampleDisplayValue('RMP', phase, true);
+        expect(flipped).toBeCloseTo(1 - sampleDisplayValue('RMP', phase, false), 10);
+        expect(flipped).toBeGreaterThanOrEqual(0);
+        expect(flipped).toBeLessThanOrEqual(1);
+      }
+    });
+
+    it('EXP uses the concave rise formula (not 1-decay, not -decay)', () => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue('EXP', phase, true)).toBe(sampleExpRise(phase));
+      }
+      // Concavity in both directions: at mid-phase, both curves sit below
+      // the straight line between their endpoints
+      expect(sampleExpDecay(0.5)).toBeLessThan(0.5);
+      expect(sampleExpRise(0.5)).toBeLessThan(0.5);
+    });
+  });
+
+  describe('RND seed and slew flow through', () => {
+    it('same seed produces the same sequence, different seed differs somewhere', () => {
+      const a = PHASES.map((p) => sampleDisplayValue('RND', p, false, 0, 7));
+      const b = PHASES.map((p) => sampleDisplayValue('RND', p, false, 0, 7));
+      const c = PHASES.map((p) => sampleDisplayValue('RND', p, false, 0, 8));
+      expect(a).toEqual(b);
+      expect(a).not.toEqual(c);
+    });
+
+    it('slew=0 matches the plain RND sampler (sharp steps)', () => {
+      for (const phase of PHASES) {
+        expect(sampleDisplayValue('RND', phase, false, 0, 3)).toBe(
+          sampleWaveformWorklet('RND', phase, 3)
+        );
+      }
     });
   });
 });

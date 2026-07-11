@@ -3,7 +3,8 @@ import { Group, Path, Skia } from '@shopify/react-native-skia';
 import { useDerivedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
 import type { WaveformType } from './types';
-import { sampleWaveformWorklet, isUnipolarWorklet, sampleExpDecay, sampleExpRise } from './worklets';
+import { sampleDisplayValue } from './worklets';
+import { SPH_DISPLAY_DIVISOR } from './constants';
 
 interface FadedWaveformCurveProps {
   waveform: WaveformType;
@@ -47,9 +48,7 @@ export function FadedWaveformCurve({
   const effectivePadding = padding + strokePadding;
   const depthScale = depth !== undefined ? Math.max(-1, Math.min(1, depth / 63)) : 1;
   const hasNegativeSpeed = speed !== undefined && speed < 0;
-  const isUnipolar = isUnipolarWorklet(waveform);
-  const isExp = waveform === 'EXP';
-  const startPhaseNormalized = (startPhase || 0) / 127;
+  const startPhaseNormalized = (startPhase || 0) / SPH_DISPLAY_DIVISOR;
 
   const drawWidth = width - padding * 2;
   const drawHeight = height - effectivePadding * 2;
@@ -62,23 +61,7 @@ export function FadedWaveformCurve({
     const xNormalized = i / resolution;
     const waveformPhase = (xNormalized + startPhaseNormalized) % 1;
 
-    let value: number;
-    if (isExp) {
-      value = hasNegativeSpeed ? sampleExpRise(waveformPhase) : sampleExpDecay(waveformPhase);
-    } else {
-      value = sampleWaveformWorklet(waveform, waveformPhase);
-    }
-
-    if (hasNegativeSpeed && !isExp) {
-      if (isUnipolar) {
-        value = 1 - value;
-      } else {
-        value = -value;
-      }
-    }
-
-    value = value * depthScale;
-    baseSamples.push(value);
+    baseSamples.push(sampleDisplayValue(waveform, waveformPhase, hasNegativeSpeed) * depthScale);
   }
 
   // Create animated path that scales with fadeMultiplier

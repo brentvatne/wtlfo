@@ -17,7 +17,7 @@ wtlfo is an Expo app that visualizes Elektron Digitakt II LFO behavior. It uses 
 ### In wtlfo (visualization):
 - `src/components/lfo/worklets.ts` - Waveform sampling functions (sampleExpDecay, sampleExpRise, etc.)
 - `src/components/lfo/WaveformDisplay.tsx` - Waveform curve rendering (stroke & fill paths)
-- `src/components/lfo/FadeEnvelope.tsx` - Fade trajectory curve rendering
+- `src/components/lfo/FadedWaveformCurve.tsx` - Fade trajectory curve rendering
 - `src/components/lfo/PhaseIndicator.tsx` - Phase dot Y position calculation
 
 ### In elektron-lfo engine (`/Users/brent/code/elektron-lfo`):
