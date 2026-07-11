@@ -19,7 +19,7 @@ import { useUpdates } from 'expo-updates';
 import * as Application from 'expo-application';
 import { SymbolView } from 'expo-symbols';
 import {
-  usePreset,
+  usePresetStable,
   DEFAULT_FADE_IN_DURATION,
   DEFAULT_EDIT_FADE_OUT,
   DEFAULT_EDIT_FADE_IN,
@@ -83,7 +83,13 @@ function CollapsibleSection({
       style={[styles.collapsibleSection, isCollapsed && styles.collapsibleSectionCollapsed]}
       layout={LinearTransition.duration(250)}
     >
-      <Pressable onPress={toggleCollapsed}>
+      <Pressable
+        onPress={toggleCollapsed}
+        accessibilityRole="button"
+        accessibilityLabel={`${title} section`}
+        accessibilityState={{ expanded: !isCollapsed }}
+        accessibilityHint={isCollapsed ? 'Expands this settings section' : 'Collapses this settings section'}
+      >
         <Animated.View style={[styles.collapsibleHeader, headerStyle]}>
           <View style={styles.sectionHeaderTitleRow}>
             {icon}
@@ -111,6 +117,38 @@ function CollapsibleSection({
 }
 
 export default function SettingsScreen() {
+  const navigation = useNavigation();
+  // NativeTabs mounts every tab screen at cold start, which would render this
+  // entire settings screen before the home screen's first paint. Defer
+  // rendering until this tab has been focused at least once, then render
+  // forever after. useFocusEffect doesn't work reliably with NativeTabs when
+  // inside a nested Stack, so listen to the parent tabs navigator instead
+  // (same pattern as app/(tabs)/(home)/index.tsx).
+  const [hasFocused, setHasFocused] = useState(() => {
+    const tabsNavigation = navigation.getParent();
+    // No parent tabs navigator means no focus events will ever arrive - render
+    // immediately. Already-focused (e.g. deep link) also renders immediately.
+    return !tabsNavigation || tabsNavigation.isFocused();
+  });
+
+  useEffect(() => {
+    if (hasFocused) return;
+    const tabsNavigation = navigation.getParent();
+    if (!tabsNavigation) return;
+    const unsubscribe = tabsNavigation.addListener('focus', () => {
+      setHasFocused(true);
+    });
+    return unsubscribe;
+  }, [navigation, hasFocused]);
+
+  if (!hasFocused) {
+    return <View style={styles.lazyPlaceholder} />;
+  }
+
+  return <SettingsScreenContent />;
+}
+
+function SettingsScreenContent() {
   useMarkInteractive();
   const navigation = useNavigation();
   const pathname = usePathname();
@@ -128,11 +166,10 @@ export default function SettingsScreen() {
     smoothPhaseAnimation, setSmoothPhaseAnimation,
     phaseAnimationDuration, setPhaseAnimationDuration,
     tabSwitchFadeOpacity, setTabSwitchFadeOpacity,
-  } = usePreset();
+  } = usePresetStable();
 
   // Tab switch fade
   const screenOpacity = useSharedValue(1);
-  const isFirstFocusRef = useRef(true);
   const wasInModalRef = useRef(false);
 
   const screenFadeStyle = useAnimatedStyle(() => ({
@@ -150,12 +187,12 @@ export default function SettingsScreen() {
     const tabsNavigation = navigation.getParent();
     if (!tabsNavigation) return;
 
+    // This content mounts on the tab's first focus, so this listener is
+    // registered after that first focus event has already been dispatched.
+    // Every focus event it receives is a subsequent tab switch - no
+    // first-focus skip needed (matches the pre-lazy-mount behavior where the
+    // first focus was explicitly skipped).
     const unsubscribe = tabsNavigation.addListener('focus', () => {
-      if (isFirstFocusRef.current) {
-        isFirstFocusRef.current = false;
-        return;
-      }
-
       // Skip fade-in if returning from a modal
       if (wasInModalRef.current) {
         wasInModalRef.current = false;
@@ -283,6 +320,10 @@ export default function SettingsScreen() {
                       isSelected && styles.segmentSelected,
                     ]}
                     onPress={() => setBPM(tempo)}
+                    accessibilityRole="button"
+                    accessibilityLabel={`${tempo} BPM`}
+                    accessibilityState={{ selected: isSelected }}
+                    accessibilityHint="Sets the tempo"
                   >
                     <Text
                       style={[
@@ -443,6 +484,8 @@ export default function SettingsScreen() {
             Math.round(tabSwitchFadeOpacity * 100) !== Math.round(DEFAULT_TAB_SWITCH_FADE_OPACITY * 100);
           return (
             <Pressable
+              accessibilityRole="button"
+              accessibilityLabel="Reset animation timing to defaults"
               onPress={() => {
                 setFadeInDuration(DEFAULT_FADE_IN_DURATION);
                 setPresetSwitchDuration(DEFAULT_PRESET_SWITCH_DURATION);
@@ -466,6 +509,9 @@ export default function SettingsScreen() {
         <Pressable
           style={styles.linkRow}
           onPress={() => router.push('/midi')}
+          accessibilityRole="button"
+          accessibilityLabel="MIDI Sync"
+          accessibilityHint="Opens MIDI device connection settings"
         >
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>MIDI Sync</Text>
@@ -477,19 +523,28 @@ export default function SettingsScreen() {
           </View>
           <Text style={styles.linkChevron}>›</Text>
         </Pressable>
-        <View style={styles.divider} />
-        <Pressable
-          style={styles.linkRow}
-          onPress={() => router.push('./developer')}
-        >
-          <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>Developer Tools</Text>
-            <Text style={styles.settingDescription}>
-              Frame rate monitor, performance tests, MIDI verification
-            </Text>
-          </View>
-          <Text style={styles.linkChevron}>›</Text>
-        </Pressable>
+        {/* Developer tooling (frame rate monitor, benchmarks, MIDI verification)
+            is only relevant in development builds - keep it out of production. */}
+        {__DEV__ && (
+          <>
+            <View style={styles.divider} />
+            <Pressable
+              style={styles.linkRow}
+              onPress={() => router.push('./developer')}
+              accessibilityRole="button"
+              accessibilityLabel="Developer Tools"
+              accessibilityHint="Opens frame rate monitor, performance tests, and MIDI verification"
+            >
+              <View style={styles.settingTextContainer}>
+                <Text style={styles.settingLabel}>Developer Tools</Text>
+                <Text style={styles.settingDescription}>
+                  Frame rate monitor, performance tests, MIDI verification
+                </Text>
+              </View>
+              <Text style={styles.linkChevron}>›</Text>
+            </Pressable>
+          </>
+        )}
       </CollapsibleSection>
 
       {/* Version and Update Info */}
@@ -500,6 +555,9 @@ export default function SettingsScreen() {
           onLongPress={__DEV__ ? handleTestCrash : undefined}
           disabled={isChecking || isDownloading}
           hitSlop={{ top: 16, bottom: 16, left: 32, right: 32 }}
+          accessibilityRole="button"
+          accessibilityLabel={`Version ${getAppVersion()}`}
+          accessibilityHint="Checks for app updates"
         >
           <Text style={styles.versionText}>
             v{getAppVersion()}{currentlyRunning?.channel ? ` • ${currentlyRunning.channel}` : ''}
@@ -524,6 +582,10 @@ export default function SettingsScreen() {
 }
 
 const styles = StyleSheet.create({
+  lazyPlaceholder: {
+    flex: 1,
+    backgroundColor: '#0a0a0a',
+  },
   section: {
     backgroundColor: '#1a1a1a',
     borderRadius: 12,

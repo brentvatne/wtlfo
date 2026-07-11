@@ -25,7 +25,10 @@ Sentry.init({
   enabled: !__DEV__,
   sendDefaultPii: true,
   enableLogs: !__DEV__,
-  tracesSampleRate: 1.0,
+  // Sampled: EAS Observe now covers cold launch/TTR/TTI and per-route
+  // navigation metrics, so full-rate Sentry tracing would duplicate that
+  // instrumentation on every launch.
+  tracesSampleRate: 0.2,
   enableAppStartTracking: true,
   integrations: [navigationIntegration],
 });

@@ -1,8 +1,10 @@
-import React, { useEffect, useRef, useState } from 'react';
+import React, { useEffect } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { useNavigation } from 'expo-router/react-navigation';
 import { useSharedValue } from 'react-native-reanimated';
+import type { SharedValue } from 'react-native-reanimated';
 import { LFO } from 'elektron-lfo';
 import { LFOVisualizer } from '@/src/components/lfo';
 import type { WaveformType } from '@/src/components/lfo';
@@ -67,43 +69,25 @@ const WAVEFORMS: WaveformInfo[] = [
   },
 ];
 
-// Animated waveform preview component
-function WaveformPreview({ waveform, width }: { waveform: WaveformType; width: number }) {
-  const phase = useSharedValue(0);
-  const output = useSharedValue(0);
-  const lfoRef = useRef<LFO | null>(null);
-
-  useEffect(() => {
-    lfoRef.current = new LFO(
-      {
-        waveform: waveform,
-        speed: 24,
-        multiplier: 8,
-        mode: 'FRE',
-        depth: 63,
-        fade: 0,
-      },
-      120
-    );
-
-    let animationId: number;
-    const animate = (timestamp: number) => {
-      if (lfoRef.current) {
-        const state = lfoRef.current.update(timestamp);
-        phase.value = state.phase;
-        output.value = state.output;
-      }
-      animationId = requestAnimationFrame(animate);
-    };
-    animationId = requestAnimationFrame(animate);
-
-    return () => cancelAnimationFrame(animationId);
-  }, [waveform, phase, output]);
-
+// Animated waveform preview component. All seven previews share a single phase
+// SharedValue driven by one LFO engine in the screen component (identical
+// speed/multiplier/mode/BPM config for every card - only the waveform differs,
+// and phase progression is waveform-independent). PhaseIndicator derives the
+// dot's Y position from phase + waveform itself, and showOutput={false} means
+// the output value is never displayed, so a static 0 suffices for the prop.
+function WaveformPreview({
+  waveform,
+  phase,
+  width,
+}: {
+  waveform: WaveformType;
+  phase: SharedValue<number>;
+  width: number;
+}) {
   return (
     <LFOVisualizer
       phase={phase}
-      output={output}
+      output={0}
       waveform={waveform}
       width={width}
       height={100}
@@ -116,7 +100,15 @@ function WaveformPreview({ waveform, width }: { waveform: WaveformType; width: n
   );
 }
 
-function WaveformCard({ info, width }: { info: WaveformInfo; width: number }) {
+function WaveformCard({
+  info,
+  phase,
+  width,
+}: {
+  info: WaveformInfo;
+  phase: SharedValue<number>;
+  width: number;
+}) {
   return (
     <View style={styles.card}>
       <View style={styles.cardHeader}>
@@ -132,7 +124,7 @@ function WaveformCard({ info, width }: { info: WaveformInfo; width: number }) {
         </View>
       </View>
 
-      <WaveformPreview waveform={info.type} width={width - 32} />
+      <WaveformPreview waveform={info.type} phase={phase} width={width - 32} />
 
       <Text style={styles.character}>{info.character}</Text>
 
@@ -147,27 +139,109 @@ function WaveformCard({ info, width }: { info: WaveformInfo; width: number }) {
   );
 }
 
-function ExpandableSection({ title, children }: { title: string; children: React.ReactNode }) {
-  const [expanded, setExpanded] = useState(false);
-
-  return (
-    <View style={styles.expandableSection}>
-      <Pressable
-        onPress={() => setExpanded(!expanded)}
-        style={styles.expandableHeader}
-      >
-        <Text style={styles.expandableTitle}>{title}</Text>
-        <Text style={styles.expandableIcon}>{expanded ? '−' : '+'}</Text>
-      </Pressable>
-      {expanded && <View style={styles.expandableContent}>{children}</View>}
-    </View>
-  );
-}
-
 export default function WaveformsScreen() {
   useMarkInteractive();
+  const navigation = useNavigation();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = screenWidth - 32;
+
+  // Single phase SharedValue driving all seven waveform previews
+  const phase = useSharedValue(0);
+
+  useEffect(() => {
+    // One engine for all previews - only phase is consumed, and phase
+    // progression doesn't depend on the waveform, so any waveform works here.
+    const lfo = new LFO(
+      {
+        waveform: 'TRI',
+        speed: 24,
+        multiplier: 8,
+        mode: 'FRE',
+        depth: 63,
+        fade: 0,
+      },
+      120
+    );
+
+    let animationId = 0;
+
+    const animate = (timestamp: number) => {
+      const state = lfo.update(timestamp);
+      phase.value = state.phase;
+      animationId = requestAnimationFrame(animate);
+    };
+
+    const start = () => {
+      if (animationId === 0) {
+        // Avoid a large phase jump from time elapsed while stopped
+        lfo.resetTiming();
+        animationId = requestAnimationFrame(animate);
+      }
+    };
+
+    const stop = () => {
+      if (animationId !== 0) {
+        cancelAnimationFrame(animationId);
+        animationId = 0;
+      }
+    };
+
+    // Run the loop only while this screen is focused, its tab is focused, and
+    // the app is active. useFocusEffect doesn't work reliably with NativeTabs
+    // when inside a nested Stack, so listen to both this screen's navigator
+    // (push/pop within the Learn stack) and the parent tabs navigator (tab
+    // switches) - same pattern as app/(tabs)/(home)/index.tsx. AppState
+    // handling mirrors preset-context's background pause.
+    const tabsNavigation = navigation.getParent();
+    let screenFocused = navigation.isFocused();
+    let tabFocused = tabsNavigation?.isFocused() ?? true;
+    let appActive = AppState.currentState === 'active';
+
+    const update = () => {
+      if (screenFocused && tabFocused && appActive) {
+        start();
+      } else {
+        stop();
+      }
+    };
+
+    const unsubscribers = [
+      navigation.addListener('focus', () => {
+        screenFocused = true;
+        update();
+      }),
+      navigation.addListener('blur', () => {
+        screenFocused = false;
+        update();
+      }),
+    ];
+    if (tabsNavigation) {
+      unsubscribers.push(
+        tabsNavigation.addListener('focus', () => {
+          tabFocused = true;
+          update();
+        }),
+        tabsNavigation.addListener('blur', () => {
+          tabFocused = false;
+          update();
+        })
+      );
+    }
+    const appStateSubscription = AppState.addEventListener('change', (nextAppState) => {
+      appActive = nextAppState === 'active';
+      update();
+    });
+
+    update();
+
+    return () => {
+      stop();
+      for (const unsubscribe of unsubscribers) {
+        unsubscribe();
+      }
+      appStateSubscription.remove();
+    };
+  }, [navigation, phase]);
 
   return (
     <ScrollView
@@ -206,7 +280,7 @@ export default function WaveformsScreen() {
 
       <View style={styles.cardList}>
         {WAVEFORMS.map((info) => (
-          <WaveformCard key={info.type} info={info} width={cardWidth} />
+          <WaveformCard key={info.type} info={info} phase={phase} width={cardWidth} />
         ))}
       </View>
     </ScrollView>
@@ -358,32 +432,6 @@ const styles = StyleSheet.create({
   tagText: {
     color: '#888899',
     fontSize: 12,
-  },
-  expandableSection: {
-    backgroundColor: '#1a1a1a',
-    borderRadius: 10,
-    marginTop: 16,
-    overflow: 'hidden',
-  },
-  expandableHeader: {
-    flexDirection: 'row',
-    justifyContent: 'space-between',
-    alignItems: 'center',
-    padding: 14,
-  },
-  expandableTitle: {
-    color: '#ffffff',
-    fontSize: 15,
-    fontWeight: '600',
-  },
-  expandableIcon: {
-    color: '#555566',
-    fontSize: 18,
-    fontWeight: '500',
-  },
-  expandableContent: {
-    padding: 14,
-    paddingTop: 0,
   },
   sectionText: {
     color: '#cccccc',

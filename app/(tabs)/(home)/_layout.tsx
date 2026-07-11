@@ -1,5 +1,5 @@
 import { Stack, router, useGlobalSearchParams } from 'expo-router';
-import { usePreset } from '@/src/context/preset-context';
+import { usePresetStable } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
 import { PARAM_ORDER, PARAM_LABELS, getStartPhaseLabel, type ParamKey } from '@/src/components/params/constants';
 
@@ -8,7 +8,9 @@ function getParamLabel(param: ParamKey, waveform: string): string {
 }
 
 export default function HomeLayout() {
-  const { preset, currentConfig } = usePreset();
+  // Stable slice: waveform is a primitive that only changes identity when the
+  // waveform actually changes, so this layout skips per-drag-tick renders
+  const { preset, waveform } = usePresetStable();
   const { autoConnect, connected, digitaktAvailable } = useMidi();
 
   const midiIcon = connected ? 'link' : digitaktAvailable ? 'link' : 'link.badge.plus';
@@ -86,7 +88,7 @@ export default function HomeLayout() {
               onPress={() => router.setParams({ param: prevParam })}
               style={{ fontSize: 15 }}
             >
-              ‹ {getParamLabel(prevParam, currentConfig.waveform)}
+              ‹ {getParamLabel(prevParam, waveform)}
             </Stack.Toolbar.Button>
           </Stack.Toolbar>
         )}
@@ -96,7 +98,7 @@ export default function HomeLayout() {
               onPress={() => router.setParams({ param: nextParam })}
               style={{ fontSize: 15 }}
             >
-              {getParamLabel(nextParam, currentConfig.waveform)} ›
+              {getParamLabel(nextParam, waveform)} ›
             </Stack.Toolbar.Button>
           </Stack.Toolbar>
         )}

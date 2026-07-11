@@ -3,9 +3,8 @@ import { CenterValueSlider, DestinationMeter } from '@/src/components/destinatio
 import type { TriggerMode, WaveformType } from '@/src/components/lfo';
 import {
   ELEKTRON_THEME,
-  isUnipolarWorklet,
   LFOVisualizer,
-  sampleWaveformWorklet,
+  sampleDisplayValue,
   TimingInfo,
   warmPathCache,
   WAVEFORM_ICON_SIZES,
@@ -257,19 +256,6 @@ export default function HomeScreen() {
   // Calculate visualizer width - screen minus meter
   const visualizerWidth = screenWidth - METER_WIDTH;
 
-  // Create local phase SharedValue that tracks the context's lfoPhase
-  // This ensures Skia properly reacts to phase changes from the context
-  // Initialize with 0, useAnimatedReaction will set the correct value immediately
-  const displayPhase = useSharedValue(0);
-  useAnimatedReaction(
-    () => lfoPhase.value,
-    (currentPhase) => {
-      'worklet';
-      displayPhase.value = currentPhase;
-    },
-    []
-  );
-
   // Animated styles for fade effects
   const screenFadeStyle = useAnimatedStyle(() => ({
     opacity: screenOpacity.value,
@@ -281,12 +267,14 @@ export default function HomeScreen() {
   const depthScaleForWorklet = Math.max(-1, Math.min(1, currentConfig.depth / 63));
   // Pre-compute speed info for negative speed handling
   const hasNegativeSpeed = currentConfig.speed < 0;
-  const isUnipolar = isUnipolarWorklet(waveformForWorklet);
   // Pre-compute fade parameters for worklet
   const fadeValue = currentConfig.fade;
   const modeValue = currentConfig.mode as TriggerMode;
-  const startPhaseNormalized = currentConfig.startPhase / 128;
   const fadeApplies = fadeValue !== 0 && modeValue !== 'FRE';
+  // RND uses SPH as slew amount and lfoCycleCount as the per-cycle seed,
+  // matching PhaseIndicator so the meter follows the same random sequence
+  const isRandomWaveform = waveformForWorklet === 'RND';
+  const slewForWorklet = isRandomWaveform ? currentConfig.startPhase : 0;
 
   // Destination bounds for display
   const destMin = activeDestination?.min ?? 0;
@@ -304,21 +292,17 @@ export default function HomeScreen() {
 
   const displayOutput = useDerivedValue(() => {
     'worklet';
-    // Sample the waveform at current phase
-    let value = sampleWaveformWorklet(waveformForWorklet, displayPhase.value);
-    // Apply negative speed transformation (matches visualization and engine)
-    // For unipolar waveforms (EXP, RMP), negative speed flips the shape (1-x)
-    // For bipolar waveforms, negative speed inverts polarity (*-1)
-    if (hasNegativeSpeed) {
-      if (isUnipolar) {
-        value = 1 - value;
-      } else {
-        value = -value;
-      }
-    }
-    // Apply depth scaling
-    return value * depthScaleForWorklet;
-  }, [waveformForWorklet, depthScaleForWorklet, displayPhase, hasNegativeSpeed, isUnipolar]);
+    // Shared display pipeline (sample + negative-speed flip), then depth.
+    // RND uses the same seed and slew as the visualization so the meter
+    // follows the same random sequence as the dot.
+    return sampleDisplayValue(
+      waveformForWorklet,
+      lfoPhase.value,
+      hasNegativeSpeed,
+      slewForWorklet,
+      lfoCycleCount.value
+    ) * depthScaleForWorklet;
+  }, [waveformForWorklet, depthScaleForWorklet, lfoPhase, hasNegativeSpeed, slewForWorklet, lfoCycleCount]);
 
   // Destination modulated value for TimingInfo display
   const destinationDisplayValue = useDerivedValue(() => {
@@ -469,7 +453,7 @@ export default function HomeScreen() {
                 <View>
                   {/* Current (new) visualization - always rendered */}
                   <LFOVisualizer
-                      phase={displayPhase}
+                      phase={lfoPhase}
                       output={lfoOutput}
                       waveform={currentConfig.waveform as WaveformType}
                       speed={currentConfig.speed}
@@ -496,7 +480,7 @@ export default function HomeScreen() {
                       showFadeEnvelope={showFadeEnvelope}
                       depthAnimationDuration={depthAnimationDuration}
                       showPhaseIndicator={!isBackgrounded}
-                      randomSeed={lfoCycleCount}
+                      randomSeed={currentConfig.waveform === 'RND' ? lfoCycleCount : 0}
                       cycleCount={lfoCycleCount}
                       fadeMultiplier={displayFadeMultiplier}
                     />
@@ -505,7 +489,7 @@ export default function HomeScreen() {
                     {previousConfig && previousTimingInfo && (
                       <View style={styles.crossfadeOverlay} pointerEvents="none">
                         <LFOVisualizer
-                          phase={displayPhase}
+                          phase={lfoPhase}
                           output={lfoOutput}
                           waveform={previousConfig.waveform as WaveformType}
                           speed={previousConfig.speed}
@@ -532,7 +516,7 @@ export default function HomeScreen() {
                           showFadeEnvelope={showFadeEnvelope}
                           depthAnimationDuration={0}
                           showPhaseIndicator={false}
-                          randomSeed={lfoCycleCount}
+                          randomSeed={previousConfig.waveform === 'RND' ? lfoCycleCount : 0}
                           opacity={crossfadeOpacity}
                         />
                       </View>

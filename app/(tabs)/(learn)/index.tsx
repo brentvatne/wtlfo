@@ -1,11 +1,11 @@
-import React, { useRef, useEffect } from 'react';
+import React, { useEffect, useState } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
 import { useNavigation } from "expo-router/react-navigation";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
-import { usePreset } from '@/src/context/preset-context';
+import { usePresetStable } from '@/src/context/preset-context';
 import {
   AboutIcon,
   QuestionWaveIcon,
@@ -103,14 +103,46 @@ function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () 
 }
 
 export default function LearnIndexScreen() {
+  const navigation = useNavigation();
+  // NativeTabs mounts every tab screen at cold start, which would render the
+  // 7 Skia canvas icons before the home screen's first paint. Defer rendering
+  // until this tab has been focused at least once, then render forever after.
+  // useFocusEffect doesn't work reliably with NativeTabs when inside a nested
+  // Stack, so listen to the parent tabs navigator instead (same pattern as
+  // app/(tabs)/(home)/index.tsx).
+  const [hasFocused, setHasFocused] = useState(() => {
+    const tabsNavigation = navigation.getParent();
+    // No parent tabs navigator means no focus events will ever arrive - render
+    // immediately. Already-focused (e.g. deep link) also renders immediately.
+    return !tabsNavigation || tabsNavigation.isFocused();
+  });
+
+  useEffect(() => {
+    if (hasFocused) return;
+    const tabsNavigation = navigation.getParent();
+    if (!tabsNavigation) return;
+    const unsubscribe = tabsNavigation.addListener('focus', () => {
+      setHasFocused(true);
+    });
+    return unsubscribe;
+  }, [navigation, hasFocused]);
+
+  if (!hasFocused) {
+    return <View style={styles.container} />;
+  }
+
+  return <LearnIndexContent />;
+}
+
+function LearnIndexContent() {
   useMarkInteractive();
   const router = useRouter();
   const navigation = useNavigation();
-  const { fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity } = usePreset();
+  // Stable slice only - this screen doesn't need per-drag-tick values
+  const { fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity } = usePresetStable();
 
   // Tab switch fade
   const screenOpacity = useSharedValue(1);
-  const isFirstFocusRef = useRef(true);
 
   const screenFadeStyle = useAnimatedStyle(() => ({
     opacity: screenOpacity.value,
@@ -120,12 +152,12 @@ export default function LearnIndexScreen() {
     const tabsNavigation = navigation.getParent();
     if (!tabsNavigation) return;
 
+    // This content mounts on the tab's first focus, so this listener is
+    // registered after that first focus event has already been dispatched.
+    // Every focus event it receives is a subsequent tab switch - no
+    // first-focus skip needed (matches the pre-lazy-mount behavior where the
+    // first focus was explicitly skipped).
     const unsubscribe = tabsNavigation.addListener('focus', () => {
-      if (isFirstFocusRef.current) {
-        isFirstFocusRef.current = false;
-        return;
-      }
-
       if (fadeInOnOpen) {
         screenOpacity.value = tabSwitchFadeOpacity;
         screenOpacity.value = withTiming(1, {

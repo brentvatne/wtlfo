@@ -8,7 +8,7 @@ import {
   StereoPannerNode,
   type AudioContext as AudioContextType,
 } from 'react-native-audio-api';
-import { usePreset } from './preset-context';
+import { usePresetStable } from './preset-context';
 import { useModulation } from './modulation-context';
 import type { DestinationId } from '@/src/types/destination';
 
@@ -67,7 +67,9 @@ const DEFAULT_FILTER_FREQ = 4000;
 const DEFAULT_FILTER_Q = 1;
 
 export function AudioProvider({ children }: { children: React.ReactNode }) {
-  const { lfoOutput, isPaused } = usePreset();
+  // Stable slice only - avoids re-rendering the audio provider on every
+  // parameter drag tick (lfoOutput is a SharedValue read in the rAF loop)
+  const { lfoOutput, isPaused } = usePresetStable();
   const { activeDestinationId, getCenterValue } = useModulation();
 
   // User toggle state - persists through pauses

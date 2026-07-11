@@ -1,4 +1,4 @@
-import React, { useState, useEffect, useRef, useCallback } from 'react';
+import React, { useEffect, useRef, useCallback } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
@@ -170,15 +170,9 @@ export default function EditParamScreen() {
     };
   }, [setIsEditing]);
 
-  // Use internal state for instant switching (no animation)
-  const [activeParam, setActiveParam] = useState<ParamKey>(urlParam as ParamKey);
-
-  // Sync with URL param on mount or if URL changes externally
-  useEffect(() => {
-    if (urlParam && urlParam !== activeParam) {
-      setActiveParam(urlParam as ParamKey);
-    }
-  }, [urlParam]);
+  // Derive directly from the URL param (instant switching, no animation).
+  // No local mirror state needed - the URL is the single source of truth.
+  const activeParam = urlParam as ParamKey;
 
   if (!activeParam || !(activeParam in PARAM_INFO)) {
     return (

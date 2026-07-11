@@ -80,8 +80,11 @@ export function ParameterSlider({
   // Handle slider changes - throttle onChange to once per frame for performance
   const handleValueChange = useCallback((sliderValue: number) => {
     const actualValue = fromSliderValue(sliderValue);
-    setLocalValue(actualValue);
     const rounded = roundToStep(actualValue);
+    // Store the rounded value so repeat move events within the same step
+    // bail out of the setState (raw floats are new on every native event,
+    // which re-rendered this component per event just to redraw the label)
+    setLocalValue(rounded);
 
     // Only schedule update if value changed
     if (rounded !== lastCommittedValue.current) {

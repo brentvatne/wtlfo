@@ -69,15 +69,21 @@ export default function DestinationScreen() {
   // React to LFO output changes and compute the actual value
   // Note: lfoOutput is already depth-scaled by the elektron-lfo engine
   // (output range is -depth/63 to +depth/63, including sign)
+  // Rounding happens in the prepare function and the callback compares
+  // against the previous prepared value, so the UI→JS hop (and the React
+  // re-render it causes) only happens when the displayed value changes.
   useAnimatedReaction(
-    () => lfoOutput.value,
-    (output) => {
-      const modulation = output * maxModulation;
+    () => {
+      const modulation = lfoOutput.value * maxModulation;
       // Round to 2 decimal places for display
-      const newValue = Math.round(
+      return Math.round(
         Math.max(destMin, Math.min(destMax, centerValue + modulation)) * 100
       ) / 100;
-      scheduleOnRN(setComputedValue, newValue);
+    },
+    (newValue, previous) => {
+      if (newValue !== previous) {
+        scheduleOnRN(setComputedValue, newValue);
+      }
     },
     [centerValue, maxModulation, destMin, destMax]
   );

@@ -20,16 +20,20 @@ export const DEFAULT_TAB_SWITCH_FADE_OPACITY = Settings.DEFAULTS.tabSwitchFadeOp
 
 // Load saved config or fall back to preset defaults
 function getInitialConfig(presetIndex: number): LFOPresetConfig {
-  const saved = Settings.getJSON<LFOPresetConfig | null>('currentConfig', null);
-  if (saved !== null) {
-    // Validate the parsed config has all required fields
+  const saved = Settings.getJSON<Partial<LFOPresetConfig> | null>('currentConfig', null);
+  if (saved !== null && typeof saved === 'object') {
+    // Merge over preset defaults so configs saved by older builds that lack
+    // newer fields (e.g. startPhase) can't yield undefined/NaN downstream
+    const merged = { ...PRESETS[presetIndex].config, ...saved };
     if (
-      typeof saved.waveform === 'string' &&
-      typeof saved.speed === 'number' &&
-      typeof saved.depth === 'number' &&
-      typeof saved.fade === 'number'
+      typeof merged.waveform === 'string' &&
+      typeof merged.mode === 'string' &&
+      Number.isFinite(merged.speed) &&
+      Number.isFinite(merged.depth) &&
+      Number.isFinite(merged.fade) &&
+      Number.isFinite(merged.startPhase)
     ) {
-      return saved;
+      return merged;
     }
   }
   return { ...PRESETS[presetIndex].config };
@@ -41,25 +45,53 @@ interface TimingInfo {
   steps: number; // Number of 1/16 steps in one cycle
 }
 
-interface PresetContextValue {
-  activePreset: number;
-  preset: LFOPreset;
-  setActivePreset: (index: number) => void;
-  presets: LFOPreset[];
+// "Hot" values change on every editing tick (each integer step of a slider
+// drag) or per BPM change. Consumers of this context re-render per tick.
+// NOTE: triggerLFO and changePresetWithTransition live here even though they
+// are callbacks - their useCallback deps include currentConfig/timingInfo, so
+// their identity changes per tick. Putting them in the stable context would
+// churn its value identity and defeat the split.
+interface PresetHotContextValue {
   /** Immediate config - updates instantly for UI display */
   currentConfig: LFOPresetConfig;
   /** Debounced config - updates 100ms after last change, use for engine creation */
   debouncedConfig: LFOPresetConfig;
   /** True while user is actively interacting with a control */
   isEditing: boolean;
+  timingInfo: TimingInfo;
+  /** Effective BPM - uses external MIDI clock when enabled, otherwise user BPM */
+  effectiveBpm: number;
+  /** Trigger (reset) the LFO - identity tracks currentConfig/timingInfo */
+  triggerLFO: () => void;
+
+  // Preset transition state
+  isChangingPreset: boolean;
+  /** Change preset with crossfade transition - identity tracks currentConfig */
+  changePresetWithTransition: (index: number) => void;
+  /** Previous config for crossfade - null when not transitioning */
+  previousConfig: LFOPresetConfig | null;
+}
+
+// "Stable" values do NOT change during a slider drag: SharedValues, refs,
+// identity-stable callbacks, settings, and preset identity. Consumers that
+// only need these avoid per-tick re-renders.
+interface PresetStableContextValue {
+  activePreset: number;
+  preset: LFOPreset;
+  setActivePreset: (index: number) => void;
+  presets: LFOPreset[];
+  /**
+   * Current waveform as a plain primitive. Unlike currentConfig (hot), this
+   * only changes the stable value's identity when the waveform actually
+   * changes, so layout-level consumers can read it without per-tick renders.
+   */
+  waveform: LFOPresetConfig['waveform'];
   /** Set editing state - call with true when interaction starts, false when it ends */
   setIsEditing: (editing: boolean) => void;
   updateParameter: <K extends keyof LFOPresetConfig>(key: K, value: LFOPresetConfig[K]) => void;
   resetToPreset: () => void;
   bpm: number;
   setBPM: (bpm: number) => void;
-  /** Effective BPM - uses external MIDI clock when enabled, otherwise user BPM */
-  effectiveBpm: number;
   /** True when using external MIDI clock for tempo */
   usingMidiClock: boolean;
 
@@ -69,10 +101,8 @@ interface PresetContextValue {
   lfoFadeMultiplier: SharedValue<number>;
   lfoCycleCount: SharedValue<number>;
   lfoRef: React.MutableRefObject<LFO | null>;
-  timingInfo: TimingInfo;
 
   // LFO control methods
-  triggerLFO: () => void;
   startLFO: () => void;
   stopLFO: () => void;
   resetLFOTiming: () => void;
@@ -112,19 +142,16 @@ interface PresetContextValue {
   tabSwitchFadeOpacity: number;
   setTabSwitchFadeOpacity: (opacity: number) => void;
 
-  // Preset transition state
-  isChangingPreset: boolean;
-  /** Change preset with crossfade transition */
-  changePresetWithTransition: (index: number) => void;
-  /** Previous config for crossfade - null when not transitioning */
-  previousConfig: LFOPresetConfig | null;
   /** Crossfade opacity (1 = showing old, 0 = showing new) */
   crossfadeOpacity: SharedValue<number>;
   /** Signal that crossfade animation has completed */
   finishPresetTransition: () => void;
 }
 
-const PresetContext = createContext<PresetContextValue | null>(null);
+type PresetContextValue = PresetStableContextValue & PresetHotContextValue;
+
+const PresetHotContext = createContext<PresetHotContextValue | null>(null);
+const PresetStableContext = createContext<PresetStableContextValue | null>(null);
 
 // Compute initial values ONCE, outside the component, to ensure consistency
 // Settings are pre-cached at module load by the settings service
@@ -208,6 +235,9 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     lfoRef.current = new LFO(INITIAL_CONFIG, INITIAL_BPM);
     // Auto-trigger for modes that need it
     if (INITIAL_CONFIG.mode === 'TRG' || INITIAL_CONFIG.mode === 'ONE' || INITIAL_CONFIG.mode === 'HLF') {
+      // Sanctioned lazy-init pattern: the ref is populated exactly once during the
+      // first render (React docs allow this for expensive one-time initialization).
+      // eslint-disable-next-line react-hooks/refs
       lfoRef.current.trigger();
     }
   }
@@ -515,7 +545,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
   // Coordinate LFO stop/start with editing fade animations
   // Always hide values while editing (no longer a toggle)
+  const wasEditingRef = useRef(false);
   useEffect(() => {
+    const wasEditing = wasEditingRef.current;
+    wasEditingRef.current = isEditing;
     isEditingRef.current = isEditing;
 
     if (isEditing) {
@@ -530,6 +563,16 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         stopPhaseAnimation();
       }, editFadeOutDuration);
     } else {
+      // Only run the "editing ended" teardown on an actual true→false
+      // transition. This effect's deps include currentConfig and effectiveBpm,
+      // so without this gate every non-editing config/BPM change (e.g. each
+      // integer step of a BPM slider drag) would synchronously recreate the
+      // LFO and restart the phase animation. Non-editing config changes are
+      // handled by the debounced recreation effect below.
+      if (!wasEditing) {
+        return;
+      }
+
       // Editing ended: flush debounce, recreate LFO synchronously, restart animation
       if (fadeOutTimeoutRef.current) {
         clearTimeout(fadeOutTimeoutRef.current);
@@ -600,8 +643,15 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     wasPausedRef.current = isPaused;
 
     if (isPaused && !wasPaused) {
-      // Just became paused - stop the phase animation
+      // Just became paused - stop the phase animation and the rAF output loop.
+      // The engine is stopped, so the loop would just burn JS-thread time
+      // writing unchanged values (including the whole time other tabs are
+      // focused). The unpause branch below restarts it.
       stopPhaseAnimation();
+      if (animationRef.current) {
+        cancelAnimationFrame(animationRef.current);
+        animationRef.current = 0;
+      }
     } else if (!isPaused && wasPaused && hasMainLoopStarted.current) {
       // Just became unpaused - restart the phase animation
       const currentPhase = lfoPhase.value;
@@ -797,20 +847,32 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
   const resetLFOTiming = useCallback(() => lfoRef.current?.resetTiming(), []);
   const isLFORunning = useCallback(() => lfoRef.current?.isRunning() ?? false, []);
 
-  const value: PresetContextValue = {
+  // Plain object literals - the React Compiler memoizes them against their
+  // inputs, so each context value only changes identity when a field changes.
+  const hotValue: PresetHotContextValue = {
+    currentConfig,
+    debouncedConfig,
+    isEditing,
+    timingInfo,
+    effectiveBpm,
+    triggerLFO,
+    // Preset transition
+    isChangingPreset,
+    changePresetWithTransition,
+    previousConfig,
+  };
+
+  const stableValue: PresetStableContextValue = {
     activePreset,
     preset: PRESETS[activePreset],
     setActivePreset,
     presets: PRESETS,
-    currentConfig,
-    debouncedConfig,
-    isEditing,
+    waveform: currentConfig.waveform,
     setIsEditing,
     updateParameter,
     resetToPreset,
     bpm,
     setBPM,
-    effectiveBpm,
     usingMidiClock: receiveClock && externalBpm > 0,
     // LFO animation state
     lfoPhase,
@@ -818,9 +880,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     lfoFadeMultiplier,
     lfoCycleCount,
     lfoRef,
-    timingInfo,
     // LFO control
-    triggerLFO,
     startLFO,
     stopLFO,
     resetLFOTiming,
@@ -855,24 +915,55 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     tabSwitchFadeOpacity,
     setTabSwitchFadeOpacity,
     // Preset transition
-    isChangingPreset,
-    changePresetWithTransition,
-    previousConfig,
     crossfadeOpacity,
     finishPresetTransition,
   };
 
   return (
-    <PresetContext value={value}>
-      {children}
-    </PresetContext>
+    <PresetStableContext value={stableValue}>
+      <PresetHotContext value={hotValue}>
+        {children}
+      </PresetHotContext>
+    </PresetStableContext>
   );
 }
 
-export function usePreset() {
-  const context = React.use(PresetContext);
-  if (!context) {
+/**
+ * Merged view of both contexts - identical surface to the pre-split hook.
+ * Re-renders per editing tick (the hot context changes identity per tick).
+ * Prefer usePresetStable() when only stable values are needed.
+ */
+export function usePreset(): PresetContextValue {
+  const stable = React.use(PresetStableContext);
+  const hot = React.use(PresetHotContext);
+  if (!stable || !hot) {
     throw new Error('usePreset must be used within a PresetProvider');
+  }
+  return { ...stable, ...hot };
+}
+
+/**
+ * Stable slice only: SharedValues, identity-stable callbacks, settings,
+ * preset identity, isPaused, bpm, and the waveform primitive. Does NOT
+ * change during slider drags, so consumers avoid per-tick re-renders.
+ */
+export function usePresetStable(): PresetStableContextValue {
+  const context = React.use(PresetStableContext);
+  if (!context) {
+    throw new Error('usePresetStable must be used within a PresetProvider');
+  }
+  return context;
+}
+
+/**
+ * Hot slice only: values that change per editing tick or per BPM change
+ * (currentConfig, debouncedConfig, isEditing, timingInfo, effectiveBpm,
+ * and preset-transition state).
+ */
+export function usePresetHot(): PresetHotContextValue {
+  const context = React.use(PresetHotContext);
+  if (!context) {
+    throw new Error('usePresetHot must be used within a PresetProvider');
   }
   return context;
 }
