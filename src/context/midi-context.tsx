@@ -1,5 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
-import { Storage } from 'expo-sqlite/kv-store';
+import * as Settings from '@/src/services/settings';
 import { markStartup } from '@/src/services/startup-timing';
 import {
   useMidiDevices,
@@ -9,10 +9,6 @@ import {
   type MidiDevice,
   type TransportMessage,
 } from '@/modules/midi-controller';
-
-const RECEIVE_TRANSPORT_KEY = 'midi_receive_transport';
-const RECEIVE_CLOCK_KEY = 'midi_receive_clock';
-const AUTO_CONNECT_KEY = 'midi_auto_connect';
 
 // We only care about Elektron Digitakt II
 const DIGITAKT_PATTERN = /digitakt|elektron/i;
@@ -51,30 +47,29 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   const [connectedDeviceName, setConnectedDeviceName] = useState<string | null>(null);
   const [connecting, setConnecting] = useState(false);
+
+  // Settings state.
+  // NOTE: these intentionally compare raw stored strings rather than using
+  // Settings.getBoolean, to preserve the historical default semantics of this
+  // context (autoConnect off when unset; transport/clock on when unset), which
+  // differ from the service-level DEFAULTS.
+  const [autoConnect, setAutoConnectState] = useState(() => {
+    return Settings.getString('midiAutoConnect') === 'true';
+  });
+  const [receiveTransport, setReceiveTransportState] = useState(() => {
+    return Settings.getString('midiReceiveTransport') !== 'false';
+  });
+  const [receiveClock, setReceiveClockState] = useState(() => {
+    return Settings.getString('midiReceiveClock') !== 'false';
+  });
+
   // Track whether initial device check is complete (for auto-connect startup flow)
   // Initialize to true if auto-connect is disabled (no need to wait)
-  const [initialCheckComplete, setInitialCheckComplete] = useState(() => {
-    const autoConnectSaved = Storage.getItemSync(AUTO_CONNECT_KEY);
-    return autoConnectSaved !== 'true'; // If auto-connect disabled, start as true
-  });
+  const [initialCheckComplete, setInitialCheckComplete] = useState(!autoConnect);
 
   // Find Elektron Digitakt II in available devices
   const digitakt = devices.find(d => DIGITAKT_PATTERN.test(d.name));
   const digitaktAvailable = digitakt !== undefined;
-
-  // Settings state
-  const [autoConnect, setAutoConnectState] = useState(() => {
-    const saved = Storage.getItemSync(AUTO_CONNECT_KEY);
-    return saved === 'true';
-  });
-  const [receiveTransport, setReceiveTransportState] = useState(() => {
-    const saved = Storage.getItemSync(RECEIVE_TRANSPORT_KEY);
-    return saved !== 'false';
-  });
-  const [receiveClock, setReceiveClockState] = useState(() => {
-    const saved = Storage.getItemSync(RECEIVE_CLOCK_KEY);
-    return saved !== 'false';
-  });
 
   // Track if we're in the middle of an auto-connect attempt
   const autoConnectingRef = useRef(false);
@@ -173,7 +168,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   const setAutoConnect = useCallback((value: boolean) => {
     setAutoConnectState(value);
-    Storage.setItemSync(AUTO_CONNECT_KEY, String(value));
+    Settings.setBoolean('midiAutoConnect', value);
     // Immediately refresh device list when enabling auto-connect
     if (value) {
       refreshDevices();
@@ -182,12 +177,12 @@ export function MidiProvider({ children }: { children: ReactNode }) {
 
   const setReceiveTransport = useCallback((value: boolean) => {
     setReceiveTransportState(value);
-    Storage.setItemSync(RECEIVE_TRANSPORT_KEY, String(value));
+    Settings.setBoolean('midiReceiveTransport', value);
   }, []);
 
   const setReceiveClock = useCallback((value: boolean) => {
     setReceiveClockState(value);
-    Storage.setItemSync(RECEIVE_CLOCK_KEY, String(value));
+    Settings.setBoolean('midiReceiveClock', value);
   }, []);
 
   const value: MidiContextType = {

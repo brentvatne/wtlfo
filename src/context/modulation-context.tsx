@@ -1,10 +1,7 @@
-import React, { createContext, useState, useCallback, useEffect } from 'react';
-import { Storage } from 'expo-sqlite/kv-store';
+import React, { createContext, useState, useCallback, useEffect, useRef } from 'react';
+import * as Settings from '@/src/services/settings';
 import type { DestinationId, LFORouting } from '@/src/types/destination';
 import { DESTINATIONS, DEFAULT_DESTINATION } from '@/src/data/destinations';
-
-const CENTER_VALUES_KEY = 'centerValues';
-const ROUTINGS_KEY = 'routings';
 
 // TODO: Remove this migration after ~2 releases (added Jan 2026)
 // This handles the transition from old destination IDs to new Digitakt II-correct IDs.
@@ -55,7 +52,7 @@ const ModulationContext = createContext<ModulationContextValue | null>(null);
 // Load initial center values synchronously with migration
 function getInitialCenterValues(): Partial<Record<DestinationId, number>> {
   try {
-    const saved = Storage.getItemSync(CENTER_VALUES_KEY);
+    const saved = Settings.getString('centerValues');
     if (!saved) return {};
     const parsed = JSON.parse(saved) as Record<string, number>;
     // Migrate any old destination ID keys
@@ -75,7 +72,7 @@ function getInitialCenterValues(): Partial<Record<DestinationId, number>> {
 // Load initial routings synchronously with migration
 function getInitialRoutings(): LFORouting[] {
   try {
-    const saved = Storage.getItemSync(ROUTINGS_KEY);
+    const saved = Settings.getString('routings');
     if (!saved) {
       return [{ lfoId: 'lfo1', destinationId: DEFAULT_DESTINATION, amount: 100 }];
     }
@@ -97,22 +94,26 @@ export function ModulationProvider({ children }: { children: React.ReactNode }) 
   // Routings array - supports multiple LFOs
   const [routings, setRoutings] = useState<LFORouting[]>(getInitialRoutings);
 
-  // Persist center values
+  // Persist center values (deferred to idle by settings service).
+  // Skip on first render - state was just loaded from storage.
+  const isFirstCenterValuesPersist = useRef(true);
   useEffect(() => {
-    try {
-      Storage.setItemSync(CENTER_VALUES_KEY, JSON.stringify(centerValues));
-    } catch {
-      console.warn('Failed to save center values');
+    if (isFirstCenterValuesPersist.current) {
+      isFirstCenterValuesPersist.current = false;
+      return;
     }
+    Settings.setJSON('centerValues', centerValues);
   }, [centerValues]);
 
-  // Persist routings
+  // Persist routings (deferred to idle by settings service).
+  // Skip on first render - state was just loaded from storage.
+  const isFirstRoutingsPersist = useRef(true);
   useEffect(() => {
-    try {
-      Storage.setItemSync(ROUTINGS_KEY, JSON.stringify(routings));
-    } catch {
-      console.warn('Failed to save routings');
+    if (isFirstRoutingsPersist.current) {
+      isFirstRoutingsPersist.current = false;
+      return;
     }
+    Settings.setJSON('routings', routings);
   }, [routings]);
 
   const setCenterValue = useCallback((destinationId: DestinationId, value: number) => {

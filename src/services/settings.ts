@@ -5,6 +5,7 @@
  * - Sync access to cached values (no async needed after init)
  * - Writes are deferred to requestIdleCallback to avoid blocking
  */
+import { AppState } from 'react-native';
 import { Storage } from 'expo-sqlite/kv-store';
 import { markStartup } from './startup-timing';
 
@@ -208,4 +209,14 @@ const initCacheStart = performance.now();
 initCache();
 markStartup('startup.settings_cache_init', {
   durationMs: Math.round(performance.now() - initCacheStart),
+});
+
+// Flush pending writes when the app leaves the foreground, so idle-deferred
+// writes aren't lost if the OS suspends the app before the idle callback runs.
+// 'inactive' fires on iOS before 'background'; flushing there too is safe
+// (flushSync is a no-op when there are no pending writes).
+AppState.addEventListener('change', (state) => {
+  if (state === 'background' || state === 'inactive') {
+    flushSync();
+  }
 });

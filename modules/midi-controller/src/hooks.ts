@@ -46,7 +46,10 @@ export function useTransportState(): TransportState & { connected: boolean; last
   });
 
   useEventListener(MidiControllerModule, 'onBpmUpdate', (event) => {
-    setState((prev) => ({ ...prev, bpm: event.bpm }));
+    // Round to 0.1 BPM (Digitakt tempo resolution) and bail out when
+    // unchanged, so clock jitter doesn't re-render the provider chain
+    const bpm = Math.round(event.bpm * 10) / 10;
+    setState((prev) => (prev.bpm === bpm ? prev : { ...prev, bpm }));
   });
 
   useEventListener(MidiControllerModule, 'onConnect', () => {
