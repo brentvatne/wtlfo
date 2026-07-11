@@ -1,4 +1,5 @@
 import React, { useMemo } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
@@ -52,6 +53,7 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 }
 
 export default function TimingScreen() {
+  useMarkInteractive();
   const { width: frameWidth } = useSafeAreaFrame();
   const demoWidth = frameWidth - 32;
 

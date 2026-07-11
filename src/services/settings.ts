@@ -6,6 +6,7 @@
  * - Writes are deferred to requestIdleCallback to avoid blocking
  */
 import { Storage } from 'expo-sqlite/kv-store';
+import { markStartup } from './startup-timing';
 
 // Storage keys
 const KEYS = {
@@ -202,5 +203,9 @@ export function flushSync(): void {
   }
 }
 
-// Initialize cache at module load
+// Initialize cache at module load, recording duration for startup diagnostics
+const initCacheStart = performance.now();
 initCache();
+markStartup('startup.settings_cache_init', {
+  durationMs: Math.round(performance.now() - initCacheStart),
+});

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaInsets } from 'react-native-safe-area-context';
@@ -8,6 +9,7 @@ import { useModulation } from '@/src/context/modulation-context';
 import { colors } from '@/src/theme';
 
 export default function PresetsScreen() {
+  useMarkInteractive();
   const { presets, activePreset, changePresetWithTransition } = usePreset();
   const { setActiveDestinationId, setCenterValue } = useModulation();
   const insets = useSafeAreaInsets();

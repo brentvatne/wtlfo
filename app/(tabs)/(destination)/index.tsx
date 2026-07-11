@@ -1,4 +1,5 @@
 import React, { useEffect, useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from 'expo-router';
@@ -14,6 +15,7 @@ import { CenterValueSlider } from '@/src/components/destination/CenterValueSlide
 import { colors } from '@/src/theme';
 
 export default function DestinationScreen() {
+  useMarkInteractive();
   const navigation = useNavigation();
   const { width: screenWidth } = useWindowDimensions();
   const visualizerWidth = screenWidth - 40;

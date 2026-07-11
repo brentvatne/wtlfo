@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
@@ -64,6 +65,7 @@ function ModeCard({ info }: { info: ModeInfo }) {
 }
 
 export default function ModesScreen() {
+  useMarkInteractive();
   return (
     <ScrollView
       style={styles.container}

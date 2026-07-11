@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
@@ -10,6 +11,7 @@ import { useLfoVerification, TestSuiteKey } from '@/src/hooks/useLfoVerification
 type TabType = 'verification' | 'performance';
 
 export default function DeveloperScreen() {
+  useMarkInteractive();
   const { connected } = useMidi();
   const { testSuites } = useLfoVerification();
   const [selectedSuite, setSelectedSuite] = useState<TestSuiteKey | 'all'>('all');

@@ -1,4 +1,5 @@
 import React from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
@@ -12,6 +13,7 @@ const POPULAR_COMBOS = [
 ];
 
 export default function DestinationsScreen() {
+  useMarkInteractive();
   return (
     <ScrollView
       style={styles.container}

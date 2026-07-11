@@ -1,4 +1,5 @@
 import React, { useRef, useEffect } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useRouter } from 'expo-router';
@@ -102,6 +103,7 @@ function TopicCardComponent({ topic, onPress }: { topic: TopicCard; onPress: () 
 }
 
 export default function LearnIndexScreen() {
+  useMarkInteractive();
   const router = useRouter();
   const navigation = useNavigation();
   const { fadeInOnOpen, fadeInDuration, tabSwitchFadeOpacity } = usePreset();

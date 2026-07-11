@@ -3,9 +3,10 @@ import { AudioProvider } from '@/src/context/audio-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
 import { PresetProvider } from '@/src/context/preset-context';
+import { flushStartupMarks, markStartup } from '@/src/services/startup-timing';
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as Sentry from '@sentry/react-native';
-import { ObserveRoot } from 'expo-observe';
+import { Observe, ObserveRoot } from 'expo-observe';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
@@ -36,8 +37,20 @@ configureReanimatedLogger({
   strict: false,
 });
 
+// Per-route navigation metrics for EAS Observe.
+// Must run at module scope, before any screen mounts.
+Observe.configure({
+  integrations: { 'expo-router': true },
+});
+
+markStartup('startup.root_layout_evaluated');
+
 export default ObserveRoot.wrap(Sentry.wrap(function RootLayout() {
   const navigationRef = useNavigationContainerRef();
+
+  useEffect(() => {
+    markStartup('startup.root_layout_mounted');
+  }, []);
 
   useEffect(() => {
     if (navigationRef) {

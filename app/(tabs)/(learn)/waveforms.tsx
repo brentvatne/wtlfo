@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet, useWindowDimensions } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSharedValue } from 'react-native-reanimated';
@@ -164,6 +165,7 @@ function ExpandableSection({ title, children }: { title: string; children: React
 }
 
 export default function WaveformsScreen() {
+  useMarkInteractive();
   const { width: screenWidth } = useWindowDimensions();
   const cardWidth = screenWidth - 32;
 

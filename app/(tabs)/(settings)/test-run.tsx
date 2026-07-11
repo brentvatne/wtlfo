@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useCallback } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack, useLocalSearchParams } from 'expo-router';
@@ -11,6 +12,7 @@ import { usePerformanceBenchmark } from '@/src/hooks/usePerformanceBenchmark';
 type TestType = 'verification' | 'performance';
 
 export default function TestRunScreen() {
+  useMarkInteractive();
   const params = useLocalSearchParams<{ type: TestType; suite?: TestSuiteKey | 'all' }>();
   const testType = params.type || 'verification';
   const selectedSuite = (params.suite || 'all') as TestSuiteKey | 'all';

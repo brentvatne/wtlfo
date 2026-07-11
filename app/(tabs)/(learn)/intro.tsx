@@ -1,5 +1,6 @@
 import { LFOKnobDemo } from '@/src/components/learn/LFOKnobDemo';
 import React from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
@@ -23,6 +24,7 @@ function BulletPoint({ children }: { children: string }) {
 }
 
 export default function IntroScreen() {
+  useMarkInteractive();
   const { width: frameWidth } = useSafeAreaFrame();
   const demoWidth = frameWidth - 32;
 

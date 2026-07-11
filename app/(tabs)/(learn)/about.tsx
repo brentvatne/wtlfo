@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
@@ -100,6 +101,7 @@ function CollapsibleSection({
 }
 
 export default function AboutScreen() {
+  useMarkInteractive();
   return (
     <ScrollView
       style={styles.container}

@@ -1,4 +1,5 @@
 import React, { useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 
@@ -55,6 +56,7 @@ function FormulaBox({ formula, note }: { formula: string; note?: string }) {
 }
 
 export default function TimingScreen() {
+  useMarkInteractive();
   return (
     <ScrollView
       style={styles.container}

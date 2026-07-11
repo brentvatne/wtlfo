@@ -1,4 +1,5 @@
 import React, { useEffect, useRef, useState } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, usePathname } from 'expo-router';
@@ -110,6 +111,7 @@ function CollapsibleSection({
 }
 
 export default function SettingsScreen() {
+  useMarkInteractive();
   const navigation = useNavigation();
   const pathname = usePathname();
   const {

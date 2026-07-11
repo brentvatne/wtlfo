@@ -1,4 +1,5 @@
 import React, { useEffect } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, Pressable, Switch, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, Stack } from 'expo-router';
@@ -7,6 +8,7 @@ import { useMidi } from '@/src/context/midi-context';
 import { DigitaktConnection } from '@/src/components/settings/DigitaktConnection';
 
 export default function MidiScreen() {
+  useMarkInteractive();
   const {
     connected,
     transportRunning,

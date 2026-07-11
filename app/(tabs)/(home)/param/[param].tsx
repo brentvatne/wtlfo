@@ -1,4 +1,5 @@
 import React, { useState, useEffect, useRef, useCallback } from 'react';
+import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useLocalSearchParams, Stack } from 'expo-router';
@@ -133,6 +134,7 @@ function formatMultiplier(value: number): string {
 
 
 export default function EditParamScreen() {
+  useMarkInteractive();
   const { param: urlParam } = useLocalSearchParams<{ param: ParamKey }>();
   const { currentConfig, updateParameter, setIsEditing, editFadeOutDuration } = usePreset();
   const editTimeoutRef = useRef<ReturnType<typeof setTimeout> | null>(null);

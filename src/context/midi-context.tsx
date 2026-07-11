@@ -1,5 +1,6 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import { Storage } from 'expo-sqlite/kv-store';
+import { markStartup } from '@/src/services/startup-timing';
 import {
   useMidiDevices,
   useTransportState,
@@ -112,6 +113,13 @@ export function MidiProvider({ children }: { children: ReactNode }) {
       return () => clearTimeout(timeout);
     }
   }, [autoConnect, digitaktAvailable]);
+
+  // Record when the initial device check finishes (startup diagnostics)
+  useEffect(() => {
+    if (initialCheckComplete) {
+      markStartup('startup.midi_initial_check_complete');
+    }
+  }, [initialCheckComplete]);
 
   // Sync with native disconnect events
   useEffect(() => {
