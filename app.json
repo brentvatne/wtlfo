@@ -62,8 +62,9 @@
           "disableFFmpeg": true
         }
       ],
-
-      "@sentry/react-native"
+      "@sentry/react-native",
+      "expo-build-properties",
+      "expo-status-bar"
     ],
     "experiments": {
       "typedRoutes": true,

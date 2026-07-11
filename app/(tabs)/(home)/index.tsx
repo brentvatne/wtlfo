@@ -18,7 +18,7 @@ import { colors } from '@/src/theme';
 import { useNavigation } from "expo-router/react-navigation";
 import { calculateTimingInfo } from 'elektron-lfo';
 import * as Haptics from 'expo-haptics';
-import { AppMetrics } from 'expo-observe';
+import { useObserve } from 'expo-observe';
 import { usePathname } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -85,6 +85,7 @@ export default function HomeScreen() {
   const [isBackgrounded, setIsBackgrounded] = useState(false);
   const pathname = usePathname();
   const navigation = useNavigation();
+  const { markInteractive } = useObserve();
 
   // Compute timing info for previous config (used during crossfade)
   const previousTimingInfo = previousConfig
@@ -103,7 +104,7 @@ export default function HomeScreen() {
   // Then pre-warm Skia path cache for modal icons in idle time
   useEffect(() => {
     if (!__DEV__) {
-      AppMetrics.markInteractive();
+      markInteractive();
       // Defer path cache warming until browser is idle
       requestIdleCallback(() => {
         warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);

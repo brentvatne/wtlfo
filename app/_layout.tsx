@@ -5,7 +5,7 @@ import { ModulationProvider } from '@/src/context/modulation-context';
 import { PresetProvider } from '@/src/context/preset-context';
 import { DarkTheme, ThemeProvider } from "expo-router/react-navigation";
 import * as Sentry from '@sentry/react-native';
-import { AppMetricsRoot } from 'expo-observe';
+import { ObserveRoot } from 'expo-observe';
 import { Stack, useNavigationContainerRef } from 'expo-router';
 import * as SystemUI from 'expo-system-ui';
 import { useEffect } from 'react';
@@ -36,7 +36,7 @@ configureReanimatedLogger({
   strict: false,
 });
 
-export default AppMetricsRoot.wrap(Sentry.wrap(function RootLayout() {
+export default ObserveRoot.wrap(Sentry.wrap(function RootLayout() {
   const navigationRef = useNavigationContainerRef();
 
   useEffect(() => {
