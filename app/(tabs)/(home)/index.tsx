@@ -19,7 +19,7 @@ import { useNavigation } from "expo-router/react-navigation";
 import { calculateTimingInfo } from 'elektron-lfo';
 import * as Haptics from 'expo-haptics';
 import { Observe, useObserve } from 'expo-observe';
-import { flushStartupMarks, markStartup } from '@/src/services/startup-timing';
+import { markStartup } from '@/src/services/startup-timing';
 import { usePathname } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
@@ -101,12 +101,11 @@ export default function HomeScreen() {
       })()
     : null;
 
-  // Mark app as interactive, flush startup timing marks, then pre-warm
-  // Skia path cache for modal icons in idle time
+  // Mark app as interactive, then pre-warm Skia path cache for modal icons
+  // in idle time
   useEffect(() => {
     markInteractive();
     markStartup('startup.home_interactive');
-    flushStartupMarks();
     if (!__DEV__) {
       // Defer path cache warming until browser is idle
       requestIdleCallback(() => {
