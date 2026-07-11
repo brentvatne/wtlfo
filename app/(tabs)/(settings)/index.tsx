@@ -29,6 +29,7 @@ import {
   DEFAULT_TAB_SWITCH_FADE_OPACITY,
 } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
+import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
 import { ParameterSlider } from '@/src/components/controls';
 
 const COMMON_BPMS = [90, 100, 120, 130, 140];
@@ -219,7 +220,7 @@ function SettingsScreenContent() {
   const { connected, connectedDeviceName, externalBpm, receiveClock } = useMidi();
 
   // When MIDI clock sync is active, tempo is controlled externally
-  const midiClockActive = connected && receiveClock && externalBpm > 0;
+  const midiClockActive = MIDI_FEATURES_ENABLED && connected && receiveClock && externalBpm > 0;
 
   const getUpdateId = () => {
     if (!Updates.isEnabled) return '-';
@@ -505,29 +506,33 @@ function SettingsScreenContent() {
         })()}
       </CollapsibleSection>
 
+      {/* Hide the whole section when it would be empty (MIDI hidden, prod build) */}
+      {(MIDI_FEATURES_ENABLED || __DEV__) && (
       <CollapsibleSection title="Experimental" icon={<SymbolView name="flask" size={16} tintColor="#ff6600" />} defaultCollapsed>
-        <Pressable
-          style={styles.linkRow}
-          onPress={() => router.push('/midi')}
-          accessibilityRole="button"
-          accessibilityLabel="MIDI Sync"
-          accessibilityHint="Opens MIDI device connection settings"
-        >
-          <View style={styles.settingTextContainer}>
-            <Text style={styles.settingLabel}>MIDI Sync</Text>
-            <Text style={styles.settingDescription}>
-              {connected
-                ? `${connectedDeviceName}${externalBpm > 0 ? ` • ${Math.round(externalBpm)} BPM` : ''}`
-                : 'Connect to external MIDI device'}
-            </Text>
-          </View>
-          <Text style={styles.linkChevron}>›</Text>
-        </Pressable>
+        {MIDI_FEATURES_ENABLED && (
+          <Pressable
+            style={styles.linkRow}
+            onPress={() => router.push('/midi')}
+            accessibilityRole="button"
+            accessibilityLabel="MIDI Sync"
+            accessibilityHint="Opens MIDI device connection settings"
+          >
+            <View style={styles.settingTextContainer}>
+              <Text style={styles.settingLabel}>MIDI Sync</Text>
+              <Text style={styles.settingDescription}>
+                {connected
+                  ? `${connectedDeviceName}${externalBpm > 0 ? ` • ${Math.round(externalBpm)} BPM` : ''}`
+                  : 'Connect to external MIDI device'}
+              </Text>
+            </View>
+            <Text style={styles.linkChevron}>›</Text>
+          </Pressable>
+        )}
         {/* Developer tooling (frame rate monitor, benchmarks, MIDI verification)
             is only relevant in development builds - keep it out of production. */}
         {__DEV__ && (
           <>
-            <View style={styles.divider} />
+            {MIDI_FEATURES_ENABLED && <View style={styles.divider} />}
             <Pressable
               style={styles.linkRow}
               onPress={() => router.push('./developer')}
@@ -546,6 +551,7 @@ function SettingsScreenContent() {
           </>
         )}
       </CollapsibleSection>
+      )}
 
       {/* Version and Update Info */}
       <Animated.View layout={LinearTransition.duration(250)}>

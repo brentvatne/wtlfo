@@ -1,6 +1,7 @@
 import { Stack, router, useGlobalSearchParams } from 'expo-router';
 import { usePresetStable } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
+import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
 import { PARAM_ORDER, PARAM_LABELS, getStartPhaseLabel, type ParamKey } from '@/src/components/params/constants';
 
 function getParamLabel(param: ParamKey, waveform: string): string {
@@ -51,7 +52,7 @@ export default function HomeLayout() {
             onPress={() => router.push('/presets')}
           />
         </Stack.Toolbar>
-        {autoConnect && (
+        {MIDI_FEATURES_ENABLED && autoConnect && (
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
               icon={midiIcon}

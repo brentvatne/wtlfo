@@ -1,6 +1,7 @@
 import React, { createContext, useContext, useState, useCallback, useEffect, useRef, ReactNode } from 'react';
 import * as Settings from '@/src/services/settings';
 import { markStartup } from '@/src/services/startup-timing';
+import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
 import {
   useMidiDevices,
   useTransportState,
@@ -12,6 +13,11 @@ import {
 
 // We only care about Elektron Digitakt II
 const DIGITAKT_PATTERN = /digitakt|elektron/i;
+
+// While MIDI features are hidden, keep the runtime inert in release builds
+// (no auto-connect, no external clock/transport) but alive in dev so the
+// hardware verification tools under Settings > Developer Tools still work.
+const MIDI_RUNTIME_ENABLED = MIDI_FEATURES_ENABLED || __DEV__;
 
 interface MidiContextType {
   // Device status
@@ -54,7 +60,7 @@ export function MidiProvider({ children }: { children: ReactNode }) {
   // context (autoConnect off when unset; transport/clock on when unset), which
   // differ from the service-level DEFAULTS.
   const [autoConnect, setAutoConnectState] = useState(() => {
-    return Settings.getString('midiAutoConnect') === 'true';
+    return MIDI_RUNTIME_ENABLED && Settings.getString('midiAutoConnect') === 'true';
   });
   const [receiveTransport, setReceiveTransportState] = useState(() => {
     return Settings.getString('midiReceiveTransport') !== 'false';
@@ -191,9 +197,9 @@ export function MidiProvider({ children }: { children: ReactNode }) {
     connectedDeviceName,
     connecting,
     initialCheckComplete,
-    transportRunning: receiveTransport ? transportRunning : false,
-    lastTransportMessage: receiveTransport ? lastMessage : null,
-    externalBpm: receiveClock ? externalBpm : 0,
+    transportRunning: MIDI_RUNTIME_ENABLED && receiveTransport ? transportRunning : false,
+    lastTransportMessage: MIDI_RUNTIME_ENABLED && receiveTransport ? lastMessage : null,
+    externalBpm: MIDI_RUNTIME_ENABLED && receiveClock ? externalBpm : 0,
     autoConnect,
     setAutoConnect,
     receiveTransport,
