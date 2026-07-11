@@ -272,7 +272,7 @@ export default function EditParamScreen() {
         return (
           <View>
             {currentConfig.mode === 'FRE' && (
-              <View style={styles.warningBanner}>
+              <View style={styles.warningBanner} accessibilityRole="alert">
                 <Text style={styles.warningText}>
                   Fade has no effect in FRE mode. Switch to TRG, ONE, HLD, or HLF to use fade.
                 </Text>
@@ -329,7 +329,12 @@ export default function EditParamScreen() {
       {info.waveformDetails && (
         <View style={styles.detailsSection}>
           {info.waveformDetails.map((item) => (
-            <View key={item.type} style={styles.waveformDetailRow}>
+            <View
+              key={item.type}
+              style={styles.waveformDetailRow}
+              accessible={true}
+              accessibilityLabel={`${item.type}, ${item.desc}`}
+            >
               <WaveformIcon waveform={item.type} size={18} color={colors.accent} />
               <Text style={styles.waveformLabel}>{item.type}</Text>
               <Text style={styles.waveformDesc}>{item.desc}</Text>

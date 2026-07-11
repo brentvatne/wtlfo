@@ -1,5 +1,6 @@
 import { TestTone } from '@/src/components/audio';
 import { CenterValueSlider, DestinationMeter } from '@/src/components/destination';
+import { InlineErrorBoundary } from '@/src/components/ErrorBoundary';
 import type { TriggerMode, WaveformType } from '@/src/components/lfo';
 import {
   ELEKTRON_THEME,
@@ -450,6 +451,7 @@ export default function HomeScreen() {
               >
               {/* LFO Visualizer */}
               <View style={styles.visualizerContainer}>
+                <InlineErrorBoundary width={visualizerWidth} height={METER_HEIGHT}>
                 <View>
                   {/* Current (new) visualization - always rendered */}
                   <LFOVisualizer
@@ -522,6 +524,7 @@ export default function HomeScreen() {
                       </View>
                     )}
                 </View>
+                </InlineErrorBoundary>
               </View>
 
               {/* Destination Meter */}

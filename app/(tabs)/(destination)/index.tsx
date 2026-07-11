@@ -10,6 +10,7 @@ import { useModulation } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
 import { LFOVisualizer, ELEKTRON_THEME } from '@/src/components/lfo';
 import type { WaveformType, TriggerMode } from '@/src/components/lfo';
+import { InlineErrorBoundary } from '@/src/components/ErrorBoundary';
 import { DestinationMeter } from '@/src/components/destination/DestinationMeter';
 import { CenterValueSlider } from '@/src/components/destination/CenterValueSlider';
 import { colors } from '@/src/theme';
@@ -98,6 +99,7 @@ export default function DestinationScreen() {
       <View style={styles.visualizationRow}>
         {/* LFO Waveform */}
         <View style={styles.lfoContainer}>
+          <InlineErrorBoundary width={visualizerWidth - 80} height={200}>
           <LFOVisualizer
             phase={lfoPhase}
             output={lfoOutput}
@@ -122,6 +124,7 @@ export default function DestinationScreen() {
             cycleCount={lfoCycleCount}
             fadeMultiplier={lfoFadeMultiplier}
           />
+          </InlineErrorBoundary>
         </View>
 
         {/* Destination Meter */}

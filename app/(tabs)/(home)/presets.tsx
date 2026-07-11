@@ -48,6 +48,10 @@ export default function PresetsScreen() {
                 isActive && styles.itemActive,
                 pressed && styles.itemPressed,
               ]}
+              accessibilityRole="button"
+              accessibilityLabel={preset.name}
+              accessibilityState={{ selected: isActive }}
+              accessibilityHint="Loads this preset and returns to the editor"
             >
               <Text style={[styles.name, isActive && styles.nameActive]}>
                 {preset.name}

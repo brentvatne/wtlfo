@@ -13,6 +13,54 @@ interface State {
   errorInfo: ErrorInfo | null;
 }
 
+interface InlineProps {
+  children: ReactNode;
+  /** Fixed dimensions so the fallback occupies the same space as the content it replaces */
+  width: number;
+  height: number;
+  message?: string;
+}
+
+interface InlineState {
+  hasError: boolean;
+}
+
+/**
+ * Lightweight boundary for containing crashes in a subtree (e.g. the Skia
+ * visualization) without taking down the whole app. Renders a fixed-size
+ * fallback matching the wrapped content's dimensions so layout doesn't jump.
+ */
+export class InlineErrorBoundary extends Component<InlineProps, InlineState> {
+  constructor(props: InlineProps) {
+    super(props);
+    this.state = { hasError: false };
+  }
+
+  static getDerivedStateFromError(): InlineState {
+    return { hasError: true };
+  }
+
+  componentDidCatch(error: Error, errorInfo: ErrorInfo): void {
+    // Report to Sentry (same as the root ErrorBoundary)
+    Sentry.captureException(error, {
+      extra: { componentStack: errorInfo.componentStack },
+    });
+  }
+
+  render(): ReactNode {
+    if (this.state.hasError) {
+      const { width, height, message = 'Visualization unavailable' } = this.props;
+      return (
+        <View style={[inlineStyles.container, { width, height }]}>
+          <Text style={inlineStyles.message}>{message}</Text>
+        </View>
+      );
+    }
+
+    return this.props.children;
+  }
+}
+
 export class ErrorBoundary extends Component<Props, State> {
   constructor(props: Props) {
     super(props);
@@ -125,6 +173,18 @@ export class ErrorBoundary extends Component<Props, State> {
     return this.props.children;
   }
 }
+
+const inlineStyles = StyleSheet.create({
+  container: {
+    backgroundColor: '#000000',
+    justifyContent: 'center',
+    alignItems: 'center',
+  },
+  message: {
+    color: '#888899',
+    fontSize: 13,
+  },
+});
 
 const styles = StyleSheet.create({
   container: {
