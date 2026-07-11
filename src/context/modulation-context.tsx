@@ -3,38 +3,32 @@ import * as Settings from '@/src/services/settings';
 import type { DestinationId, LFORouting } from '@/src/types/destination';
 import { DESTINATIONS, DEFAULT_DESTINATION } from '@/src/data/destinations';
 
-// TODO: Remove this migration after ~2 releases (added Jan 2026)
-// This handles the transition from old destination IDs to new Digitakt II-correct IDs.
-// Old IDs were: filter_cutoff, filter_resonance, pitch_fine, amp_overdrive, filter_drive
-// Once users have had time to update, this migration code and the helper functions
-// (isValidDestinationId, migrateDestinationId) can be deleted, and getInitialCenterValues/
-// getInitialRoutings can return the parsed JSON directly without migration.
-const DESTINATION_MIGRATION: Record<string, DestinationId> = {
-  'filter_cutoff': 'filter_freq',
-  'filter_resonance': 'filter_reso',
-  'pitch_fine': 'pitch',
-  'amp_overdrive': 'overdrive',
-  'filter_drive': 'overdrive',
-};
-
-// Check if a destination ID is valid
+// Check if a stored destination ID is valid. Guards the loaders against
+// unknown/corrupt persisted values (e.g. from a corrupted store or a future
+// build's IDs) so they fall back to defaults instead of crashing.
 function isValidDestinationId(id: string): id is DestinationId {
   if (id === 'none') return true;
   return DESTINATIONS.some(d => d.id === id);
 }
 
-// Migrate old destination ID to new one
-function migrateDestinationId(id: string): DestinationId {
-  if (isValidDestinationId(id)) return id;
-  if (id in DESTINATION_MIGRATION) return DESTINATION_MIGRATION[id];
-  return DEFAULT_DESTINATION;
-}
-
-interface ModulationContextValue {
+// "Hot" values change on every center-value slider drag tick. Consumers of
+// this context re-render per tick.
+// NOTE: getCenterValue lives here even though it is a callback - its
+// useCallback deps include centerValues, so its identity changes per tick.
+// Putting it in the stable context would churn its value identity and defeat
+// the split.
+interface ModulationHotContextValue {
   // Center values remembered per destination (persisted globally)
   centerValues: Partial<Record<DestinationId, number>>;
-  setCenterValue: (destinationId: DestinationId, value: number) => void;
+  /** Read a destination's center value - identity tracks centerValues */
   getCenterValue: (destinationId: DestinationId) => number;
+}
+
+// "Stable" values do NOT change during a center-value drag: routings (change
+// on routing edits only), the active destination, and identity-stable
+// setters. Consumers that only need these avoid per-tick re-renders.
+interface ModulationStableContextValue {
+  setCenterValue: (destinationId: DestinationId, value: number) => void;
 
   // Routing: which LFO targets which destination
   routings: LFORouting[];
@@ -47,29 +41,31 @@ interface ModulationContextValue {
   setActiveDestinationId: (id: DestinationId) => void;
 }
 
-const ModulationContext = createContext<ModulationContextValue | null>(null);
+type ModulationContextValue = ModulationStableContextValue & ModulationHotContextValue;
 
-// Load initial center values synchronously with migration
+const ModulationHotContext = createContext<ModulationHotContextValue | null>(null);
+const ModulationStableContext = createContext<ModulationStableContextValue | null>(null);
+
+// Load initial center values synchronously, dropping unknown/corrupt entries
 function getInitialCenterValues(): Partial<Record<DestinationId, number>> {
   try {
     const saved = Settings.getString('centerValues');
     if (!saved) return {};
     const parsed = JSON.parse(saved) as Record<string, number>;
-    // Migrate any old destination ID keys
-    const migrated: Partial<Record<DestinationId, number>> = {};
+    const values: Partial<Record<DestinationId, number>> = {};
     for (const [key, value] of Object.entries(parsed)) {
-      const newKey = migrateDestinationId(key);
-      if (newKey !== 'none') {
-        migrated[newKey] = value;
+      if (isValidDestinationId(key) && key !== 'none' && typeof value === 'number') {
+        values[key] = value;
       }
     }
-    return migrated;
+    return values;
   } catch {
     return {};
   }
 }
 
-// Load initial routings synchronously with migration
+// Load initial routings synchronously, falling back to defaults for
+// unknown/corrupt destination IDs
 function getInitialRoutings(): LFORouting[] {
   try {
     const saved = Settings.getString('routings');
@@ -77,10 +73,9 @@ function getInitialRoutings(): LFORouting[] {
       return [{ lfoId: 'lfo1', destinationId: DEFAULT_DESTINATION, amount: 100 }];
     }
     const parsed = JSON.parse(saved) as LFORouting[];
-    // Migrate any old destination IDs
     return parsed.map(r => ({
       ...r,
-      destinationId: migrateDestinationId(r.destinationId),
+      destinationId: isValidDestinationId(r.destinationId) ? r.destinationId : DEFAULT_DESTINATION,
     }));
   } catch {
     return [{ lfoId: 'lfo1', destinationId: DEFAULT_DESTINATION, amount: 100 }];
@@ -158,10 +153,15 @@ export function ModulationProvider({ children }: { children: React.ReactNode }) 
     setRouting('lfo1', id);
   }, [setRouting]);
 
-  const value: ModulationContextValue = {
+  // Plain object literals - the React Compiler memoizes them against their
+  // inputs, so each context value only changes identity when a field changes.
+  const hotValue: ModulationHotContextValue = {
     centerValues,
-    setCenterValue,
     getCenterValue,
+  };
+
+  const stableValue: ModulationStableContextValue = {
+    setCenterValue,
     routings,
     setRouting,
     getRouting,
@@ -171,16 +171,37 @@ export function ModulationProvider({ children }: { children: React.ReactNode }) 
   };
 
   return (
-    <ModulationContext value={value}>
-      {children}
-    </ModulationContext>
+    <ModulationStableContext value={stableValue}>
+      <ModulationHotContext value={hotValue}>
+        {children}
+      </ModulationHotContext>
+    </ModulationStableContext>
   );
 }
 
-export function useModulation() {
-  const context = React.use(ModulationContext);
-  if (!context) {
+/**
+ * Merged view of both contexts - identical surface to the pre-split hook.
+ * Re-renders per center-value drag tick (the hot context changes identity
+ * per tick). Prefer useModulationStable() when only stable values are needed.
+ */
+export function useModulation(): ModulationContextValue {
+  const stable = React.use(ModulationStableContext);
+  const hot = React.use(ModulationHotContext);
+  if (!stable || !hot) {
     throw new Error('useModulation must be used within a ModulationProvider');
+  }
+  return { ...stable, ...hot };
+}
+
+/**
+ * Stable slice only: routings, activeDestinationId, and identity-stable
+ * setters. Does NOT change during center-value slider drags, so consumers
+ * avoid per-tick re-renders.
+ */
+export function useModulationStable(): ModulationStableContextValue {
+  const context = React.use(ModulationStableContext);
+  if (!context) {
+    throw new Error('useModulationStable must be used within a ModulationProvider');
   }
   return context;
 }

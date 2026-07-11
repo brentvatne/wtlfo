@@ -4,7 +4,7 @@ import { useRouter } from 'expo-router';
 import { ParamBox } from './ParamBox';
 import { PARAM_ICONS } from './ParamIcons';
 import { usePreset } from '@/src/context/preset-context';
-import { useModulation } from '@/src/context/modulation-context';
+import { useModulationStable } from '@/src/context/modulation-context';
 import { getDestination } from '@/src/data/destinations';
 
 type ParamKey = 'waveform' | 'speed' | 'multiplier' | 'mode' | 'depth' | 'fade' | 'startPhase' | 'destination';
@@ -69,7 +69,9 @@ const PARAM_ROUTES: ParamKey[] = ['speed', 'multiplier', 'fade', 'destination', 
 
 export function ParamGrid({ onParamPress, activeParam, shakeMode = false }: ParamGridProps) {
   const { currentConfig } = usePreset();
-  const { activeDestinationId } = useModulation();
+  // Stable slice only - activeDestinationId changes on routing edits, not
+  // per center-value drag tick, so this avoids per-tick re-renders
+  const { activeDestinationId } = useModulationStable();
   const router = useRouter();
 
   // Prefetch all param routes for instant modal opens
