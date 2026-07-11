@@ -310,3 +310,33 @@ The LFO engine runs on JS thread via `requestAnimationFrame` and writes to Share
 - [Reanimated useSharedValue docs](https://docs.swmansion.com/react-native-reanimated/docs/core/useSharedValue/)
 - [Reanimated logger configuration](https://docs.swmansion.com/react-native-reanimated/docs/debugging/logger-configuration/)
 - [GitHub Issue #6998](https://github.com/software-mansion/react-native-reanimated/issues/6998)
+
+## 2026-07-10
+
+### Fade Timing: Cycles-Based Model Restored (elektron-lfo 1.3.0)
+
+**Decision**: Fade timing is CYCLES-BASED (tempo-relative), not wall-clock.
+
+**History**: elektron-lfo 1.2.0 was published from uncommitted changes that
+switched fade to a wall-clock guess (`40 · 1.085^|FADE|` ms), self-described
+as "educated guess, needs hardware verification" (Discord 2026-02-02: "didn't
+find the actual fade formula yet but just a guess"). The follow-up
+observation never happened. That rewrite silently deprecated the
+hardware-verified cycles formula documented above (2026-01-24).
+
+**Evidence for cycles-based**: the Jan 24 hardware measurements fit the
+cycles model across 1→~3300 cycles; Dave Mech (Discord 2026-01-28): fade
+"changes the amplitude of the signal over time" and "I expect the fade time
+to be related to the pattern's bpm"; every other Digitakt LFO timing
+parameter (SPD, MULT) is tempo-relative.
+
+**Restored in 1.3.0**: `calculateFadeCycles` (0.1·|F|+0.6 linear ≤16,
+2.2·2^((|F|−16)/4.5) above), `updateFade` consumes cycleTimeMs again.
+wtlfo's TimingInfo fade-time display now uses
+`calculateFadeCycles(fade) * cycleTimeMs` (was the inline wall-clock guess).
+
+**Caveat**: if the Jan 24 measurements were all taken at similar cycle
+times, they cannot distinguish cycles from milliseconds. The decisive
+experiment (same FADE at two cycle durations, e.g. BPM 60 vs 120) has NOT
+been run. If it ever is and contradicts this, update everything together:
+elektron-lfo core/engine fade, this file, useLfoVerification.ts, TimingInfo.

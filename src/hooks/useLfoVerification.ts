@@ -2359,7 +2359,6 @@ export function useLfoVerification() {
       // Secondary criteria: fade amplitude progression (informational, not blocking)
       // Fade verification is timing-sensitive and complex - a mismatch is logged but doesn't fail the test
       const baseShapePass = result.shape.rangePass && result.shape.boundsPass;
-      const fadePass = result.shape.fade?.fadePass ?? true; // Pass if no fade test
       // Fade is non-blocking - we log mismatches but don't fail if range/bounds pass
       const shapePass = baseShapePass;
 
@@ -2583,7 +2582,6 @@ export function useLfoVerification() {
     // Update failed test configs
     if (isRerun) {
       // For re-runs: remove tests that passed, keep tests that still fail
-      const stillFailedNames = new Set(newFailedConfigs.map(c => c.name));
       const testedNames = new Set(suite.map(c => c.name));
       setFailedTestConfigs(prev => {
         // Keep: tests not in this re-run + tests that still failed

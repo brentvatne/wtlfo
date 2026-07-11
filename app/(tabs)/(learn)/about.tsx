@@ -193,7 +193,7 @@ export default function AboutScreen() {
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Timing is approximate</Text>
               <Text style={styles.limitationText}>
-                LFO timing won't match your device's exact position—there's no way to sync the phase. Use this to understand behavior, not to preview in sync.
+                LFO timing won&apos;t match your device&apos;s exact position—there&apos;s no way to sync the phase. Use this to understand behavior, not to preview in sync.
               </Text>
             </View>
           </View>
@@ -217,7 +217,7 @@ export default function AboutScreen() {
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Simplified destination list</Text>
               <Text style={styles.limitationText}>
-                Not all destinations are listed. Filter params shown are for Multi-Mode filter only (Digitakt II's default).
+                Not all destinations are listed. Filter params shown are for Multi-Mode filter only (Digitakt II&apos;s default).
               </Text>
             </View>
           </View>

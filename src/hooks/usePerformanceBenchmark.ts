@@ -5,7 +5,7 @@
  * real-world performance characteristics that can't be captured in unit tests.
  */
 
-import { useState, useCallback, useRef } from 'react';
+import { useState, useCallback } from 'react';
 import { Skia } from '@shopify/react-native-skia';
 import { sampleWaveformWorklet, sampleWaveformWithSlew } from '@/src/components/lfo/worklets';
 import type { WaveformType } from '@/src/components/lfo/types';
@@ -89,8 +89,6 @@ export function usePerformanceBenchmark() {
   const [logs, setLogs] = useState<BenchmarkLog[]>([]);
   const [isRunning, setIsRunning] = useState(false);
   const [results, setResults] = useState<BenchmarkResult[]>([]);
-  const frameDropsRef = useRef<number[]>([]);
-  const animationRef = useRef<number>(0);
 
   const log = useCallback((message: string, type: BenchmarkLog['type'] = 'info') => {
     setLogs(prev => [...prev, { timestamp: Date.now(), message, type }]);
