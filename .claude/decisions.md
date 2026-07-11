@@ -340,3 +340,11 @@ times, they cannot distinguish cycles from milliseconds. The decisive
 experiment (same FADE at two cycle durations, e.g. BPM 60 vs 120) has NOT
 been run. If it ever is and contradicts this, update everything together:
 elektron-lfo core/engine fade, this file, useLfoVerification.ts, TimingInfo.
+
+**Polarity**: engine follows the manual — positive FADE = fade-OUT,
+negative = fade-IN ("Positive values give a fade-out, negative values give
+a fade-in", consistent across Digitakt/DTII/Digitone/A4/Rytm/Cycles/Syntakt
+manuals). Note: Elektron manuals have been wrong about this exact sentence
+at least once (Tonverk Mod FX LFO, per Elektronauts) — polarity is
+UNVERIFIED on DTII hardware. 30-second check: FADE +32, TRG, audible
+destination; starts strong and dies = manual right; grows = inverted.

@@ -9,7 +9,7 @@
         "@react-native-community/slider": "5.2.0",
         "@sentry/react-native": "~7.11.0",
         "@shopify/react-native-skia": "2.6.2",
-        "elektron-lfo": "1.2.0",
+        "elektron-lfo": "^1.3.0",
         "expo": "^57.0.4",
         "expo-application": "~57.0.0",
         "expo-build-properties": "~57.0.3",
@@ -920,7 +920,7 @@
 
     "electron-to-chromium": ["electron-to-chromium@1.5.389", "", {}, "sha512-cEto7aeOqBfU1D+c5py5pE+ooscKE75JifxLBdFUZsqAxRS6y7kebtxAZvICszSl05gPjYHDTjY+lXpyGvpJbg=="],
 
-    "elektron-lfo": ["elektron-lfo@1.2.0", "", { "bin": { "elektron-lfo": "src/cli/index.ts" } }, "sha512-0Y98k+VmKfr6TRSO+mnMteCrDNFciow+bb1eEPZ9NPZ6Xi8nfe9clA2wx5TIs+6ACBBVgodN/ByyLbvocuUchA=="],
+    "elektron-lfo": ["elektron-lfo@1.3.0", "", { "bin": { "elektron-lfo": "src/cli/index.ts" } }, "sha512-gZYdq6OGPt69EnKpdi92FkfPZinFayy1fXm6kuM6TxzX2YknD23iJ9PbejmhnLbD9G5vBnKOIU2D1p1a2lHDNQ=="],
 
     "emittery": ["emittery@0.13.1", "", {}, "sha512-DeWwawk6r5yR9jFgnDKYt4sLS0LmHJJi3ZOnb5/JdbYwj3nW+FxQnHIjhBKz8YLC7oRNPVM9NQ47I3CVx34eqQ=="],
 
