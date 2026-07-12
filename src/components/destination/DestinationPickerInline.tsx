@@ -51,7 +51,7 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
     >
       {isToneEnabled && (
         <View style={styles.hintContainer}>
-          <SymbolView name="speaker.wave.2.fill" size={12} tintColor="#8888a0" />
+          <SymbolView name={{ ios: 'speaker.wave.2.fill', web: 'volume_up' }} size={12} tintColor="#8888a0" />
           <Text style={styles.hintText}>can be heard with test tone</Text>
         </View>
       )}
@@ -88,7 +88,7 @@ export function DestinationPickerInline({ onSelectionChange }: DestinationPicker
                     {showAudioIcon && (
                       <View style={styles.audioIconContainer}>
                         <SymbolView
-                          name="speaker.wave.2.fill"
+                          name={{ ios: 'speaker.wave.2.fill', web: 'volume_up' }}
                           size={9}
                           tintColor={isSelected ? '#000000' : '#ff6600'}
                         />

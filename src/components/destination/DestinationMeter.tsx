@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useRef, useCallback, useMemo } from 'react';
 import { View, StyleSheet, Pressable, Platform, type ViewStyle } from 'react-native';
-import { Canvas, Rect, RoundedRect, Group, Line, vec, Text as SkiaText, matchFont } from '@shopify/react-native-skia';
+import { Canvas, Rect, RoundedRect, Group, Line, vec, Text as SkiaText } from '@shopify/react-native-skia';
+import { getValueFont, getLabelFont } from '@/src/components/lfo/utils/skiaFont';
 
 type DisplayMode = 'VALUE' | 'MIN' | 'MAX';
 import { useDerivedValue, useSharedValue, withTiming, withSequence, Easing, cancelAnimation } from 'react-native-reanimated';
@@ -67,18 +68,9 @@ export function DestinationMeter({
   // Only hide fills if editing AND the setting says to hide them
   const shouldHideFill = isEditing && !showFillsWhenEditing;
 
-  // Skia fonts for text rendering (using system monospace font)
-  const valueFont = useMemo(() => matchFont({
-    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
-    fontSize: 14,
-    fontWeight: '700',
-  }), []);
-
-  const labelFont = useMemo(() => matchFont({
-    fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif' }),
-    fontSize: 10,
-    fontWeight: '500',
-  }), []);
+  // Skia fonts for text rendering (bundled typefaces on web, system on native)
+  const valueFont = useMemo(() => getValueFont(14), []);
+  const labelFont = useMemo(() => getLabelFont(10), []);
 
   // Handle null destination (none selected) - show empty meter
   const min = destination?.min ?? 0;
@@ -286,14 +278,14 @@ export function DestinationMeter({
     'worklet';
     const text = displayText.value;
     if (!text) return width / 2;
-    const textWidth = valueFont.measureText(text).width;
+    const textWidth = valueFont.getTextWidth(text);
     return (width - textWidth) / 2;
   }, [displayText, width, valueFont]);
 
   const labelTextX = useDerivedValue(() => {
     'worklet';
     const text = displayLabelText.value;
-    const textWidth = labelFont.measureText(text).width;
+    const textWidth = labelFont.getTextWidth(text);
     return (width - textWidth) / 2;
   }, [displayLabelText, width, labelFont]);
 

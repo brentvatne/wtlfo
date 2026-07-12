@@ -4,6 +4,7 @@ import { View, Text, StyleSheet, Pressable } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { SymbolView, type SymbolViewProps } from 'expo-symbols';
+import { webContentContainerStyle } from '@/src/theme/webLayout';
 
 type SymbolName = SymbolViewProps['name'];
 
@@ -36,7 +37,7 @@ function GestureRow({
         <SymbolView name={gestureIcon} size={20} tintColor="#888899" />
         <Text style={styles.gestureText}>{gesture}</Text>
       </View>
-      <SymbolView name="arrow.right" size={14} tintColor="#555555" />
+      <SymbolView name={{ ios: 'arrow.right', web: 'arrow_forward' }} size={14} tintColor="#555555" />
       <View style={styles.gestureRight}>
         <SymbolView name={resultIcon} size={20} tintColor="#ff6600" />
         <View>
@@ -105,7 +106,7 @@ export default function AboutScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Section title="What this app does">
@@ -121,10 +122,10 @@ export default function AboutScreen() {
         <View style={styles.destinationGrid}>
           <Text style={styles.destinationLabel}>Supported destinations:</Text>
           <View style={styles.destinationList}>
-            <DestinationRow name="Volume" icon="speaker.wave.3.fill" />
-            <DestinationRow name="Filter" icon="slider.horizontal.below.square.and.square.filled" />
-            <DestinationRow name="Pan" icon="arrow.left.arrow.right" />
-            <DestinationRow name="Pitch" icon="arrow.up.arrow.down" />
+            <DestinationRow name="Volume" icon={{ ios: 'speaker.wave.3.fill', web: 'volume_up' }} />
+            <DestinationRow name="Filter" icon={{ ios: 'slider.horizontal.below.square.and.square.filled', web: 'tune' }} />
+            <DestinationRow name="Pan" icon={{ ios: 'arrow.left.arrow.right', web: 'swap_horiz' }} />
+            <DestinationRow name="Pitch" icon={{ ios: 'arrow.up.arrow.down', web: 'swap_vert' }} />
           </View>
         </View>
       </Section>
@@ -136,22 +137,22 @@ export default function AboutScreen() {
         <View style={styles.gestureList}>
           <GestureRow
             gesture="Tap"
-            gestureIcon="hand.tap.fill"
+            gestureIcon={{ ios: 'hand.tap.fill', web: 'touch_app' }}
             result="Retrigger"
-            resultIcon="bolt.fill"
+            resultIcon={{ ios: 'bolt.fill', web: 'bolt' }}
             note="Reset to start phase"
           />
           <GestureRow
             gesture="Long press"
-            gestureIcon="hand.tap.fill"
+            gestureIcon={{ ios: 'hand.tap.fill', web: 'touch_app' }}
             result="Pause"
-            resultIcon="pause.fill"
+            resultIcon={{ ios: 'pause.fill', web: 'pause' }}
           />
           <GestureRow
             gesture="Tap"
-            gestureIcon="hand.tap.fill"
+            gestureIcon={{ ios: 'hand.tap.fill', web: 'touch_app' }}
             result="Resume"
-            resultIcon="play.fill"
+            resultIcon={{ ios: 'play.fill', web: 'play_arrow' }}
             note="When paused"
           />
         </View>
@@ -164,7 +165,7 @@ export default function AboutScreen() {
         <View style={styles.limitationsList}>
           <View style={styles.limitation}>
             <View style={styles.limitationIconContainer}>
-              <SymbolView name="cable.connector" size={18} tintColor="#888899" />
+              <SymbolView name={{ ios: 'cable.connector', web: 'cable' }} size={18} tintColor="#888899" />
             </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Limited MIDI sync</Text>
@@ -176,7 +177,7 @@ export default function AboutScreen() {
 
           <View style={styles.limitation}>
             <View style={styles.limitationIconContainer}>
-              <SymbolView name="bookmark.slash" size={18} tintColor="#888899" />
+              <SymbolView name={{ ios: 'bookmark.slash', web: 'bookmark_remove' }} size={18} tintColor="#888899" />
             </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>No custom presets</Text>
@@ -188,7 +189,7 @@ export default function AboutScreen() {
 
           <View style={styles.limitation}>
             <View style={styles.limitationIconContainer}>
-              <SymbolView name="clock.badge.questionmark" size={18} tintColor="#888899" />
+              <SymbolView name={{ ios: 'clock.badge.questionmark', web: 'schedule' }} size={18} tintColor="#888899" />
             </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Timing is approximate</Text>
@@ -200,7 +201,7 @@ export default function AboutScreen() {
 
           <View style={styles.limitation}>
             <View style={styles.limitationIconContainer}>
-              <SymbolView name="speaker.wave.1" size={18} tintColor="#888899" />
+              <SymbolView name={{ ios: 'speaker.wave.1', web: 'volume_down' }} size={18} tintColor="#888899" />
             </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Limited audio simulation</Text>
@@ -212,7 +213,7 @@ export default function AboutScreen() {
 
           <View style={styles.limitation}>
             <View style={styles.limitationIconContainer}>
-              <SymbolView name="list.bullet" size={18} tintColor="#888899" />
+              <SymbolView name={{ ios: 'list.bullet', web: 'format_list_bulleted' }} size={18} tintColor="#888899" />
             </View>
             <View style={styles.limitationContent}>
               <Text style={styles.limitationTitle}>Simplified destination list</Text>

@@ -1,5 +1,6 @@
 import { Stack, router } from 'expo-router';
 import { useMidi } from '@/src/context/midi-context';
+import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
 
 export default function DestinationLayout() {
   const { autoConnect, connected, digitaktAvailable } = useMidi();
@@ -24,7 +25,7 @@ export default function DestinationLayout() {
       }}
     >
       <Stack.Screen name="index" options={{ title: 'Destination' }}>
-        {autoConnect && (
+        {MIDI_FEATURES_ENABLED && autoConnect && (
           <Stack.Toolbar placement="right">
             <Stack.Toolbar.Button
               icon={midiIcon}

@@ -6,7 +6,7 @@
  * - Writes are deferred to requestIdleCallback to avoid blocking
  */
 import { AppState } from 'react-native';
-import { Storage } from 'expo-sqlite/kv-store';
+import { Storage } from './storage-backend';
 import { markStartup } from './startup-timing';
 
 // Storage keys

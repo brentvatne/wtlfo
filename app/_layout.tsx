@@ -1,4 +1,5 @@
 import { ErrorBoundary } from '@/src/components/ErrorBoundary';
+import { SkiaWebGate } from '@/src/components/SkiaWebGate';
 import { AudioProvider } from '@/src/context/audio-context';
 import { MidiProvider } from '@/src/context/midi-context';
 import { ModulationProvider } from '@/src/context/modulation-context';
@@ -63,6 +64,7 @@ export default ObserveRoot.wrap(Sentry.wrap(function RootLayout() {
 
   return (
     <GestureHandlerRootView style={{ flex: 1, backgroundColor: '#000000' }}>
+      <SkiaWebGate>
       <ErrorBoundary>
         <MidiProvider>
           <PresetProvider>
@@ -90,6 +92,7 @@ export default ObserveRoot.wrap(Sentry.wrap(function RootLayout() {
           </PresetProvider>
         </MidiProvider>
       </ErrorBoundary>
+      </SkiaWebGate>
     </GestureHandlerRootView>
   );
 }));

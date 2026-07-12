@@ -1,0 +1,16 @@
+diff --git a/lib/module/views/SkiaPictureView.web.js b/lib/module/views/SkiaPictureView.web.js
+index 7318000934aa54d1442d13ba2ebe9768da04f176..bd100ea6baa6db43dc2af0d928ae82b08d9fd2e4 100644
+--- a/lib/module/views/SkiaPictureView.web.js
++++ b/lib/module/views/SkiaPictureView.web.js
+@@ -123,6 +123,11 @@ class StaticWebGLRenderer {
+     }
+   }
+   draw(picture) {
++    // Guard: during layout animations the canvas can momentarily measure
++    // 0x0; a zero-size OffscreenCanvas makes drawImage throw InvalidStateError
++    if (this.canvas.clientWidth === 0 || this.canvas.clientHeight === 0) {
++      return;
++    }
+     const renderResult = this.renderPictureToSurface(picture);
+     if (!renderResult) {
+       return;

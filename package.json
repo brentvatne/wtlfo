@@ -11,7 +11,8 @@
     "lint": "expo lint",
     "test": "jest",
     "test:watch": "jest --watch",
-    "test:coverage": "jest --coverage"
+    "test:coverage": "jest --coverage",
+    "postinstall": "setup-skia-web public"
   },
   "dependencies": {
     "@expo/vector-icons": "^15.0.3",
@@ -66,5 +67,8 @@
     "@sentry/cli",
     "@shopify/react-native-skia",
     "unrs-resolver"
-  ]
+  ],
+  "patchedDependencies": {
+    "@shopify/react-native-skia@2.6.2": "patches/@shopify%2Freact-native-skia@2.6.2.patch"
+  }
 }

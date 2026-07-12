@@ -165,12 +165,14 @@ export function WaveformDisplay({
     if (!fillColor) return Skia.Path.Make();
     const startX = padding;
     const endX = padding + drawWidth;
-    const path = strokePath.value.copy();
+    // Rebuild via PathBuilder (mutating an SkPath copy is deprecated)
+    const builder = Skia.PathBuilder.Make();
+    builder.addPath(strokePath.value);
     // Close path to baseline for fill
-    path.lineTo(endX, centerY);
-    path.lineTo(startX, centerY);
-    path.close();
-    return path;
+    builder.lineTo(endX, centerY);
+    builder.lineTo(startX, centerY);
+    builder.close();
+    return builder.detach();
   }, [strokePath, fillColor, padding, drawWidth, centerY]);
 
   // Animated fill opacity - fades in when editing ends

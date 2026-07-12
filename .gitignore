@@ -45,3 +45,6 @@ app-example
 # MCP config
 .mcp.json
 .claude/settings.local.json
+
+# local env (see .env.example)
+.env

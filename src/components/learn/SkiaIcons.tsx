@@ -1,6 +1,7 @@
 import React from 'react';
 import { View, type ViewStyle } from 'react-native';
-import { Canvas, Path, Skia, Circle, Line, Group } from '@shopify/react-native-skia';
+import { Path, Skia, Circle, Line, Group } from '@shopify/react-native-skia';
+import { StaticCanvas } from '@/src/components/StaticCanvas';
 
 export interface SkiaIconProps {
   size?: number;
@@ -51,7 +52,7 @@ export function QuestionWaveIcon({
       accessibilityLabel="What is an LFO?"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Path
           path={path}
           color={color}
@@ -60,7 +61,7 @@ export function QuestionWaveIcon({
           strokeCap="round"
           strokeJoin="round"
         />
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -89,7 +90,7 @@ export function SlidersIcon({
       accessibilityLabel="The 7 Parameters"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           {heights.map((h, i) => {
             const x = padding + sliderSpacing * (i + 1);
@@ -109,7 +110,7 @@ export function SlidersIcon({
             );
           })}
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -183,14 +184,14 @@ export function WaveformsIcon({
       accessibilityLabel="Waveforms"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           <Path path={createWaveform(padding, padding, cellSize, cellSize, 'sine')} color={color} style="stroke" strokeWidth={strokeWidth * 0.9} strokeCap="round" strokeJoin="round" />
           <Path path={createWaveform(padding + cellSize + gap, padding, cellSize, cellSize, 'square')} color={color} style="stroke" strokeWidth={strokeWidth * 0.9} strokeCap="round" strokeJoin="round" />
           <Path path={createWaveform(padding, padding + cellSize + gap, cellSize, cellSize, 'saw')} color={color} style="stroke" strokeWidth={strokeWidth * 0.9} strokeCap="round" strokeJoin="round" />
           <Path path={createWaveform(padding + cellSize + gap, padding + cellSize + gap, cellSize, cellSize, 'tri')} color={color} style="stroke" strokeWidth={strokeWidth * 0.9} strokeCap="round" strokeJoin="round" />
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -236,7 +237,7 @@ export function SpeedometerIcon({
       accessibilityLabel="Speed & Timing"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           <Path path={path} color={color} style="stroke" strokeWidth={strokeWidth} strokeCap="round" strokeJoin="round" />
           <Line
@@ -248,7 +249,7 @@ export function SpeedometerIcon({
           />
           <Circle cx={centerX} cy={centerY} r={strokeWidth * 1.2} color={color} />
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -283,9 +284,9 @@ export function EnvelopeIcon({
       accessibilityLabel="Depth & Fade"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Path path={path} color={color} style="stroke" strokeWidth={strokeWidth} strokeCap="round" strokeJoin="round" />
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -321,7 +322,7 @@ export function TriggersIcon({
       accessibilityLabel="Trigger Modes"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           {patterns.map((p, i) => {
             const x = padding + spacing * (i + 1);
@@ -334,7 +335,7 @@ export function TriggersIcon({
             );
           })}
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -362,12 +363,12 @@ export function DestinationsIcon({
       accessibilityLabel="Destinations"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           <Circle cx={centerX} cy={centerY} r={outerRadius} color={color} style="stroke" strokeWidth={strokeWidth} />
           <Circle cx={centerX} cy={centerY} r={innerRadius} color={color} />
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -399,7 +400,7 @@ export function TimingMathIcon({
       accessibilityLabel="Timing Math"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           <Path path={path} color={color} style="stroke" strokeWidth={strokeWidth} strokeCap="round" />
           {/* Numerator */}
@@ -407,7 +408,7 @@ export function TimingMathIcon({
           {/* Denominator */}
           <Circle cx={centerX + canvas * 0.12} cy={padding + canvas * 0.78} r={strokeWidth * 1.1} color={color} />
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -439,7 +440,7 @@ export function AboutIcon({
       accessibilityLabel="About This App"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Group>
           <Circle cx={centerX} cy={centerY} r={radius} color={color} style="stroke" strokeWidth={strokeWidth} />
           <Circle cx={centerX} cy={dotY} r={strokeWidth * 1.1} color={color} />
@@ -451,7 +452,7 @@ export function AboutIcon({
             strokeCap="round"
           />
         </Group>
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
@@ -492,9 +493,9 @@ export function PresetsIcon({
       accessibilityLabel="Preset Recipes"
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Path path={path} color={color} style="stroke" strokeWidth={strokeWidth} strokeCap="round" strokeJoin="round" />
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }

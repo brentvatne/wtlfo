@@ -1,5 +1,6 @@
 import React from 'react';
-import { Canvas, Path, Skia, Circle, Line, Group } from '@shopify/react-native-skia';
+import { Path, Skia, Circle, Line, Group } from '@shopify/react-native-skia';
+import { StaticCanvas } from '@/src/components/StaticCanvas';
 
 const SIZE = 18;
 const COLOR = '#ff6600';
@@ -31,7 +32,7 @@ export function SpeedIcon() {
   const needleLen = r * 0.7;
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Path path={path} color={COLOR} style="stroke" strokeWidth={STROKE} strokeCap="round" />
       <Line
         p1={{ x: cx, y: cy }}
@@ -41,7 +42,7 @@ export function SpeedIcon() {
         strokeCap="round"
       />
       <Circle cx={cx} cy={cy} r={1.5} color={COLOR} />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -52,7 +53,7 @@ export function MultIcon() {
   const len = SIZE * 0.25;
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Line
         p1={{ x: cx - len, y: cy - len }}
         p2={{ x: cx + len, y: cy + len }}
@@ -67,7 +68,7 @@ export function MultIcon() {
         strokeWidth={STROKE}
         strokeCap="round"
       />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -85,9 +86,9 @@ export function FadeIcon() {
   path.close();
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Path path={path} color={COLOR} style="stroke" strokeWidth={STROKE} strokeCap="round" strokeJoin="round" />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -97,10 +98,10 @@ export function DestIcon() {
   const cy = SIZE / 2;
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Circle cx={cx} cy={cy} r={SIZE * 0.35} color={COLOR} style="stroke" strokeWidth={STROKE} />
       <Circle cx={cx} cy={cy} r={2} color={COLOR} />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -121,9 +122,9 @@ export function WaveIcon() {
   }
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Path path={path} color={COLOR} style="stroke" strokeWidth={STROKE} strokeCap="round" strokeJoin="round" />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -138,7 +139,7 @@ export function StartPhaseIcon() {
   const handLen = r * 0.7;
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Circle cx={cx} cy={cy} r={r} color={COLOR} style="stroke" strokeWidth={STROKE} />
       <Line
         p1={{ x: cx, y: cy }}
@@ -147,7 +148,7 @@ export function StartPhaseIcon() {
         strokeWidth={STROKE}
         strokeCap="round"
       />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -168,9 +169,9 @@ export function ModeIcon() {
   path.close();
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       <Path path={path} color={COLOR} style="stroke" strokeWidth={STROKE} strokeCap="round" strokeJoin="round" />
-    </Canvas>
+    </StaticCanvas>
   );
 }
 
@@ -183,7 +184,7 @@ export function DepthIcon() {
   const arrowSize = 3;
 
   return (
-    <Canvas style={{ width: SIZE, height: SIZE }}>
+    <StaticCanvas style={{ width: SIZE, height: SIZE }}>
       {/* Vertical line */}
       <Line
         p1={{ x: cx, y: top + arrowSize }}
@@ -226,7 +227,7 @@ export function DepthIcon() {
           strokeCap="round"
         />
       </Group>
-    </Canvas>
+    </StaticCanvas>
   );
 }
 

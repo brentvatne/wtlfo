@@ -1,6 +1,7 @@
 import React, { useState, useEffect, useCallback, useMemo } from 'react';
-import { View, StyleSheet, Pressable, Platform } from 'react-native';
-import { Canvas, Text as SkiaText, matchFont } from '@shopify/react-native-skia';
+import { View, StyleSheet, Pressable } from 'react-native';
+import { Canvas, Text as SkiaText } from '@shopify/react-native-skia';
+import { getValueFont, getLabelFont } from './utils/skiaFont';
 import {
   useSharedValue,
   useAnimatedReaction,
@@ -41,17 +42,8 @@ export function TimingInfo({
   const bpmOpacity = useSharedValue(1);
 
   // Skia fonts (same as DestinationMeter)
-  const valueFont = useMemo(() => matchFont({
-    fontFamily: Platform.select({ ios: 'Menlo', default: 'monospace' }),
-    fontSize: 14,
-    fontWeight: '700',
-  }), []);
-
-  const labelFont = useMemo(() => matchFont({
-    fontFamily: Platform.select({ ios: 'Helvetica Neue', default: 'sans-serif' }),
-    fontSize: 10,
-    fontWeight: '500',
-  }), []);
+  const valueFont = useMemo(() => getValueFont(14), []);
+  const labelFont = useMemo(() => getLabelFont(10), []);
 
   // SharedValues for dynamic displays
   const elapsedTimeMsShared = useSharedValue(0);
@@ -220,7 +212,7 @@ export function TimingInfo({
     'worklet';
     const text = bpmText.value;
     if (!text) return 0;
-    const textWidth = valueFont.measureText(text).width;
+    const textWidth = valueFont.getTextWidth(text);
     return (50 - textWidth) / 2;
   }, [bpmText, valueFont]);
 
@@ -228,14 +220,14 @@ export function TimingInfo({
     'worklet';
     const text = cycleText.value;
     if (!text) return 0;
-    const textWidth = valueFont.measureText(text).width;
+    const textWidth = valueFont.getTextWidth(text);
     return (60 - textWidth) / 2;
   }, [cycleText, valueFont]);
 
   const cycleLabelX = useDerivedValue(() => {
     'worklet';
     const text = cycleLabelText.value;
-    const textWidth = labelFont.measureText(text).width;
+    const textWidth = labelFont.getTextWidth(text);
     return (60 - textWidth) / 2;
   }, [cycleLabelText, labelFont]);
 
@@ -243,27 +235,27 @@ export function TimingInfo({
     'worklet';
     const text = stepsText.value;
     if (!text) return 0;
-    const textWidth = valueFont.measureText(text).width;
+    const textWidth = valueFont.getTextWidth(text);
     return (50 - textWidth) / 2;
   }, [stepsText, valueFont]);
 
   const stepsLabelX = useDerivedValue(() => {
     'worklet';
     const text = stepsLabelText.value;
-    const textWidth = labelFont.measureText(text).width;
+    const textWidth = labelFont.getTextWidth(text);
     return (50 - textWidth) / 2;
   }, [stepsLabelText, labelFont]);
 
   // Static text values - use actual font measurements
   // NOTE column uses dynamic width to prevent truncation of values like "128 bars"
   const noteText = noteValue ?? '';
-  const noteTextWidth = noteText ? valueFont.measureText(noteText).width : 0;
-  const noteLabelWidth = labelFont.measureText('NOTE').width;
+  const noteTextWidth = noteText ? valueFont.getTextWidth(noteText) : 0;
+  const noteLabelWidth = labelFont.getTextWidth('NOTE');
   const noteCanvasWidth = Math.max(50, Math.ceil(noteTextWidth) + 4, Math.ceil(noteLabelWidth) + 4);
   const noteTextX = noteText ? (noteCanvasWidth - noteTextWidth) / 2 : 0;
   const noteLabelX = (noteCanvasWidth - noteLabelWidth) / 2;
 
-  const bpmLabelX = (50 - labelFont.measureText('BPM').width) / 2;
+  const bpmLabelX = (50 - labelFont.getTextWidth('BPM')) / 2;
 
   // Destination value display - cycles through VALUE/MIN/MAX on tap
   const handleDestPress = useCallback(() => {
@@ -294,14 +286,14 @@ export function TimingInfo({
     'worklet';
     const text = destText.value;
     if (!text) return 0;
-    const textWidth = valueFont.measureText(text).width;
+    const textWidth = valueFont.getTextWidth(text);
     return (50 - textWidth) / 2;
   }, [destText, valueFont]);
 
   const destLabelX = useDerivedValue(() => {
     'worklet';
     const text = destLabelText.value;
-    const textWidth = labelFont.measureText(text).width;
+    const textWidth = labelFont.getTextWidth(text);
     return (50 - textWidth) / 2;
   }, [destLabelText, labelFont]);
 
@@ -316,9 +308,9 @@ export function TimingInfo({
 
   // Calculate fade text X position - wider to accommodate longer values like "9.5s"
   const fadeCanvasWidth = 55;
-  const fadeTextWidth = fadeText ? valueFont.measureText(fadeText).width : 0;
+  const fadeTextWidth = fadeText ? valueFont.getTextWidth(fadeText) : 0;
   const fadeTextX = fadeText ? (fadeCanvasWidth - fadeTextWidth) / 2 : 0;
-  const fadeLabelWidth = labelFont.measureText('FADE').width;
+  const fadeLabelWidth = labelFont.getTextWidth('FADE');
   const fadeLabelX = (fadeCanvasWidth - fadeLabelWidth) / 2;
 
   return (

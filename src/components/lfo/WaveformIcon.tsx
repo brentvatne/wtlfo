@@ -1,6 +1,7 @@
 import React, { useMemo } from 'react';
 import { View, Text, StyleSheet, Platform } from 'react-native';
-import { Canvas, Path, Skia } from '@shopify/react-native-skia';
+import { Path, Skia } from '@shopify/react-native-skia';
+import { StaticCanvas } from '@/src/components/StaticCanvas';
 import type { WaveformType } from './types';
 
 // Import the waveform sampling function from the centralized worklets module
@@ -190,7 +191,7 @@ export function WaveformIcon({
       accessibilityLabel={WAVEFORM_LABELS[waveform]}
       accessibilityRole="image"
     >
-      <Canvas style={{ width: size, height: size }}>
+      <StaticCanvas style={{ width: size, height: size }}>
         <Path
           path={path}
           color={color}
@@ -199,7 +200,7 @@ export function WaveformIcon({
           strokeCap="round"
           strokeJoin="round"
         />
-      </Canvas>
+      </StaticCanvas>
     </View>
   );
 }
