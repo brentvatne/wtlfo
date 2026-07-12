@@ -15,6 +15,7 @@ import { useModulation } from '@/src/context/modulation-context';
 import { usePreset } from '@/src/context/preset-context';
 import { getDestination } from '@/src/data/destinations';
 import { colors } from '@/src/theme';
+import { WEB_MAX_CONTENT_WIDTH, webContentContainerStyle } from '@/src/theme/webLayout';
 import { useNavigation } from "expo-router/react-navigation";
 import { calculateTimingInfo } from 'elektron-lfo';
 import * as Haptics from 'expo-haptics';
@@ -23,7 +24,7 @@ import { markStartup } from '@/src/services/startup-timing';
 import { usePathname } from 'expo-router';
 import { SymbolView } from 'expo-symbols';
 import React, { useCallback, useEffect, useRef, useState } from 'react';
-import { AppState, StyleSheet, Text, View } from 'react-native';
+import { AppState, Platform, StyleSheet, Text, View } from 'react-native';
 import { Gesture, GestureDetector, ScrollView } from 'react-native-gesture-handler';
 import Animated, { Easing, useAnimatedReaction, useAnimatedStyle, useDerivedValue, useSharedValue, withDelay, withSequence, withTiming } from 'react-native-reanimated';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
@@ -107,8 +108,13 @@ export default function HomeScreen() {
     markInteractive();
     markStartup('startup.home_interactive');
     if (!__DEV__) {
-      // Defer path cache warming until browser is idle
-      requestIdleCallback(() => {
+      // Defer path cache warming until browser is idle.
+      // Safari < 18 has no requestIdleCallback - fall back to setTimeout.
+      const scheduleIdle =
+        typeof requestIdleCallback !== 'undefined'
+          ? requestIdleCallback
+          : (cb: () => void) => setTimeout(cb, 1);
+      scheduleIdle(() => {
         const warmStart = performance.now();
         warmPathCache([WAVEFORM_ICON_SIZES.PARAM_MODAL]);
         Observe.logEvent('startup.path_cache_warmed', {
@@ -254,8 +260,10 @@ export default function HomeScreen() {
   const activeDestination = getDestination(activeDestinationId);
   const hasDestination = activeDestination !== null;
 
-  // Calculate visualizer width - screen minus meter
-  const visualizerWidth = screenWidth - METER_WIDTH;
+  // Calculate visualizer width - screen (clamped to the web content column) minus meter
+  const contentWidth =
+    Platform.OS === 'web' ? Math.min(screenWidth, WEB_MAX_CONTENT_WIDTH) : screenWidth;
+  const visualizerWidth = contentWidth - METER_WIDTH;
 
   // Animated styles for fade effects
   const screenFadeStyle = useAnimatedStyle(() => ({
@@ -435,7 +443,7 @@ export default function HomeScreen() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: colors.background }}
-      contentContainerStyle={{ paddingBottom: 20 }}
+      contentContainerStyle={[{ paddingBottom: 20 }, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Animated.View style={screenFadeStyle}>
@@ -553,13 +561,13 @@ export default function HomeScreen() {
               {/* Feedback icons overlay - all rendered, visibility controlled by individual opacity */}
               <Animated.View style={[styles.feedbackOverlay, overlayBackgroundStyle]} pointerEvents="none">
                 <Animated.View style={[styles.feedbackIcon, pauseIconStyle]}>
-                  <SymbolView name="pause.fill" size={48} tintColor="#ffffff" />
+                  <SymbolView name={{ ios: 'pause.fill', web: 'pause' }} size={48} tintColor="#ffffff" />
                 </Animated.View>
                 <Animated.View style={[styles.feedbackIcon, playIconStyle]}>
-                  <SymbolView name="play.fill" size={48} tintColor="#ffffff" />
+                  <SymbolView name={{ ios: 'play.fill', web: 'play_arrow' }} size={48} tintColor="#ffffff" />
                 </Animated.View>
                 <Animated.View style={[styles.feedbackIcon, retriggerIconStyle]}>
-                  <SymbolView name="bolt.fill" size={48} tintColor="#ffffff" />
+                  <SymbolView name={{ ios: 'bolt.fill', web: 'bolt' }} size={48} tintColor="#ffffff" />
                 </Animated.View>
               </Animated.View>
             </Animated.View>

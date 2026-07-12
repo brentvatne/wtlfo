@@ -1,6 +1,6 @@
 import React, { useEffect, useState } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, StyleSheet, useWindowDimensions } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useNavigation } from 'expo-router';
 import { useAnimatedReaction } from 'react-native-reanimated';
@@ -14,12 +14,15 @@ import { InlineErrorBoundary } from '@/src/components/ErrorBoundary';
 import { DestinationMeter } from '@/src/components/destination/DestinationMeter';
 import { CenterValueSlider } from '@/src/components/destination/CenterValueSlider';
 import { colors } from '@/src/theme';
+import { WEB_MAX_CONTENT_WIDTH, webContentContainerStyle } from '@/src/theme/webLayout';
 
 export default function DestinationScreen() {
   useMarkInteractive();
   const navigation = useNavigation();
   const { width: screenWidth } = useWindowDimensions();
-  const visualizerWidth = screenWidth - 40;
+  const contentWidth =
+    Platform.OS === 'web' ? Math.min(screenWidth, WEB_MAX_CONTENT_WIDTH) : screenWidth;
+  const visualizerWidth = contentWidth - 40;
 
   const {
     currentConfig,
@@ -92,7 +95,7 @@ export default function DestinationScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       {/* Dual visualization: LFO + Meter side by side */}

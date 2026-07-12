@@ -1,9 +1,10 @@
 import { LFOKnobDemo } from '@/src/components/learn/LFOKnobDemo';
 import React from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { StyleSheet, Text, View } from 'react-native';
+import { Platform, StyleSheet, Text, View } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
+import { WEB_MAX_CONTENT_WIDTH, webContentContainerStyle } from '@/src/theme/webLayout';
 
 function Section({ title, children }: { title: string; children: React.ReactNode }) {
   return (
@@ -26,12 +27,14 @@ function BulletPoint({ children }: { children: string }) {
 export default function IntroScreen() {
   useMarkInteractive();
   const { width: frameWidth } = useSafeAreaFrame();
-  const demoWidth = frameWidth - 32;
+  const contentWidth =
+    Platform.OS === 'web' ? Math.min(frameWidth, WEB_MAX_CONTENT_WIDTH) : frameWidth;
+  const demoWidth = contentWidth - 32;
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <View style={styles.demoContainer}>

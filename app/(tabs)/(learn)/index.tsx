@@ -6,6 +6,7 @@ import { useRouter } from 'expo-router';
 import { useNavigation } from "expo-router/react-navigation";
 import Animated, { useSharedValue, useAnimatedStyle, withTiming, Easing } from 'react-native-reanimated';
 import { usePresetStable } from '@/src/context/preset-context';
+import { webContentContainerStyle } from '@/src/theme/webLayout';
 import {
   AboutIcon,
   QuestionWaveIcon,
@@ -173,7 +174,7 @@ function LearnIndexContent() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Animated.View style={screenFadeStyle}>

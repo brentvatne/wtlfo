@@ -1,8 +1,9 @@
 import React, { useMemo } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { useSafeAreaFrame } from 'react-native-safe-area-context';
+import { WEB_MAX_CONTENT_WIDTH, webContentContainerStyle } from '@/src/theme/webLayout';
 import { Canvas, Path, Skia } from '@shopify/react-native-skia';
 import { TimingDemo } from '@/src/components/learn/TimingDemo';
 
@@ -55,12 +56,14 @@ function Section({ title, children }: { title: string; children: React.ReactNode
 export default function TimingScreen() {
   useMarkInteractive();
   const { width: frameWidth } = useSafeAreaFrame();
-  const demoWidth = frameWidth - 32;
+  const contentWidth =
+    Platform.OS === 'web' ? Math.min(frameWidth, WEB_MAX_CONTENT_WIDTH) : frameWidth;
+  const demoWidth = contentWidth - 32;
 
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <View style={styles.demoContainer}>

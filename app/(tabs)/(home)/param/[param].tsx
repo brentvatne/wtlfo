@@ -1,15 +1,15 @@
 import React, { useEffect, useRef, useCallback } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, StyleSheet } from 'react-native';
+import { View, Text, StyleSheet, Platform, Pressable } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
-import { useLocalSearchParams, Stack } from 'expo-router';
+import { useLocalSearchParams, Stack, router } from 'expo-router';
 import type { Waveform, TriggerMode, Multiplier } from 'elektron-lfo';
 import { SegmentedControl, ParameterSlider } from '@/src/components/controls';
 import { usePreset } from '@/src/context/preset-context';
 import { WaveformIcon, type WaveformType } from '@/src/components/lfo';
 import { DestinationPickerInline } from '@/src/components/destination';
 import { colors } from '@/src/theme';
-import type { ParamKey } from '@/src/components/params/constants';
+import { PARAM_ORDER, PARAM_LABELS, getStartPhaseLabel, type ParamKey } from '@/src/components/params/constants';
 
 const WAVEFORMS: Waveform[] = ['TRI', 'SIN', 'SQR', 'SAW', 'EXP', 'RMP', 'RND'];
 const MODES: TriggerMode[] = ['FRE', 'TRG', 'HLD', 'ONE', 'HLF'];
@@ -312,7 +312,37 @@ export default function EditParamScreen() {
     }
   };
 
+  // Web modal drawers don't render the stack header, so recreate the
+  // native sheet's header (prev | title | next) inside the sheet on web
+  const currentIndex = PARAM_ORDER.indexOf(activeParam);
+  const prevParam = PARAM_ORDER[(currentIndex - 1 + PARAM_ORDER.length) % PARAM_ORDER.length];
+  const nextParam = PARAM_ORDER[(currentIndex + 1) % PARAM_ORDER.length];
+  const paramLabel = (param: ParamKey) =>
+    param === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[param];
+
   return (
+    <View style={styles.container}>
+      {Platform.OS === 'web' && (
+        <View style={styles.webHeader}>
+          <Pressable
+            onPress={() => router.setParams({ param: prevParam })}
+            accessibilityRole="button"
+            accessibilityLabel={`Previous parameter: ${paramLabel(prevParam)}`}
+            style={styles.webHeaderButton}
+          >
+            <Text style={styles.webHeaderButtonText}>‹ {paramLabel(prevParam)}</Text>
+          </Pressable>
+          <Text style={styles.webHeaderTitle}>{info.title}</Text>
+          <Pressable
+            onPress={() => router.setParams({ param: nextParam })}
+            accessibilityRole="button"
+            accessibilityLabel={`Next parameter: ${paramLabel(nextParam)}`}
+            style={[styles.webHeaderButton, styles.webHeaderButtonRight]}
+          >
+            <Text style={styles.webHeaderButtonText}>{paramLabel(nextParam)} ›</Text>
+          </Pressable>
+        </View>
+      )}
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -351,6 +381,7 @@ export default function EditParamScreen() {
         </View>
       )}
     </ScrollView>
+    </View>
   );
 }
 
@@ -370,6 +401,36 @@ const styles = StyleSheet.create({
     fontSize: 16,
     textAlign: 'center',
     marginTop: 40,
+  },
+  // Web-only sheet header (stands in for the native formSheet header)
+  webHeader: {
+    flexDirection: 'row',
+    alignItems: 'center',
+    justifyContent: 'space-between',
+    backgroundColor: '#1a1a1a',
+    paddingHorizontal: 8,
+    paddingVertical: 10,
+    borderTopLeftRadius: 12,
+    borderTopRightRadius: 12,
+  },
+  webHeaderButton: {
+    minWidth: 90,
+    paddingHorizontal: 8,
+    paddingVertical: 4,
+  },
+  webHeaderButtonRight: {
+    alignItems: 'flex-end',
+  },
+  webHeaderButtonText: {
+    color: '#ff6600',
+    fontSize: 15,
+  },
+  webHeaderTitle: {
+    color: '#ffffff',
+    fontSize: 16,
+    fontWeight: '600',
+    textAlign: 'center',
+    flex: 1,
   },
   description: {
     color: '#cccccc',

@@ -2,6 +2,7 @@ import React from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
 import { View, Text, StyleSheet } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { webContentContainerStyle } from '@/src/theme/webLayout';
 
 const POPULAR_COMBOS = [
   { dest: 'Filter Cutoff', effect: 'Classic synth sweep' },
@@ -17,7 +18,7 @@ export default function DestinationsScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Text style={styles.intro}>

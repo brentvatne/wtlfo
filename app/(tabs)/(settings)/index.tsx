@@ -1,6 +1,6 @@
 import React, { useEffect, useRef, useState } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator } from 'react-native';
+import { View, Text, Pressable, Switch, StyleSheet, Alert, ActivityIndicator, Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
 import { router, usePathname } from 'expo-router';
 import { useNavigation } from "expo-router/react-navigation";
@@ -31,10 +31,15 @@ import {
 import { useMidi } from '@/src/context/midi-context';
 import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
 import { ParameterSlider } from '@/src/components/controls';
+import { webContentContainerStyle } from '@/src/theme/webLayout';
 
 const COMMON_BPMS = [90, 100, 120, 130, 140];
 
 function getAppVersion() {
+  // expo-application returns null for native versions on web
+  if (Platform.OS === 'web') {
+    return Application.nativeApplicationVersion ?? 'web';
+  }
   const version = Application.nativeApplicationVersion ?? '1.0.0';
   const build = Application.nativeBuildVersion;
   return build ? `${version} (${build})` : version;
@@ -266,14 +271,14 @@ function SettingsScreenContent() {
   return (
     <ScrollView
       style={{ flex: 1, backgroundColor: '#0a0a0a' }}
-      contentContainerStyle={{ padding: 20 }}
+      contentContainerStyle={[{ padding: 20 }, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Animated.View style={screenFadeStyle}>
       <Animated.View style={styles.section} layout={LinearTransition.duration(250)}>
         <View style={styles.sectionHeader}>
           <View style={styles.sectionHeaderTitleRow}>
-            <SymbolView name="metronome" size={16} tintColor="#ff6600" />
+            <SymbolView name={{ ios: 'metronome', web: 'speed' }} size={16} tintColor="#ff6600" />
             <Text style={styles.sectionHeaderTitle}>Tempo</Text>
           </View>
           {midiClockActive && (
@@ -282,7 +287,7 @@ function SettingsScreenContent() {
               entering={FadeIn.duration(200)}
               exiting={FadeOut.duration(150)}
             >
-              <SymbolView name="link" size={12} tintColor="#ff6600" />
+              <SymbolView name={{ ios: 'link', web: 'link' }} size={12} tintColor="#ff6600" />
               <Text style={styles.midiClockText}>MIDI</Text>
             </Animated.View>
           )}
@@ -342,7 +347,7 @@ function SettingsScreenContent() {
         )}
       </Animated.View>
 
-      <CollapsibleSection title="Visualization" icon={<SymbolView name="waveform.path.ecg" size={16} tintColor="#ff6600" />} defaultCollapsed>
+      <CollapsibleSection title="Visualization" icon={<SymbolView name={{ ios: 'waveform.path.ecg', web: 'ecg' }} size={16} tintColor="#ff6600" />} defaultCollapsed>
         <View style={styles.settingRow}>
           <View style={styles.settingTextContainer}>
             <Text style={styles.settingLabel}>Fade in on tab switch</Text>
@@ -415,7 +420,7 @@ function SettingsScreenContent() {
         </View>
       </CollapsibleSection>
 
-      <CollapsibleSection title="Animation timing" icon={<SymbolView name="timer" size={16} tintColor="#ff6600" />} defaultCollapsed>
+      <CollapsibleSection title="Animation timing" icon={<SymbolView name={{ ios: 'timer', web: 'timer' }} size={16} tintColor="#ff6600" />} defaultCollapsed>
         <ParameterSlider
           label="Tab switch fade-in"
           min={100}
@@ -508,7 +513,7 @@ function SettingsScreenContent() {
 
       {/* Hide the whole section when it would be empty (MIDI hidden, prod build) */}
       {(MIDI_FEATURES_ENABLED || __DEV__) && (
-      <CollapsibleSection title="Experimental" icon={<SymbolView name="flask" size={16} tintColor="#ff6600" />} defaultCollapsed>
+      <CollapsibleSection title="Experimental" icon={<SymbolView name={{ ios: 'flask', web: 'science' }} size={16} tintColor="#ff6600" />} defaultCollapsed>
         {MIDI_FEATURES_ENABLED && (
           <Pressable
             style={styles.linkRow}
@@ -554,7 +559,16 @@ function SettingsScreenContent() {
       )}
 
       {/* Version and Update Info */}
+      {/* expo-updates is inert on web (always reports no update), so the
+          update-check affordance is hidden there - version display only. */}
       <Animated.View layout={LinearTransition.duration(250)}>
+        {Platform.OS === 'web' ? (
+          <View style={styles.versionContainer}>
+            <Text style={styles.versionText}>
+              v{getAppVersion()}
+            </Text>
+          </View>
+        ) : (
         <Pressable
           style={styles.versionContainer}
           onPress={handleCheckUpdate}
@@ -581,6 +595,7 @@ function SettingsScreenContent() {
             </Text>
           )}
         </Pressable>
+        )}
       </Animated.View>
       </Animated.View>
     </ScrollView>

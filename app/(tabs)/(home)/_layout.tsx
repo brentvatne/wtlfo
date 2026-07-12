@@ -1,4 +1,6 @@
 import { Stack, router, useGlobalSearchParams } from 'expo-router';
+import { Platform, Pressable, Text } from 'react-native';
+import { useWebContentInset } from '@/src/theme/webLayout';
 import { usePresetStable } from '@/src/context/preset-context';
 import { useMidi } from '@/src/context/midi-context';
 import { MIDI_FEATURES_ENABLED } from '@/src/config/features';
@@ -13,6 +15,9 @@ export default function HomeLayout() {
   // waveform actually changes, so this layout skips per-drag-tick renders
   const { preset, waveform } = usePresetStable();
   const { autoConnect, connected, digitaktAvailable } = useMidi();
+  // On web the header bar spans the full viewport but its content should
+  // align with the centered max-width content column
+  const webInset = useWebContentInset();
 
   const midiIcon = connected ? 'link' : digitaktAvailable ? 'link' : 'link.badge.plus';
   const midiColor = connected ? '#22c55e' : digitaktAvailable ? '#ff6600' : '#666666';
@@ -45,7 +50,26 @@ export default function HomeLayout() {
         },
       }}
     >
-      <Stack.Screen name="index" options={{ title: preset?.name || 'LFO' }}>
+      <Stack.Screen
+        name="index"
+        options={{
+          title: preset?.name || 'LFO',
+          // Stack.Toolbar renders nothing on web, and this button is the only
+          // entry point to the presets sheet - fall back to a header button
+          ...(Platform.OS === 'web' && {
+            headerLeft: () => (
+              <Pressable
+                onPress={() => router.push('/presets')}
+                accessibilityRole="button"
+                accessibilityLabel="Load preset"
+                style={{ paddingHorizontal: 12, paddingVertical: 4, marginLeft: webInset }}
+              >
+                <Text style={{ color: '#ff6600', fontSize: 20 }}>☰</Text>
+              </Pressable>
+            ),
+          }),
+        }}
+      >
         <Stack.Toolbar placement="left">
           <Stack.Toolbar.Button
             icon="list.bullet"
@@ -81,6 +105,8 @@ export default function HomeLayout() {
           sheetInitialDetentIndex: 1,
           headerStyle: { backgroundColor: '#1a1a1a' },
           contentStyle: { backgroundColor: '#0a0a0a' },
+          // Note: on web the modal drawer renders no stack header - the
+          // param screen draws its own in-sheet header with prev/next nav
         }}
       >
         {prevParam && (

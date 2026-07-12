@@ -1,7 +1,8 @@
 import React, { useEffect } from 'react';
 import { useMarkInteractive } from '@/src/hooks/useMarkInteractive';
-import { View, Text, StyleSheet, useWindowDimensions, AppState } from 'react-native';
+import { View, Text, StyleSheet, useWindowDimensions, AppState, Platform } from 'react-native';
 import { ScrollView } from 'react-native-gesture-handler';
+import { WEB_MAX_CONTENT_WIDTH, webContentContainerStyle } from '@/src/theme/webLayout';
 import { useNavigation } from 'expo-router/react-navigation';
 import { useSharedValue } from 'react-native-reanimated';
 import type { SharedValue } from 'react-native-reanimated';
@@ -143,7 +144,9 @@ export default function WaveformsScreen() {
   useMarkInteractive();
   const navigation = useNavigation();
   const { width: screenWidth } = useWindowDimensions();
-  const cardWidth = screenWidth - 32;
+  const contentWidth =
+    Platform.OS === 'web' ? Math.min(screenWidth, WEB_MAX_CONTENT_WIDTH) : screenWidth;
+  const cardWidth = contentWidth - 32;
 
   // Single phase SharedValue driving all seven waveform previews
   const phase = useSharedValue(0);
@@ -246,7 +249,7 @@ export default function WaveformsScreen() {
   return (
     <ScrollView
       style={styles.container}
-      contentContainerStyle={styles.content}
+      contentContainerStyle={[styles.content, webContentContainerStyle]}
       contentInsetAdjustmentBehavior="automatic"
     >
       <Text style={styles.intro}>
