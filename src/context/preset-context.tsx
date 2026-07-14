@@ -533,6 +533,23 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     frameCallback.setActive(false);
   }, [frameCallback]);
 
+  // Start the JS-thread output loop. Phase is driven by the precomputed
+  // UI-thread frame callback, so this loop only pushes the engine's output and
+  // fadeMultiplier into their SharedValues each frame. The rAF id is stored in
+  // animationRef so the lifecycle effects below can cancel it. Callers guard on
+  // animationRef.current before starting so loops don't stack.
+  const startOutputLoop = useCallback(() => {
+    const animate = (timestamp: number) => {
+      if (lfoRef.current) {
+        const state = lfoRef.current.update(timestamp);
+        lfoOutput.value = state.output;
+        lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
+      }
+      animationRef.current = requestAnimationFrame(animate);
+    };
+    animationRef.current = requestAnimationFrame(animate);
+  }, [lfoOutput, lfoFadeMultiplier]);
+
   // Ref to track isEditing for coordination (avoids stale closure issues)
   const isEditingRef = useRef(false);
   // Ref to track if we've already handled config change in this cycle (prevents double trigger)
@@ -615,16 +632,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
       // Restart animation loop if it was stopped (for output/fadeMultiplier updates)
       if (animationRef.current === 0 && hasMainLoopStarted.current && !isPausedRef.current) {
-        const animate = (timestamp: number) => {
-          if (lfoRef.current) {
-            const state = lfoRef.current.update(timestamp);
-            // Phase is driven by precomputed animation
-            lfoOutput.value = state.output;
-            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-          }
-          animationRef.current = requestAnimationFrame(animate);
-        };
-        animationRef.current = requestAnimationFrame(animate);
+        startOutputLoop();
       }
     }
 
@@ -633,7 +641,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
         clearTimeout(fadeOutTimeoutRef.current);
       }
     };
-  }, [isEditing, editFadeOutDuration, resetLFOOnChange, currentConfig, effectiveBpm, lfoOutput, startPhaseAnimation, stopPhaseAnimation, lfoCycleCount]);
+  }, [isEditing, editFadeOutDuration, resetLFOOnChange, currentConfig, effectiveBpm, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, startOutputLoop, lfoCycleCount]);
 
   // Handle pause/unpause state changes
   // This handles tab switches, manual pause, and returning from background
@@ -671,18 +679,10 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
 
       // Also restart the rAF loop if it was stopped (e.g., from background)
       if (animationRef.current === 0) {
-        const animate = (timestamp: number) => {
-          if (lfoRef.current) {
-            const state = lfoRef.current.update(timestamp);
-            lfoOutput.value = state.output;
-            lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-          }
-          animationRef.current = requestAnimationFrame(animate);
-        };
-        animationRef.current = requestAnimationFrame(animate);
+        startOutputLoop();
       }
     }
-  }, [isPaused, lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, timingInfo.cycleTimeMs, currentConfig.mode, currentConfig.startPhase]);
+  }, [isPaused, lfoPhase, startPhaseAnimation, stopPhaseAnimation, startOutputLoop, timingInfo.cycleTimeMs, currentConfig.mode, currentConfig.startPhase]);
 
   // Recreate LFO when debounced config changes (after initial creation)
   // Skip on first render - LFO is already created synchronously above
@@ -739,24 +739,14 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
       startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
     }
 
-    const animate = (timestamp: number) => {
-      if (lfoRef.current) {
-        const state = lfoRef.current.update(timestamp);
-        // Phase is now driven by precomputed animation, not engine
-        // Only update output and fadeMultiplier from engine
-        lfoOutput.value = state.output;
-        lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-      }
-      animationRef.current = requestAnimationFrame(animate);
-    };
-    animationRef.current = requestAnimationFrame(animate);
+    startOutputLoop();
 
     return () => {
       cancelAnimationFrame(animationRef.current);
       // Note: Don't stop phase animation here - useFrameCallback handles its own lifecycle
       // and stopping it here would prevent it from running when switching tabs
     };
-  }, [lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, currentConfig.startPhase, timingInfo.cycleTimeMs]);
+  }, [lfoPhase, startPhaseAnimation, startOutputLoop, currentConfig.startPhase, timingInfo.cycleTimeMs]);
 
   // Pause animation loop when app goes to background to save battery
   useEffect(() => {
@@ -806,16 +796,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
               const startPhase = currentConfig.startPhase / 128;
               startPhaseAnimation(startPhase, timingInfo.cycleTimeMs, currentConfig.mode);
               // Restart the animation loop for output/fadeMultiplier
-              const animate = (timestamp: number) => {
-                if (lfoRef.current) {
-                  const state = lfoRef.current.update(timestamp);
-                  // Phase is driven by precomputed animation
-                  lfoOutput.value = state.output;
-                  lfoFadeMultiplier.value = state.fadeMultiplier ?? 1;
-                }
-                animationRef.current = requestAnimationFrame(animate);
-              };
-              animationRef.current = requestAnimationFrame(animate);
+              startOutputLoop();
             }
           }, 50);
         }
@@ -830,7 +811,7 @@ export function PresetProvider({ children }: { children: React.ReactNode }) {
     return () => {
       subscription.remove();
     };
-  }, [lfoPhase, lfoOutput, lfoFadeMultiplier, startPhaseAnimation, stopPhaseAnimation, currentConfig.startPhase, timingInfo.cycleTimeMs]);
+  }, [lfoPhase, startPhaseAnimation, stopPhaseAnimation, startOutputLoop, currentConfig.startPhase, timingInfo.cycleTimeMs]);
 
   // LFO control methods
   const triggerLFO = useCallback(() => {
