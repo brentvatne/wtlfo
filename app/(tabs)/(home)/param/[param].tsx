@@ -320,29 +320,7 @@ export default function EditParamScreen() {
   const paramLabel = (param: ParamKey) =>
     param === 'startPhase' ? getStartPhaseLabel(currentConfig.waveform) : PARAM_LABELS[param];
 
-  return (
-    <View style={styles.container}>
-      {Platform.OS === 'web' && (
-        <View style={styles.webHeader}>
-          <Pressable
-            onPress={() => router.setParams({ param: prevParam })}
-            accessibilityRole="button"
-            accessibilityLabel={`Previous parameter: ${paramLabel(prevParam)}`}
-            style={styles.webHeaderButton}
-          >
-            <Text style={styles.webHeaderButtonText}>‹ {paramLabel(prevParam)}</Text>
-          </Pressable>
-          <Text style={styles.webHeaderTitle}>{info.title}</Text>
-          <Pressable
-            onPress={() => router.setParams({ param: nextParam })}
-            accessibilityRole="button"
-            accessibilityLabel={`Next parameter: ${paramLabel(nextParam)}`}
-            style={[styles.webHeaderButton, styles.webHeaderButtonRight]}
-          >
-            <Text style={styles.webHeaderButtonText}>{paramLabel(nextParam)} ›</Text>
-          </Pressable>
-        </View>
-      )}
+  const scrollContent = (
     <ScrollView
       style={styles.container}
       contentContainerStyle={styles.content}
@@ -381,6 +359,38 @@ export default function EditParamScreen() {
         </View>
       )}
     </ScrollView>
+  );
+
+  // Native: the ScrollView is the sheet's root child. Wrapping it in an extra
+  // flex:1 View collapses to zero height inside an iOS formSheet (the sheet
+  // gives a plain flex child no bounded height), hiding all form content.
+  // Only web needs the wrapper, for the in-sheet header the web drawer lacks.
+  if (Platform.OS !== 'web') {
+    return scrollContent;
+  }
+
+  return (
+    <View style={styles.container}>
+      <View style={styles.webHeader}>
+        <Pressable
+          onPress={() => router.setParams({ param: prevParam })}
+          accessibilityRole="button"
+          accessibilityLabel={`Previous parameter: ${paramLabel(prevParam)}`}
+          style={styles.webHeaderButton}
+        >
+          <Text style={styles.webHeaderButtonText}>‹ {paramLabel(prevParam)}</Text>
+        </Pressable>
+        <Text style={styles.webHeaderTitle}>{info.title}</Text>
+        <Pressable
+          onPress={() => router.setParams({ param: nextParam })}
+          accessibilityRole="button"
+          accessibilityLabel={`Next parameter: ${paramLabel(nextParam)}`}
+          style={[styles.webHeaderButton, styles.webHeaderButtonRight]}
+        >
+          <Text style={styles.webHeaderButtonText}>{paramLabel(nextParam)} ›</Text>
+        </Pressable>
+      </View>
+      {scrollContent}
     </View>
   );
 }

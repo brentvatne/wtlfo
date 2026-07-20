@@ -48,3 +48,6 @@ app-example
 
 # local env (see .env.example)
 .env
+
+# eas-cli-managed simulator session dotenv (holds a session token - never commit)
+.env.eas-simulator

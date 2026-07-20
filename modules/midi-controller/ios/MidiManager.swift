@@ -1,5 +1,6 @@
 import CoreMIDI
 import Foundation
+import QuartzCore  // CACurrentMediaTime
 
 enum MidiError: Error {
     case clientCreationFailed(OSStatus)
@@ -32,6 +33,12 @@ class MidiManager {
     private var beatDurations: [Double] = []   // Beat durations in ms
     private var ticksInCurrentBeat: UInt64 = 0
     private var lastReportedBpm: Double = 0
+
+    // Guards the BPM-measurement state above. MIDI events are read on a
+    // CoreMIDI callback thread while disconnect()/OnDestroy run on the main
+    // thread; without this, concurrent mutation of the beatDurations array
+    // (append/removeFirst vs removeAll) is a data race that can crash.
+    private let bpmStateLock = NSLock()
 
     // For converting host ticks to milliseconds
     private var timebaseInfo: mach_timebase_info_data_t = {
@@ -140,6 +147,14 @@ class MidiManager {
         connectedDestination = 0
         isTransportRunning = false
         clockTickCount = 0
+        resetBpmState()
+    }
+
+    /// Reset the BPM-measurement state under the lock. Safe to call from the
+    /// main thread (disconnect) or the MIDI thread (transport Start).
+    private func resetBpmState() {
+        bpmStateLock.lock()
+        defer { bpmStateLock.unlock() }
         bpm = 0
         beatDurations.removeAll()
         lastBeatTimestamp = 0
@@ -158,56 +173,66 @@ class MidiManager {
 
             for _ in 0..<list.numPackets {
                 let packet = packetPtr.pointee
+                let wordCount = Int(packet.wordCount)
 
-                if packet.wordCount > 0 {
-                    // Extract status from UMP (Universal MIDI Packet)
-                    let word = packet.words.0
-                    let messageType = (word >> 28) & 0xF
+                // A single MIDIEventPacket can carry multiple 32-bit UMP words -
+                // CoreMIDI coalesces messages, and clock ticks in particular
+                // arrive several to a packet. Each MIDI 1.0 UMP message is exactly
+                // one word, so we must process every word; reading only words.0
+                // silently dropped batched clock ticks (skewing BPM) and CC
+                // messages queued behind them.
+                if wordCount > 0 {
+                    withUnsafePointer(to: packet.words) { wordsTuplePtr in
+                        wordsTuplePtr.withMemoryRebound(to: UInt32.self, capacity: wordCount) { words in
+                            for w in 0..<wordCount {
+                                let word = words[w]
+                                let messageType = (word >> 28) & 0xF
 
-                    // System Real Time messages (type 0xF in UMP for system messages)
-                    // For MIDI 1.0 protocol, real-time messages come as type 0x1
-                    if messageType == 0x1 || messageType == 0xF {
-                        let status = UInt8((word >> 16) & 0xFF)
+                                // System Real Time messages (type 0xF in UMP for system messages)
+                                // For MIDI 1.0 protocol, real-time messages come as type 0x1
+                                if messageType == 0x1 || messageType == 0xF {
+                                    let status = UInt8((word >> 16) & 0xFF)
 
-                        switch status {
-                        case 0xF8: // Clock
-                            clockTickCount += 1
-                            // Use packet timestamp for accurate timing
-                            calculateBpm(packetTimestamp: packet.timeStamp)
-                            if let newBpm = checkBpmChange() {
-                                bpmChanged = newBpm
+                                    switch status {
+                                    case 0xF8: // Clock
+                                        clockTickCount += 1
+                                        // Use packet timestamp for accurate timing
+                                        calculateBpm(packetTimestamp: packet.timeStamp)
+                                        if let newBpm = checkBpmChange() {
+                                            bpmChanged = newBpm
+                                        }
+                                    case 0xFA: // Start
+                                        clockTickCount = 0
+                                        resetBpmState()
+                                        isTransportRunning = true
+                                        transportMessage = "start"
+                                    case 0xFB: // Continue
+                                        isTransportRunning = true
+                                        transportMessage = "continue"
+                                    case 0xFC: // Stop
+                                        isTransportRunning = false
+                                        transportMessage = "stop"
+                                    default:
+                                        break
+                                    }
+                                }
+
+                                // MIDI 1.0 Channel Voice Messages (type 0x2 in UMP)
+                                if messageType == 0x2 {
+                                    let status = UInt8((word >> 16) & 0xFF)
+                                    let data1 = UInt8((word >> 8) & 0x7F)
+                                    let data2 = UInt8(word & 0x7F)
+
+                                    // Control Change: status 0xB0-0xBF
+                                    if status >= 0xB0 && status <= 0xBF {
+                                        let channel = status & 0x0F
+                                        let ccNumber = data1
+                                        let ccValue = data2
+                                        let timestamp = CACurrentMediaTime() * 1000.0  // Convert to milliseconds
+                                        ccEvents.append((channel, ccNumber, ccValue, timestamp))
+                                    }
+                                }
                             }
-                        case 0xFA: // Start
-                            clockTickCount = 0
-                            beatDurations.removeAll()
-                            lastBeatTimestamp = 0
-                            ticksInCurrentBeat = 0
-                            isTransportRunning = true
-                            transportMessage = "start"
-                        case 0xFB: // Continue
-                            isTransportRunning = true
-                            transportMessage = "continue"
-                        case 0xFC: // Stop
-                            isTransportRunning = false
-                            transportMessage = "stop"
-                        default:
-                            break
-                        }
-                    }
-
-                    // MIDI 1.0 Channel Voice Messages (type 0x2 in UMP)
-                    if messageType == 0x2 {
-                        let status = UInt8((word >> 16) & 0xFF)
-                        let data1 = UInt8((word >> 8) & 0x7F)
-                        let data2 = UInt8(word & 0x7F)
-
-                        // Control Change: status 0xB0-0xBF
-                        if status >= 0xB0 && status <= 0xBF {
-                            let channel = status & 0x0F
-                            let ccNumber = data1
-                            let ccValue = data2
-                            let timestamp = CACurrentMediaTime() * 1000.0  // Convert to milliseconds
-                            ccEvents.append((channel, ccNumber, ccValue, timestamp))
                         }
                     }
                 }
@@ -241,6 +266,9 @@ class MidiManager {
     /// 2. Measures full beat durations (24 ticks) to average out per-tick jitter
     /// 3. Snaps to common BPM values to avoid display flicker
     private func calculateBpm(packetTimestamp: MIDITimeStamp) {
+        bpmStateLock.lock()
+        defer { bpmStateLock.unlock() }
+
         ticksInCurrentBeat += 1
 
         // Every 24 ticks = 1 beat
@@ -290,6 +318,9 @@ class MidiManager {
     }
 
     private func checkBpmChange() -> Double? {
+        bpmStateLock.lock()
+        defer { bpmStateLock.unlock() }
+
         // Hysteresis: only report if BPM changed by >= 1.5 to avoid jitter-induced flicker
         // Also report on first valid BPM (when lastReportedBpm is 0)
         if lastReportedBpm == 0 || abs(bpm - lastReportedBpm) >= 1.5 {
